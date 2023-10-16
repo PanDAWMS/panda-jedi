@@ -1,14 +1,12 @@
 # logger
-from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-from pandajedi.jedirefine import RefinerUtils
-from pandajedi.jediorder.TaskRefiner import TaskRefiner
-
-from pandajedi.jediddm.DDMInterface import DDMInterface
-
 import sys
+
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jediddm.DDMInterface import DDMInterface
+from pandajedi.jediorder.TaskRefiner import TaskRefiner
+from pandajedi.jedirefine import RefinerUtils
 
 logger = PandaLogger().getLogger("TaskRefiner")
 tmpLog = MsgWrapper(logger)

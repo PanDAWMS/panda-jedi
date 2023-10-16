@@ -1,8 +1,8 @@
+import datetime
+import random
 import re
 import sys
 import time
-import datetime
-import random
 import traceback
 
 from six import iteritems
@@ -15,10 +15,11 @@ except ImportError:
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from .PostProcessorBase import PostProcessorBase
-from .MailTemplates import html_head, jedi_task_html_body, jedi_task_plain
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer import EventServiceUtils
+
+from .MailTemplates import html_head, jedi_task_html_body, jedi_task_plain
+from .PostProcessorBase import PostProcessorBase
 
 
 def format_weight(weight):

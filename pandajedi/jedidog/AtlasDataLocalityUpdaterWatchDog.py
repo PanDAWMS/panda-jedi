@@ -1,17 +1,16 @@
-import os
-import sys
-import re
 import datetime
+import os
+import re
 import socket
+import sys
 import traceback
-
-from .WatchDogBase import WatchDogBase
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
+
+from .WatchDogBase import WatchDogBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

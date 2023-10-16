@@ -6,9 +6,8 @@ work queue specification
 import re
 import types
 
-from six import iteritems
-
 from pandaserver.taskbuffer.GlobalShares import Share
+from six import iteritems
 
 RESOURCE = "Resource"
 ACTIVE_FUNCTIONS = [RESOURCE]

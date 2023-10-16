@@ -1,8 +1,7 @@
-from pandajedi.jedicore.FactoryBase import FactoryBase
-from pandajedi.jediconfig import jedi_config
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore.FactoryBase import FactoryBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

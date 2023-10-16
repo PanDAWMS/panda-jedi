@@ -1,11 +1,11 @@
 import re
 import sys
 
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .TypicalWatchDogBase import TypicalWatchDogBase
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+
+from .TypicalWatchDogBase import TypicalWatchDogBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

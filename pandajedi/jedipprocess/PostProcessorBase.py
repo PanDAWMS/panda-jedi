@@ -1,7 +1,7 @@
-import uuid
-import time
-import smtplib
 import datetime
+import smtplib
+import time
+import uuid
 
 from pandajedi.jedicore import Interaction
 from pandaserver.config import panda_config

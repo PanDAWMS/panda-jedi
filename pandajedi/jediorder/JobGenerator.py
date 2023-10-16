@@ -1,12 +1,12 @@
-import re
-import os
-import sys
-import time
 import copy
+import datetime
+import os
+import random
+import re
 import signal
 import socket
-import random
-import datetime
+import sys
+import time
 import traceback
 
 from six import iteritems
@@ -21,31 +21,31 @@ try:
 except ImportError:
     from urllib import unquote
 
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread, MapWithLock
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedicore import ParseJobXML
-from pandajedi.jedicore import JediCoreUtils
-from pandajedi.jedirefine import RefinerUtils
-
-from pandaserver.taskbuffer.JobSpec import JobSpec
-from pandaserver.taskbuffer.FileSpec import FileSpec
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.userinterface import Client as PandaClient
-
-from .JobThrottler import JobThrottler
-from .JobBroker import JobBroker
-from .JobSplitter import JobSplitter
-from .TaskSetupper import TaskSetupper
-from .JediKnight import JediKnight
-
-from pandajedi.jediconfig import jedi_config
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction, JediCoreUtils, ParseJobXML
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import (
+    ListWithLock,
+    MapWithLock,
+    ThreadPool,
+    WorkerThread,
+)
+from pandajedi.jedirefine import RefinerUtils
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+from pandaserver.taskbuffer.FileSpec import FileSpec
+from pandaserver.taskbuffer.JobSpec import JobSpec
+from pandaserver.userinterface import Client as PandaClient
+
+from .JediKnight import JediKnight
+from .JobBroker import JobBroker
+from .JobSplitter import JobSplitter
+from .JobThrottler import JobThrottler
+from .TaskSetupper import TaskSetupper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
@@ -757,11 +757,11 @@ class JobGeneratorThread(WorkerThread):
                             unprocessedMap = dict()
                             while iJobs < len(pandaJobs):
                                 tmpResSubmit, esJobsetMap, unprocessedMap = self.taskBufferIF.storeJobs(
-                                    pandaJobs[iJobs: iJobs + nJobsInBunch],
+                                    pandaJobs[iJobs : iJobs + nJobsInBunch],
                                     taskSpec.userName,
                                     fqans=fqans,
                                     toPending=True,
-                                    oldPandaIDs=oldPandaIDs[iJobs: iJobs + nJobsInBunch],
+                                    oldPandaIDs=oldPandaIDs[iJobs : iJobs + nJobsInBunch],
                                     relationType=relationType,
                                     esJobsetMap=esJobsetMap,
                                     getEsJobsetMap=True,
@@ -1335,7 +1335,7 @@ class JobGeneratorThread(WorkerThread):
                             for tmpDatasetSpec, tmpFileSpecList in inSubChunk:
                                 if not tmpDatasetSpec.isMaster():
                                     try:
-                                        middleName = "." + ".".join(tmpFileSpecList[0].lfn.split(".")[4: 4 + len(taskSpec.getFieldNumToLFN())])
+                                        middleName = "." + ".".join(tmpFileSpecList[0].lfn.split(".")[4 : 4 + len(taskSpec.getFieldNumToLFN())])
                                     except Exception:
                                         pass
                                     break
@@ -1598,7 +1598,7 @@ class JobGeneratorThread(WorkerThread):
                             taskSpec.getNumSitesPerJob(),
                             parallelOutMap,
                             outDsMap,
-                            oldPandaIDs[len(jobSpecList):],
+                            oldPandaIDs[len(jobSpecList) :],
                             taskSpec,
                             inputChunk,
                             tmpMasterEventsList,
@@ -1631,9 +1631,11 @@ class JobGeneratorThread(WorkerThread):
         try:
             datasetToRegister = []
             # get sites which share DDM endpoint
-            associatedSites = sorted(DataServiceUtils.getSitesShareDDM(
-                self.siteMapper, siteName, taskSpec.prodSourceLabel, JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType), True
-            ))
+            associatedSites = sorted(
+                DataServiceUtils.getSitesShareDDM(
+                    self.siteMapper, siteName, taskSpec.prodSourceLabel, JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType), True
+                )
+            )
             # key for map of buildSpec
             secondKey = [siteName] + associatedSites
             secondKey.sort()

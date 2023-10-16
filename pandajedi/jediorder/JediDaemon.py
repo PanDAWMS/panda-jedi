@@ -1,8 +1,6 @@
 from pandacommon.pandalogger import logger_utils
-
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedidaemons.utils import DaemonMaster
-
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])

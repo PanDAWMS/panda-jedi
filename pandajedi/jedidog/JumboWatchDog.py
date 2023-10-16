@@ -1,11 +1,10 @@
 import os
-import sys
 import socket
+import sys
 import traceback
 
-from six import iteritems
-
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from six import iteritems
 
 
 # watchdog to take actions for jumbo jobs

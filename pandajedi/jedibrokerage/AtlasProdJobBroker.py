@@ -1,6 +1,6 @@
-import re
 import copy
 import datetime
+import re
 
 from six import iteritems
 
@@ -9,19 +9,18 @@ try:
 except Exception:
     long = int
 
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.SiteCandidate import SiteCandidate
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
-from .JobBrokerBase import JobBrokerBase
-from . import AtlasBrokerUtils
-from pandaserver.dataservice import DataServiceUtils
 from dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import EventServiceUtils
-from pandaserver.taskbuffer import JobUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+
+from . import AtlasBrokerUtils
+from .JobBrokerBase import JobBrokerBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

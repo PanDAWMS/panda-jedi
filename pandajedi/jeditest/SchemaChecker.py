@@ -4,13 +4,12 @@ If there is an issue and the pandaEmailNotification var is
 defined in panda_config, it will send an email notification.
 """
 
-from pandajedi.jediconfig import jedi_config
-from pandaserver.config import panda_config
-from pandajedi.jedicore.JediDBProxy import DBProxy
-from pandaserver.srvcore.MailUtils import MailUtils
-from pandajedi.jedicore import JediDBSchemaInfo
-
 from packaging import version
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import JediDBSchemaInfo
+from pandajedi.jedicore.JediDBProxy import DBProxy
+from pandaserver.config import panda_config
+from pandaserver.srvcore.MailUtils import MailUtils
 
 proxyS = DBProxy()
 proxyS.connect(jedi_config.db.dbhost, jedi_config.db.dbpasswd, jedi_config.db.dbuser, jedi_config.db.dbname)

@@ -1,8 +1,7 @@
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-from pandajedi.jediddm.DDMInterface import DDMInterface
-
 import multiprocessing
 
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jediorder import PostProcessor
 
 tbIF = JediTaskBufferInterface()

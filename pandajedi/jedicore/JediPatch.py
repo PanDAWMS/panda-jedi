@@ -1,8 +1,7 @@
-import socket
 import errno
-import time
-
 import multiprocessing.connection as MP
+import socket
+import time
 
 
 # set timeout to socket

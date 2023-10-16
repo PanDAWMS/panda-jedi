@@ -1,11 +1,9 @@
 import json
 
+from pandacommon.pandalogger import logger_utils
+from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jediorder.ContentsFeeder import ContentsFeederThread
-from pandajedi.jediddm.DDMInterface import DDMInterface
-
-from pandacommon.pandalogger import logger_utils
-
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])

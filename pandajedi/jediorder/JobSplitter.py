@@ -1,12 +1,10 @@
 import copy
 
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.InputChunk import InputChunk
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import JediCoreUtils
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore.InputChunk import InputChunk
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

@@ -1,18 +1,15 @@
 # logger
-from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-
-from pandajedi.jediddm.DDMInterface import DDMInterface
-
-from pandajedi.jediorder.JobBroker import JobBroker
-from pandajedi.jediorder.JobSplitter import JobSplitter
-from pandajedi.jediorder.JobGenerator import JobGeneratorThread
-from pandajedi.jedicore.ThreadUtils import ThreadPool
-from pandajedi.jediorder.TaskSetupper import TaskSetupper
-
 import sys
+
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import ThreadPool
+from pandajedi.jediddm.DDMInterface import DDMInterface
+from pandajedi.jediorder.JobBroker import JobBroker
+from pandajedi.jediorder.JobGenerator import JobGeneratorThread
+from pandajedi.jediorder.JobSplitter import JobSplitter
+from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 logger = PandaLogger().getLogger("JobGenerator")
 tmpLog = MsgWrapper(logger)

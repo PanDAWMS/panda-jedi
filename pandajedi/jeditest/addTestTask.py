@@ -1,10 +1,9 @@
 import sys
 import uuid
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()

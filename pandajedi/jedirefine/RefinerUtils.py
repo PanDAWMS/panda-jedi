@@ -1,5 +1,5 @@
-import re
 import json
+import re
 
 import six
 from six import iteritems

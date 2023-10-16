@@ -1,12 +1,11 @@
 import traceback
 
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import Interaction
-from .TaskSetupperBase import TaskSetupperBase
-
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+
+from .TaskSetupperBase import TaskSetupperBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

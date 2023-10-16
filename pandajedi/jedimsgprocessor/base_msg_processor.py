@@ -1,5 +1,4 @@
 from pandacommon.pandamsgbkr.msg_processor import SimpleMsgProcPluginBase
-
 from pandajedi.jedicore.JediTaskBuffer import JediTaskBuffer
 
 

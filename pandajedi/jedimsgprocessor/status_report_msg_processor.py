@@ -1,13 +1,11 @@
+import copy
 import json
 import re
-import copy
 import traceback
 
+from pandacommon.pandalogger import logger_utils
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
-
-from pandacommon.pandalogger import logger_utils
-
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
@@ -59,7 +57,9 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
         forwarding_plugin_names = self.params.get("forwading_plugins", [])
         if "kafka" in forwarding_plugin_names:
             # Kafka
-            from pandajedi.jedimsgprocessor.kafka_msg_processor import KafkaMsgProcPlugin
+            from pandajedi.jedimsgprocessor.kafka_msg_processor import (
+                KafkaMsgProcPlugin,
+            )
 
             plugin_inst = KafkaMsgProcPlugin()
             plugin_inst.initialize()

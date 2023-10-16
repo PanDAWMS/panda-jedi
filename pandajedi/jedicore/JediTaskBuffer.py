@@ -2,16 +2,14 @@
 
 import datetime
 
-from . import JediDBProxyPool
-from .Interaction import CommandReceiveInterface
-from pandajedi.jediconfig import jedi_config
-
-from pandaserver.taskbuffer import TaskBuffer
-from pandaserver.brokerage.SiteMapper import SiteMapper
-
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandaserver.brokerage.SiteMapper import SiteMapper
+from pandaserver.taskbuffer import TaskBuffer
+
+from . import JediDBProxyPool
+from .Interaction import CommandReceiveInterface
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

@@ -8,19 +8,19 @@ import sys
 
 sys.path.insert(0, ".")  # noqa: E402
 
-import os
-import re
-import sys
-import socket
+import distutils
 import getpass
 import grp
+import os
+import re
 import site
+import socket
+import sys
+from distutils.command.install_data import install_data as install_data_org
 
 import PandaPkgInfo
 from setuptools import setup
 from setuptools.command.install import install as install_org
-import distutils
-from distutils.command.install_data import install_data as install_data_org
 
 # define user name and group
 panda_user = "atlpan"

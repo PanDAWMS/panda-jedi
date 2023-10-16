@@ -1,26 +1,22 @@
-import re
-import sys
 import copy
-import random
 import datetime
 import math
+import random
+import re
+import sys
 import traceback
-
-from six import iteritems
-
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.SiteCandidate import SiteCandidate
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
-
-from .JobBrokerBase import JobBrokerBase
-from . import AtlasBrokerUtils
-
-from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import JobUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import JobUtils
+from six import iteritems
+
+from . import AtlasBrokerUtils
+from .JobBrokerBase import JobBrokerBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
