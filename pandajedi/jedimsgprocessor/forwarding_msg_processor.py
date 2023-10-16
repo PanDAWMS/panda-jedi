@@ -1,7 +1,5 @@
-from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
-
 from pandacommon.pandalogger import logger_utils
-
+from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])

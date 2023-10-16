@@ -1,20 +1,19 @@
+import datetime
+import grp
+import multiprocessing
+import optparse
 import os
 import pwd
-import grp
+import signal
 import sys
 import time
-import signal
+
 import daemon
-import optparse
-import datetime
-import multiprocessing
-
-from pandajedi.jediddm.DDMInterface import DDMInterface
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-from pandajedi.jedicore.ThreadUtils import ZombieCleaner
-from pandajedi.jedicore.ProcessUtils import ProcessWrapper
-
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.ProcessUtils import ProcessWrapper
+from pandajedi.jedicore.ThreadUtils import ZombieCleaner
+from pandajedi.jediddm.DDMInterface import DDMInterface
 
 
 # the master class of JEDI which runs the main process

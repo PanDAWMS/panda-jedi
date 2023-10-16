@@ -1,4 +1,5 @@
 import sys
+
 from .MsgWrapper import MsgWrapper
 
 _factoryModuleName = __name__.split(".")[-1]

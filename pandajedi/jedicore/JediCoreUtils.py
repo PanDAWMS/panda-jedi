@@ -1,7 +1,8 @@
-import re
-import os
 import copy
 import math
+import os
+import re
+
 from pandaserver.taskbuffer import JobUtils
 
 try:

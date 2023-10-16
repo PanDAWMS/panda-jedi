@@ -1,13 +1,13 @@
-import os
 import json
+import os
 import socket
-from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
-from pandajedi.jediddm.DDMInterface import DDMInterface
-from pandajedi.jedicore.ThreadUtils import ThreadPool, ListWithLock
-from pandajedi.jediorder.TaskSetupper import TaskSetupper
-from pandajedi.jediorder.JobGenerator import JobGeneratorThread
 
 from pandacommon.pandalogger import logger_utils
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool
+from pandajedi.jediddm.DDMInterface import DDMInterface
+from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
+from pandajedi.jediorder.JobGenerator import JobGeneratorThread
+from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])

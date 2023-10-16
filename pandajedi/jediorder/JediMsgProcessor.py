@@ -1,8 +1,6 @@
-from pandacommon.pandamsgbkr import msg_processor
 from pandacommon.pandalogger import logger_utils
-
+from pandacommon.pandamsgbkr import msg_processor
 from pandajedi.jediconfig import jedi_config
-
 
 # logger
 msg_processor.base_logger = logger_utils.setup_logger("JediMsgProcessor")

@@ -1,17 +1,15 @@
+import json
 import re
 import sys
 import uuid
-import json
-
-from six import iteritems
-
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import Interaction
-from .TaskGeneratorBase import TaskGeneratorBase
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from six import iteritems
+
+from .TaskGeneratorBase import TaskGeneratorBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

@@ -1,12 +1,13 @@
+import copy
 import re
 import sys
-import copy
+
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 from . import RefinerUtils
-from pandajedi.jedicore import Interaction
 from .TaskRefinerBase import TaskRefinerBase
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 
 
 # refiner for lost file recovery

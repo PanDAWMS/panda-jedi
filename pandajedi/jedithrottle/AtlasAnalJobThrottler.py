@@ -1,7 +1,7 @@
-from .JobThrottlerBase import JobThrottlerBase
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
+from .JobThrottlerBase import JobThrottlerBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

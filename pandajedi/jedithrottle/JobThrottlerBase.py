@@ -1,5 +1,5 @@
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 # throttle level
 THR_LEVEL5 = 5

@@ -1,18 +1,17 @@
-import re
-import sys
-import json
 import datetime
-import time
+import json
 import os
+import re
 import socket
+import sys
+import time
 import traceback
 
-from six import iteritems
-
+from dataservice.DataServiceUtils import select_scope
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
-from dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import ProcessGroups, JobUtils
+from pandaserver.taskbuffer import JobUtils, ProcessGroups
+from six import iteritems
 
 
 # get hospital queues

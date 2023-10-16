@@ -1,13 +1,13 @@
+import random
 import re
 import sys
-import random
 
-from .TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
-
-from pandaserver.taskbuffer import JobUtils
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import JobUtils
+
+from .TaskRefinerBase import TaskRefinerBase
 
 
 # brokerage for ATLAS analysis

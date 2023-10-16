@@ -1,17 +1,17 @@
-import re
-import six
 import random
+import re
 
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.SiteCandidate import SiteCandidate
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
-from .JobBrokerBase import JobBrokerBase
-from . import AtlasBrokerUtils
-from pandajedi.jedirefine import RefinerUtils
+import six
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandajedi.jedirefine import RefinerUtils
+
+from . import AtlasBrokerUtils
+from .JobBrokerBase import JobBrokerBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

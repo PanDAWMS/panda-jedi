@@ -1,14 +1,13 @@
 # logger
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-from pandajedi.jediddm.DDMInterface import DDMInterface
-
-from pandajedi.jediorder.JobGenerator import JobGeneratorThread
-from pandajedi.jedicore.ThreadUtils import ThreadPool, ListWithLock
-from pandajedi.jediorder.TaskSetupper import TaskSetupper
-
 import os
-import sys
 import socket
+import sys
+
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool
+from pandajedi.jediddm.DDMInterface import DDMInterface
+from pandajedi.jediorder.JobGenerator import JobGeneratorThread
+from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()

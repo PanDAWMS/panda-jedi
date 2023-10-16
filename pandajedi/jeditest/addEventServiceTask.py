@@ -1,7 +1,7 @@
-from userinterface import Client
-
 import sys
 import uuid
+
+from userinterface import Client
 
 site = sys.argv[1]
 

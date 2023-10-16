@@ -22,9 +22,8 @@ except Exception:
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
-
 from pandajedi.jediconfig import jedi_config
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
 
 from . import JediCoreUtils, ParseJobXML
 from .InputChunk import InputChunk

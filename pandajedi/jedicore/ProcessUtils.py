@@ -1,6 +1,6 @@
-import sys
 import datetime
 import multiprocessing
+import sys
 
 from . import JediCoreUtils
 

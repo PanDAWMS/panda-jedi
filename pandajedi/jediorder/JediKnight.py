@@ -1,6 +1,6 @@
+import random
 import sys
 import time
-import random
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ZombieCleaner

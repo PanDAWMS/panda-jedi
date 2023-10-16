@@ -1,9 +1,10 @@
-import re
-import os
-import sys
 import datetime
 import json
+import os
+import re
+import sys
 import traceback
+
 import requests
 
 try:
@@ -18,22 +19,24 @@ try:
 except Exception:
     pass
 
-from six import iteritems
-
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-
-from .DDMClientBase import DDMClientBase
-
-from rucio.client import Client as RucioClient
-from rucio.common.exception import UnsupportedOperation, DataIdentifierNotFound, DataIdentifierAlreadyExists, DuplicateRule, DuplicateContent, InvalidObject
-
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.srvcore import CoreUtils
-
-from pandajedi.jediconfig import jedi_config
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.srvcore import CoreUtils
+from rucio.client import Client as RucioClient
+from rucio.common.exception import (
+    DataIdentifierAlreadyExists,
+    DataIdentifierNotFound,
+    DuplicateContent,
+    DuplicateRule,
+    InvalidObject,
+    UnsupportedOperation,
+)
+from six import iteritems
+
+from .DDMClientBase import DDMClientBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

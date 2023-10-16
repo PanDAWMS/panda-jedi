@@ -1,24 +1,22 @@
+import datetime
 import os
 import re
+import socket
 import sys
 import time
-import socket
-import datetime
 import traceback
-
-from six import iteritems
-
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .JediKnight import JediKnight
-from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedirefine import RefinerUtils
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
+from pandajedi.jedirefine import RefinerUtils
+from six import iteritems
+
+from .JediKnight import JediKnight
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

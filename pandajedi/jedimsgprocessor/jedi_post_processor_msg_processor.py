@@ -1,14 +1,12 @@
 import json
 
-from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
+from pandacommon.pandalogger import logger_utils
+from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedicore.JediCoreUtils import convert_config_params, parse_init_params
-from pandajedi.jediorder.PostProcessor import PostProcessorThread
 from pandajedi.jediddm.DDMInterface import DDMInterface
-from pandajedi.jediconfig import jedi_config
-
-from pandacommon.pandalogger import logger_utils
-
+from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
+from pandajedi.jediorder.PostProcessor import PostProcessorThread
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])

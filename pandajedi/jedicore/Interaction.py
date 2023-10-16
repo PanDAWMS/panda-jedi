@@ -1,11 +1,11 @@
-import os
-import sys
-import time
-import types
-import signal
 import datetime
 import multiprocessing
 import multiprocessing.reduction
+import os
+import signal
+import sys
+import time
+import types
 
 try:
     from multiprocessing.connection import reduce_connection

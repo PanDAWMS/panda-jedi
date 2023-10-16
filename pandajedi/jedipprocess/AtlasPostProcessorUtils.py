@@ -1,11 +1,12 @@
 import copy
+
 from pandajedi.jedicore import JediException
 from pandajedi.jedirefine import RefinerUtils
 
 try:
-    from idds.client.client import Client as iDDS_Client
     import idds.common.constants
     import idds.common.utils
+    from idds.client.client import Client as iDDS_Client
 except ImportError:
     pass
 

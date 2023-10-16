@@ -1,9 +1,10 @@
+import datetime
 import re
 import time
-import datetime
+
+from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jediconfig import jedi_config
 from pandaserver.userinterface import Client
-from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 
 class MsgWrapper:

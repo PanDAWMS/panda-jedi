@@ -10,11 +10,10 @@ try:
 except Exception:
     vo = "atlas"
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-
-from pandajedi.jediddm.DDMInterface import DDMInterface
 import multiprocessing
 
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jediorder import TaskRefiner
 
 tbIF = JediTaskBufferInterface()

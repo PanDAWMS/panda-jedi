@@ -1,17 +1,16 @@
 import os
-import sys
 import re
 import socket
+import sys
 import traceback
-
-from six import iteritems
-
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .TypicalWatchDogBase import TypicalWatchDogBase
-from pandaserver.dataservice.Activator import Activator
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandaserver.dataservice.Activator import Activator
+from six import iteritems
+
+from .TypicalWatchDogBase import TypicalWatchDogBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

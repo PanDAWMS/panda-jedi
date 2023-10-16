@@ -1,19 +1,17 @@
+import datetime
 import os
+import socket
 import sys
 import time
-import socket
-import datetime
-
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.FactoryBase import FactoryBase
-from .JediKnight import JediKnight
-from pandajedi.jediconfig import jedi_config
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore.FactoryBase import FactoryBase
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+
+from .JediKnight import JediKnight
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

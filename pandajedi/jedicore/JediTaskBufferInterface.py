@@ -1,5 +1,4 @@
 from pandajedi.jediconfig import jedi_config
-
 from pandajedi.jedicore import Interaction
 
 
