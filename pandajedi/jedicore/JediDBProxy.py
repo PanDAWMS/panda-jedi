@@ -14956,3 +14956,62 @@ class DBProxy(OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmp_log)
             return None
+
+    # get pending data carousel tasks and their input datasets
+    def get_pending_dc_tasks_JEDI(self, task_type="prod"):
+        comment = " /* JediDBProxy.get_pending_dc_tasks_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # sql to get pending tasks
+            sql_tasks = (
+                "SELECT tabT.jediTaskID, tabT.splitRule "
+                "FROM {0}.JEDI_Tasks tabT, {0}.JEDI_AUX_Status_MinTaskID tabA "
+                "WHERE tabT.status=:status AND tabA.status=tabT.status AND tabT.taskType=:taskType".format(jedi_config.db.schemaJEDI)
+            )
+            # sql to get input dataset
+            sql_ds = (
+                "SELECT tabD.datasetID, tabD.datasetName "
+                "FROM {0}.JEDI_Datasets tabD "
+                "WHERE tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1, :type2) ".format(jedi_config.db.schemaJEDI)
+            )
+            # initialize
+            ret_tasks_dict = {}
+            # start transaction
+            self.conn.begin()
+            # get pending tasks
+            var_map = {":status": "pending", ":taskType": task_type}
+            self.cur.execute(sql_tasks + comment, var_map)
+            res = self.cur.fetchall()
+            if res:
+                for task_id, split_rule in res:
+                    tmp_taskspec = JediTaskSpec()
+                    tmp_taskspec.splitRule = split_rule
+                    if tmp_taskspec.inputPreStaging():
+                        # is data carousel task
+                        var_map = {
+                            ":jediTaskID": task_id,
+                            ":type1": "input",
+                            ":type2": "pseudo_input",
+                        }
+                        self.cur.execute(sql_ds + comment, var_map)
+                        ds_res = self.cur.fetchall()
+                        if ds_res:
+                            ret_tasks_dict[task_id] = []
+                            for ds_id, ds_name in ds_res:
+                                ret_tasks_dict[task_id].append(ds_name)
+            else:
+                tmp_log.debug("no pending task")
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"found pending dc tasks: {ret_tasks_dict}")
+            return ret_tasks_dict
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None

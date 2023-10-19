@@ -292,3 +292,29 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                 gTmpLog.info("throttled jobs in paused jediTaskID={0} successfully".format(jediTaskID))
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs, "reassign", "51", True)
                 gTmpLog.info("reassigned {0} jobs in paused jediTaskID={1} with {2}".format(len(pandaIDs), jediTaskID, tmpRet))
+
+    # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
+    def doActionToProvokeDCTasks(self, gTmpLog):
+        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod")
+        if res_dict is None:
+            # failed
+            gTmpLog.error("failed to get pending DC tasks")
+        elif not res_dict:
+            # empty
+            gTmpLog.debug("no pending DC task; skipped")
+        else:
+            ddm_if = self.ddmIF.getInterface(self.vo)
+            # loop over pending DC tasks
+            for task_id, ds_name_list in res_dict.items():
+                if not ds_name_list:
+                    continue
+                total_all_ok = True
+                for ds_name in ds_name_list:
+                    ret_code, (all_ok, rule_dict) = ddm_if.get_rules_state(ds_name)
+                    total_all_ok = total_all_ok and all_ok
+                if total_all_ok:
+                    # all rules ok; provoke the task
+                    self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None)
+                    gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked ")
+                else:
+                    gTmpLog.debug(f"not all staging rules of task {task_id} are OK; skipped ")
