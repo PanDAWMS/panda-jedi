@@ -1,27 +1,26 @@
+import datetime
+import math
 import os
 import re
+import socket
 import sys
 import time
-import uuid
-import math
-import socket
-import datetime
 import traceback
-
-from six import iteritems
-
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedirefine import RefinerUtils
-from .JediKnight import JediKnight
+import uuid
 
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
+from pandajedi.jedirefine import RefinerUtils
+from six import iteritems
+
+from .JediKnight import JediKnight
 
 try:
-    from idds.client.client import Client as iDDS_Client
     import idds.common.constants
     import idds.common.utils
+    from idds.client.client import Client as iDDS_Client
 except ImportError:
     pass
 

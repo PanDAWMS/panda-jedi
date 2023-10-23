@@ -1,25 +1,23 @@
 import os
-import sys
 import re
 import socket
+import sys
 import traceback
 
-from six import iteritems
-
-from .WatchDogBase import WatchDogBase
+# logger
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedibrokerage import AtlasBrokerUtils
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock
-from pandajedi.jedicore import Interaction
-from pandajedi.jedibrokerage import AtlasBrokerUtils
-
 from pandaserver.dataservice import DataServiceUtils
 
 # from pandaserver.dataservice.Activator import Activator
 from pandaserver.taskbuffer import JobUtils
+from six import iteritems
 
-# logger
-from pandacommon.pandalogger.PandaLogger import PandaLogger
+from .WatchDogBase import WatchDogBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

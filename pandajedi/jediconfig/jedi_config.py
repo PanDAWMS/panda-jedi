@@ -1,11 +1,10 @@
+import json
 import os
 import re
 import sys
-import json
-
-from six import iteritems
 
 from liveconfigparser.LiveConfigParser import LiveConfigParser, expand_values
+from six import iteritems
 
 # get ConfigParser
 tmpConf = LiveConfigParser()

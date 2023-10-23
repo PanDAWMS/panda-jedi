@@ -1,17 +1,15 @@
+import datetime
 import os
 import re
 import sys
-import time
-import datetime
 import threading
-
-from pandajedi.jediconfig import jedi_config
+import time
 
 from config import panda_config
-
-from taskbuffer.Initializer import initializer
+from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import JediTaskBuffer
 from pandalogger.PandaLogger import PandaLogger
+from taskbuffer.Initializer import initializer
 
 jediTaskID = sys.argv[1]
 

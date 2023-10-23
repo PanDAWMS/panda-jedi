@@ -61,7 +61,9 @@ taskParamMap["jobParameters"] = [
 
 jonStr = json.dumps(taskParamMap)
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface  # noqa: E402
+from pandajedi.jedicore.JediTaskBufferInterface import (  # noqa: E402
+    JediTaskBufferInterface,
+)
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()

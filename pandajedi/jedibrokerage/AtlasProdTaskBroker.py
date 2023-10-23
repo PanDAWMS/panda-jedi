@@ -1,7 +1,7 @@
-import sys
-import random
 import copy
 import math
+import random
+import sys
 import traceback
 
 from six import iteritems
@@ -11,25 +11,28 @@ try:
 except Exception:
     long = int
 
-from .AtlasProdJobBroker import AtlasProdJobBroker
-from .TaskBrokerBase import TaskBrokerBase
-from . import AtlasBrokerUtils
-
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
+# logger
+from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread, MapWithLock
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import (
+    ListWithLock,
+    MapWithLock,
+    ThreadPool,
+    WorkerThread,
+)
 from pandajedi.jedirefine import RefinerUtils
-
-from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import JobUtils
+from pandaserver.userinterface import Client as PandaClient
 
 # cannot use pandaserver.taskbuffer while Client is used
 from taskbuffer.JobSpec import JobSpec
 
-# logger
-from pandacommon.pandalogger.PandaLogger import PandaLogger
+from . import AtlasBrokerUtils
+from .AtlasProdJobBroker import AtlasProdJobBroker
+from .TaskBrokerBase import TaskBrokerBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
@@ -185,7 +188,7 @@ class AtlasProdTaskBroker(TaskBrokerBase):
             nBunchTask = 0
             while nBunchTask < len(jobSpecList):
                 # get a bunch
-                jobsBunch = jobSpecList[nBunchTask: nBunchTask + maxBunchTask]
+                jobsBunch = jobSpecList[nBunchTask : nBunchTask + maxBunchTask]
                 strIDs = "jediTaskID="
                 for tmpJobSpec in jobsBunch:
                     strIDs += "{0},".format(tmpJobSpec.taskID)

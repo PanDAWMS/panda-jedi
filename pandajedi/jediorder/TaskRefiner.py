@@ -1,23 +1,20 @@
+import datetime
 import sys
 import time
-import datetime
 import traceback
-
-from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediException
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.FactoryBase import FactoryBase
-from pandajedi.jedirefine import RefinerUtils
-from .JediKnight import JediKnight
-
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
-from pandajedi.jediconfig import jedi_config
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction, JediException
+from pandajedi.jedicore.FactoryBase import FactoryBase
+from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
+from pandajedi.jedirefine import RefinerUtils
+
+from .JediKnight import JediKnight
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

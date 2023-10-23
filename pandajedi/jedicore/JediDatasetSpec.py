@@ -3,8 +3,8 @@ dataset specification for JEDI
 
 """
 
-import re
 import math
+import re
 
 from pandajedi.jediconfig import jedi_config
 

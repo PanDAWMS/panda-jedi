@@ -1,6 +1,8 @@
 import re
-from .TaskRefinerBase import TaskRefinerBase
+
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+
+from .TaskRefinerBase import TaskRefinerBase
 
 
 # refiner for general purpose

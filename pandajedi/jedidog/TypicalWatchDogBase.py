@@ -1,10 +1,9 @@
 import os
-import sys
 import socket
+import sys
 
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore import Interaction, JediCoreUtils
 
 from .WatchDogBase import WatchDogBase
 

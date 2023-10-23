@@ -1,4 +1,5 @@
 import subprocess
+
 from pandajedi.jediconfig import jedi_config
 
 proc = subprocess.Popen(

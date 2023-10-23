@@ -1,13 +1,14 @@
+import datetime
+import random
 import re
 import shlex
-import random
-import datetime
 import traceback
+
+from pandajedi.jedicore import JediException
+from pandaserver.dataservice import DataServiceUtils
 from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
-from pandajedi.jedicore import JediException
-from pandaserver.dataservice import DataServiceUtils
 
 
 # brokerage for ATLAS production

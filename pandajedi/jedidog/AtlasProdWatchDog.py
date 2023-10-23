@@ -1,20 +1,17 @@
 import sys
 import traceback
 
-from six import iteritems
-
-from .TypicalWatchDogBase import TypicalWatchDogBase
-from .JumboWatchDog import JumboWatchDog
-
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandajedi.jedibrokerage import AtlasBrokerUtils
+from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jediconfig import jedi_config
-from pandajedi.jedibrokerage import AtlasBrokerUtils
-
-from pandaserver.taskbuffer import JobUtils
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import JobUtils
+from six import iteritems
 
-from pandacommon.pandalogger.PandaLogger import PandaLogger
+from .JumboWatchDog import JumboWatchDog
+from .TypicalWatchDogBase import TypicalWatchDogBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

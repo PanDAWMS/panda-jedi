@@ -1,13 +1,12 @@
 import sys
 import traceback
 
+from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .TaskSetupperBase import TaskSetupperBase
-
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 
-from pandacommon.pandalogger.PandaLogger import PandaLogger
+from .TaskSetupperBase import TaskSetupperBase
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 

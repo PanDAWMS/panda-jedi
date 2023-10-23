@@ -1,13 +1,12 @@
 import re
 import sys
 
-from six import iteritems
-
-from .PostProcessorBase import PostProcessorBase
-from . import AtlasPostProcessorUtils
-
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
+from six import iteritems
+
+from . import AtlasPostProcessorUtils
+from .PostProcessorBase import PostProcessorBase
 
 
 # post processor for ATLAS production

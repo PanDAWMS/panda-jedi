@@ -1,24 +1,23 @@
+import copy
+import datetime
 import json
 import re
 import sys
 import uuid
-import copy
-import datetime
 
+from pandajedi.jedicore import Interaction, JediException
+from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jedicore.JediFileSpec import JediFileSpec
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandaserver.taskbuffer import EventServiceUtils
 from six import iteritems
 
 from . import RefinerUtils
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediException
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
-from pandajedi.jedicore.JediFileSpec import JediFileSpec
-from pandaserver.taskbuffer import EventServiceUtils
 
 try:
-    from idds.client.client import Client as iDDS_Client
     import idds.common.constants
     import idds.common.utils
+    from idds.client.client import Client as iDDS_Client
 except ImportError:
     pass
 
