@@ -5884,8 +5884,14 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.PandaID=:usePandaID "
 
         # sql to check scout success rate
-        sqlCSSR = "SELECT COUNT(*),SUM(CASE WHEN status='finished' THEN 1 ELSE 0 END) FROM "
-        sqlCSSR += "(SELECT DISTINCT tabF.PandaID,tabF.status "
+        sqlCSSR = "SELECT COUNT(*),SUM(is_finished),SUM(is_failed) FROM "
+        sqlCSSR += (
+            "(SELECT DISTINCT tabF.PandaID,CASE WHEN tabF.status='finished' THEN 1 ELSE 0 END is_finished,"
+            "CASE WHEN tabF.status='ready' AND "
+            "(tabF.maxAttempt<=tabF.attemptNr OR "
+            "(tabF.maxfailure IS NOT NULL AND tabF.maxFailure<=tabF.failedAttempt)) THEN 1 ELSE 0 END "
+            "is_failed "
+        )
         sqlCSSR += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlCSSR += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.PandaID IS NOT NULL "
         sqlCSSR += "AND tabD.datasetID=tabF.datasetID "
@@ -6074,10 +6080,10 @@ class DBProxy(OraDBProxy.DBProxy):
                     mapKey = ":type_" + tmpType
                     varMap[mapKey] = tmpType
                 self.cur.execute(sqlCSSR + comment, varMap)
-                scTotal, scOK = self.cur.fetchone()
-                tmpLog.debug("scout total={} finished={} rate={}".format(scTotal, scOK, scoutSuccessRate))
-                if scTotal > 0:
-                    extraInfo["successRate"] = scOK / scTotal
+                scTotal, scOK, scNG = self.cur.fetchone()
+                tmpLog.debug(f"scout total={scTotal} finished={scOK} failed={scNG} rate={scoutSuccessRate}")
+                if scTotal > 0 and scOK + scNG > 0:
+                    extraInfo["successRate"] = scOK / (scOK + scNG)
                 else:
                     extraInfo["successRate"] = 0
                 if scoutSuccessRate and scTotal and scOK * 10 < scTotal * scoutSuccessRate:
