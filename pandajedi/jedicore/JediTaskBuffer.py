@@ -937,3 +937,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_task_carbon_footprint(self, jedi_task_id, level="global"):
         with self.proxyPool.get() as proxy:
             return proxy.get_task_carbon_footprint(jedi_task_id, level)
+
+    # get pending data carousel tasks and their input datasets
+    def get_pending_dc_tasks_JEDI(self, task_type="prod"):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_pending_dc_tasks_JEDI(task_type=task_type)

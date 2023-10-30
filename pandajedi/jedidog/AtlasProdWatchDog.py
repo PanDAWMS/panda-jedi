@@ -54,6 +54,10 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # action for jumbo
             jumbo = JumboWatchDog(self.taskBufferIF, self.ddmIF, tmpLog, "atlas", "managed")
             jumbo.run()
+
+            # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
+            self.doActionToProvokeDCTasks(tmpLog)
+
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error("failed with {0}:{1} {2}".format(errtype.__name__, errvalue, traceback.format_exc()))
@@ -310,11 +314,24 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                     continue
                 total_all_ok = True
                 for ds_name in ds_name_list:
-                    ret_code, (all_ok, rule_dict) = ddm_if.get_rules_state(ds_name)
-                    total_all_ok = total_all_ok and all_ok
+                    # ret_code, (all_ok, rule_dict) = ddm_if.get_rules_state(ds_name)
+                    ret_code, ret_data = ddm_if.get_rules_state(ds_name)
+                    try:
+                        all_ok, rule_dict = ret_data
+                        total_all_ok = total_all_ok and all_ok
+                    except ValueError:
+                        gTmpLog.error(f"failed to thottle jobs in paused tasks, {ret_data}")
+                        total_all_ok = False
+                        break
                 if total_all_ok:
-                    # all rules ok; provoke the task
-                    self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None)
-                    gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked ")
+                    if True:
+                        # Dry-run; all rules ok; provoke the task
+                        gTmpLog.info(f"provoking task {task_id} (dry-run)")
+                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked (dry-run)")
+                    else:
+                        # all rules ok; provoke the task
+                        gTmpLog.info(f"provoking task {task_id}")
+                        self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None, None)
+                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked")
                 else:
                     gTmpLog.debug(f"not all staging rules of task {task_id} are OK; skipped ")

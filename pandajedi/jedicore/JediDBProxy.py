@@ -14974,7 +14974,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sql_tasks = (
                 "SELECT tabT.jediTaskID, tabT.splitRule "
                 "FROM {0}.JEDI_Tasks tabT, {0}.JEDI_AUX_Status_MinTaskID tabA "
-                "WHERE tabT.status=:status AND tabA.status=tabT.status AND tabT.taskType=:taskType".format(jedi_config.db.schemaJEDI)
+                "WHERE tabT.status=:status AND tabA.status=tabT.status "
+                "AND tabT.taskType=:taskType AND tabT.modificationTime<:timeLimit".format(jedi_config.db.schemaJEDI)
             )
             # sql to get input dataset
             sql_ds = (
@@ -14988,6 +14989,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             # get pending tasks
             var_map = {":status": "pending", ":taskType": task_type}
+            var_map[":timeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
             self.cur.execute(sql_tasks + comment, var_map)
             res = self.cur.fetchall()
             if res:
