@@ -1,3 +1,5 @@
+import os
+import socket
 import sys
 import traceback
 
@@ -21,6 +23,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
+        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
 
     # main
     def doAction(self):
@@ -299,7 +302,22 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
 
     # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
     def doActionToProvokeDCTasks(self, gTmpLog):
-        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod")
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(
+            vo=self.vo,
+            prodSourceLabel=self.prodSourceLabel,
+            cloud=None,
+            workqueue_id=None,
+            resource_name=None,
+            component="AtlasProdWatchDog.doActionToProvokeDCT",
+            pid=self.pid,
+            timeLimit=30,
+        )
+        if not got_lock:
+            gTmpLog.debug("doActionToProvokeDCTasks locked by another process. Skipped")
+            return
+        # run
+        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod", time_limit_minutes=30)
         if res_dict is None:
             # failed
             gTmpLog.error("failed to get pending DC tasks")
