@@ -358,6 +358,7 @@ class DBProxy(OraDBProxy.DBProxy):
         inputPreStaging,
         order_by,
         maxFileRecords,
+        skip_short_output,
     ):
         comment = " /* JediDBProxy.insertFilesForDataset_JEDI */"
         methodName = self.getMethodName(comment)
@@ -372,7 +373,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("len(fileMap)={0} pid={1}".format(len(fileMap), pid))
         tmpLog.debug("datasetState={0} dataset.state={1}".format(datasetState, datasetSpec.state))
         tmpLog.debug("respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}".format(respectLB, tgtNumEventsPerJob, skipFilesUsedBy, ramCount))
-        tmpLog.debug("skipShortInput={} inputPreStaging={} order_by={}".format(skipShortInput, inputPreStaging, order_by))
+        tmpLog.debug(f"skipShortInput={skipShortInput} skipShortOutput={skip_short_output} inputPreStaging={inputPreStaging} order_by={order_by}")
         # return value for failure
         diagMap = {"errMsg": "", "nChunksForScout": nChunksForScout, "nActivatedPending": 0, "isRunningTask": False}
         failedRet = False, 0, None, diagMap
@@ -380,6 +381,9 @@ class DBProxy(OraDBProxy.DBProxy):
         regStart = datetime.datetime.utcnow()
         # mutable
         if (noWaitParent or inputPreStaging) and datasetState == "mutable":
+            isMutableDataset = True
+        elif skip_short_output:
+            # treat as mutable to skip short output by using the SR mechanism
             isMutableDataset = True
         else:
             isMutableDataset = False
@@ -1128,7 +1132,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                                 maxSizePerJob = InputChunk.maxInputSizeAvalanche * 1024 * 1024
                                         tmp_nChunksLB = 0
                                     # get a chunk
-                                    tmpInputChunk.getSubChunk(
+                                    tmp_sub_chunk = tmpInputChunk.getSubChunk(
                                         None,
                                         maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                         nFilesPerJob=taskSpec.getNumFilesPerJob(),
@@ -1141,10 +1145,15 @@ class DBProxy(OraDBProxy.DBProxy):
                                         coreCount=taskSpec.coreCount,
                                         corePower=corePower,
                                         respectLB=taskSpec.respectLumiblock(),
+                                        skip_short_output=skip_short_output,
                                     )
                                     tmp_enoughPendingWithSL = tmpInputChunk.checkUnused()
                                     if not tmp_enoughPendingWithSL:
-                                        if (not isMutableDataset) or (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB):
+                                        if (
+                                            (not isMutableDataset)
+                                            or (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB)
+                                            or (skip_short_output and tmp_sub_chunk)
+                                        ):
                                             tmp_nChunksLB += 1
                                             tmp_nChunks += 1
                                             tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
@@ -1161,6 +1170,9 @@ class DBProxy(OraDBProxy.DBProxy):
                                 else:
                                     # one set of sub chunks is at least available
                                     if ii > 0 or tmp_nChunks >= nChunks:
+                                        enoughPendingWithSL = True
+                                    # terminate lookup for skip short output
+                                    if skip_short_output and datasetState == "closed":
                                         enoughPendingWithSL = True
                                     break
                             if tmpInputChunk:
@@ -1275,6 +1287,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":jediTaskID"] = datasetSpec.jediTaskID
                         varMap[":datasetID"] = datasetSpec.datasetID
                         varMap[":nFiles"] = nInsert + len(existingFiles) - nLost
+                        if skip_short_output:
+                            # remove pending files to avoid wrong task transition due to nFiles>nFilesTobeUsed
+                            varMap[":nFiles"] -= nPending - nActivatedPending
                         varMap[":nEvents"] = nEventsInsert + nEventsExist
                         varMap[":nFilesMissing"] = nLost
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
