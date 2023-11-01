@@ -317,7 +317,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             gTmpLog.debug("doActionToProvokeDCTasks locked by another process. Skipped")
             return
         # run
-        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod", time_limit_minutes=30)
+        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod", time_limit_minutes=60)
         if res_dict is None:
             # failed
             gTmpLog.error("failed to get pending DC tasks")
@@ -342,7 +342,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                         total_all_ok = False
                         break
                 if total_all_ok:
-                    if True:
+                    if False:
                         # Dry-run; all rules ok; provoke the task
                         gTmpLog.info(f"provoking task {task_id} (dry-run)")
                         gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked (dry-run)")
