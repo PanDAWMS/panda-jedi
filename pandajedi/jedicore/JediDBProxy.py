@@ -14964,7 +14964,7 @@ class DBProxy(OraDBProxy.DBProxy):
             return None
 
     # get pending data carousel tasks and their input datasets
-    def get_pending_dc_tasks_JEDI(self, task_type="prod", time_limit_minutes=30):
+    def get_pending_dc_tasks_JEDI(self, task_type="prod", time_limit_minutes=60):
         comment = " /* JediDBProxy.get_pending_dc_tasks_JEDI */"
         method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
