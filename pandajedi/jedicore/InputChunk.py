@@ -432,6 +432,7 @@ class InputChunk:
         no_split=False,
         min_walltime=None,
         max_events=None,
+        skip_short_output=False,
     ):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -989,9 +990,20 @@ class InputChunk:
             tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)
             returnList.append((tmpDatasetSpec, tmpRetList))
         # dump only problematic splitting
-        if enableLog and tmpLog and returnList:
-            if maxNumEvents is not None and inputNumEvents < maxNumEvents:
-                tmpLog.debug("not enough events {}>{} at {}: numMaster={}. {}".format(maxNumEvents, inputNumEvents, siteName, numMaster, dumpStr))
+        is_short = False
+        if returnList:
+            if maxNumEvents and inputNumEvents < maxNumEvents:
+                is_short = True
+                err_msg = f"not enough events {maxNumEvents}>{inputNumEvents} at {siteName}: numMaster={numMaster}. {dumpStr}"
+            elif nFilesPerJob and inputNumFiles < nFilesPerJob:
+                is_short = True
+                err_msg = f"not enough files {nFilesPerJob}>{inputNumFiles} at {siteName}. {dumpStr}"
+        # return empty to skip input chunks producing output files with insufficient events
+        if is_short:
+            if enableLog and tmpLog:
+                tmpLog.debug(err_msg)
+            if skip_short_output:
+                return None
         # return
         return returnList
 

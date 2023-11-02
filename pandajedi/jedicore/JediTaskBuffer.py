@@ -88,6 +88,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         inputPreStaging,
         order_by,
         maxFileRecords,
+        skip_short_output,
     ):
         with self.proxyPool.get() as proxy:
             return proxy.insertFilesForDataset_JEDI(
@@ -124,6 +125,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                 inputPreStaging,
                 order_by,
                 maxFileRecords,
+                skip_short_output,
             )
 
     # get files from the JEDI contents table with jediTaskID and/or datasetID
