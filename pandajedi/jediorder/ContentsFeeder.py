@@ -512,6 +512,11 @@ class ContentsFeederThread(WorkerThread):
                                 skipShortInput = True
                             else:
                                 skipShortInput = False
+                            # skip short output
+                            if datasetSpec.isMaster() and not datasetSpec.isPseudo() and taskParamMap.get("skipShortOutput"):
+                                skip_short_output = True
+                            else:
+                                skip_short_output = False
                             # order by
                             if taskSpec.order_input_by() and datasetSpec.isMaster() and not datasetSpec.isPseudo():
                                 orderBy = taskSpec.order_input_by()
@@ -553,6 +558,7 @@ class ContentsFeederThread(WorkerThread):
                                 inputPreStaging,
                                 orderBy,
                                 maxFileRecords,
+                                skip_short_output,
                             )
                             if retDB is False:
                                 taskSpec.setErrDiag("failed to insert files for {0}. {1}".format(datasetSpec.datasetName, diagMap["errMsg"]))
