@@ -4,12 +4,6 @@ import random
 import sys
 import traceback
 
-try:
-    long()
-except Exception:
-    long = int
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -442,7 +436,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                 tmpSpaceToUse = 0
                                 if tmpNucleus in self.fullRW:
                                     # 0.25GB per cpuTime/corePower/day
-                                    tmpSpaceToUse = long(self.fullRW[tmpNucleus] / 10 / 24 / 3600 * 0.25)
+                                    tmpSpaceToUse = int(self.fullRW[tmpNucleus] / 10 / 24 / 3600 * 0.25)
                                 if tmpSpaceSize - tmpSpaceToUse < diskThreshold:
                                     tmpLog.info(
                                         "  skip nucleus={0} since disk shortage (free {1} GB - reserved {2} GB < thr {3} GB) at endpoint {4} criteria=-space".format(

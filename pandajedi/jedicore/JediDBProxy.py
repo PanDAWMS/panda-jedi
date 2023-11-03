@@ -13,13 +13,6 @@ import traceback
 import uuid
 
 import numpy
-
-try:
-    long()
-except Exception:
-    long = int
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jediconfig import jedi_config
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
@@ -48,7 +41,7 @@ backend = get_database_backend()
 if backend == "postgres":
     import psycopg2 as psycopg
 
-    varNUMBER = long
+    varNUMBER = int
 else:
     import cx_Oracle
 
@@ -589,7 +582,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpNumEvents = None
                 if "events" in fileVal:
                     try:
-                        tmpNumEvents = long(fileVal["events"])
+                        tmpNumEvents = int(fileVal["events"])
                     except Exception:
                         pass
                 if skipShortInput and tmpNumEvents is not None:
@@ -597,7 +590,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if tmpNumEvents >= nEventsPerFile:
                         fileSpec.nEvents = nEventsPerFile
                     else:
-                        fileSpec.nEvents = long(tmpNumEvents // nEventsPerJob) * nEventsPerJob
+                        fileSpec.nEvents = int(tmpNumEvents // nEventsPerJob) * nEventsPerJob
                         if fileSpec.nEvents == 0:
                             tmpLog.debug("skip {0} due to nEvents {1} < nEventsPerJob {2}".format(fileSpec.lfn, tmpNumEvents, nEventsPerJob))
                             continue
@@ -607,12 +600,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     fileSpec.nEvents = nEventsPerFile
                 elif "events" in fileVal and fileVal["events"] not in ["None", None]:
                     try:
-                        fileSpec.nEvents = long(fileVal["events"])
+                        fileSpec.nEvents = int(fileVal["events"])
                     except Exception:
                         fileSpec.nEvents = None
                 if "lumiblocknr" in fileVal:
                     try:
-                        fileSpec.lumiBlockNr = long(fileVal["lumiblocknr"])
+                        fileSpec.lumiBlockNr = int(fileVal["lumiblocknr"])
                     except Exception:
                         pass
                 # keep track
@@ -1504,7 +1497,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             tmpLog.debug("done")
             val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-            return True, long(val)
+            return True, int(val)
         except Exception:
             # roll back
             self._rollback()
@@ -2908,7 +2901,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":newDatasetID"] = self.cur.var(varNUMBER)
                             self.cur.execute(sqlT2 + comment, varMap)
                             val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                            fileDatasetID = long(val)
+                            fileDatasetID = int(val)
                             if instantiatedSite is not None:
                                 # set concreate name
                                 cDatasetSpec.site = instantiatedSite
@@ -3001,7 +2994,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                         varMap[":newFileID"] = self.cur.var(varNUMBER)
                                         self.cur.execute(sqlI + comment, varMap)
                                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
-                                        fileSpec.fileID = long(val)
+                                        fileSpec.fileID = int(val)
                                 else:
                                     # set dummy for simulation
                                     fileSpec.fileID = fileSpec.datasetID
@@ -4224,7 +4217,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                             enoughSecondary = True
                                             for evtMaster in totalEvents[inputChunk.masterDataset.datasetID]:
                                                 targetEvents = evtMaster * tmpDatasetSpec.getEventRatio()
-                                                targetEvents = long(math.ceil(targetEvents))
+                                                targetEvents = int(math.ceil(targetEvents))
                                                 if targetEvents <= 0:
                                                     targetEvents = 1
                                                 # count number of secondary events per master file
@@ -4287,8 +4280,8 @@ class DBProxy(OraDBProxy.DBProxy):
                                         varMap[":newnFilesUsed"] = self.cur.var(varNUMBER)
                                         varMap[":newnFilesTobeUsed"] = self.cur.var(varNUMBER)
                                         self.cur.execute(sqlDU + comment, varMap)
-                                        # newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
-                                        # newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
+                                        # newnFilesUsed = int(varMap[':newnFilesUsed'].getvalue())
+                                        # newnFilesTobeUsed = int(varMap[':newnFilesTobeUsed'].getvalue())
                                     tmpLog.debug(
                                         "jediTaskID={2} datasetID={0} has {1} files to be processed for ramCount={3}".format(
                                             datasetID, iFiles_tmp, jediTaskID, inputChunk.ramCount
@@ -4425,7 +4418,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":jediTaskID"] = self.cur.var(varNUMBER)
             self.cur.execute(sqlT + comment, varMap)
             val = self.getvalue_corrector(self.cur.getvalue(varMap[":jediTaskID"]))
-            jediTaskID = long(val)
+            jediTaskID = int(val)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -4470,7 +4463,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":jediTaskID"] = self.cur.var(varNUMBER)
                 self.cur.execute(sqlIT + comment, varMap)
                 val = self.getvalue_corrector(self.cur.getvalue(varMap[":jediTaskID"]))
-                newJediTaskID = long(val)
+                newJediTaskID = int(val)
                 newJediTaskIDs.append(newJediTaskID)
             # update task parameters
             varMap = {}
@@ -4919,7 +4912,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # no PGID
                     if tmpMatch is None:
                         continue
-                    tmpPGID = long(tmpMatch.group(1))
+                    tmpPGID = int(tmpMatch.group(1))
                     # active process
                     if tmpPGID == pgid:
                         continue
@@ -5659,7 +5652,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # insert dataset
                         self.cur.execute(sql + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                        datasetID = long(val)
+                        datasetID = int(val)
                         masterID = datasetID
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
                         datasetSpec.datasetID = datasetID
@@ -5679,7 +5672,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # insert dataset
                         self.cur.execute(sql + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                        datasetID = long(val)
+                        datasetID = int(val)
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
                         datasetSpec.datasetID = datasetID
                         # insert files
@@ -5698,7 +5691,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # insert dataset
                     self.cur.execute(sql + comment, varMap)
                     val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                    datasetID = long(val)
+                    datasetID = int(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
                     unmergeMasterID = datasetID
@@ -5712,7 +5705,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # insert dataset
                     self.cur.execute(sql + comment, varMap)
                     val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                    datasetID = long(val)
+                    datasetID = int(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
                 # insert output datasets
@@ -5731,7 +5724,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # insert dataset
                     self.cur.execute(sql + comment, varMap)
                     val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                    datasetID = long(val)
+                    datasetID = int(val)
                     datasetIdMap[outputMapKey] = datasetID
                     datasetSpec.datasetID = datasetID
                 # insert outputTemplates
@@ -6268,7 +6261,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 # add size of intermediate files
                                 if jobMetrics is not None:
                                     tmpMatch = re.search("workDirSize=(\d+)", jobMetrics)
-                                    tmpWorkSize = long(tmpMatch.group(1))
+                                    tmpWorkSize = int(tmpMatch.group(1))
                                     tmpWorkSize /= 1024 * 1024
                             except Exception:
                                 pass
@@ -6276,13 +6269,13 @@ class DBProxy(OraDBProxy.DBProxy):
                                 if preOutputScaleWithEvents:
                                     # scale with events
                                     if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                                        tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                                        tmpVal = int(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
                                     if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
                                         outSizeList.append(tmpVal)
                                         outSizeDict[tmpVal] = pandaID
                                 else:
                                     # scale with input size
-                                    tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
+                                    tmpVal = int(math.ceil(float(outputFileBytes) / totalFSize))
                                     if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
                                         outSizeList.append(tmpVal)
                                         outSizeDict[tmpVal] = pandaID
@@ -6354,14 +6347,14 @@ class DBProxy(OraDBProxy.DBProxy):
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
                             memory_leak_core_tmp = float(memory_leak) / float(coreCount)
-                            memory_leak_core_tmp = long(math.ceil(memory_leak_core_tmp))
+                            memory_leak_core_tmp = int(math.ceil(memory_leak_core_tmp))
                             leak_list.append(memory_leak_core_tmp)
                             leak_dict[memory_leak_core_tmp] = pandaID
                         except Exception:
                             pass
                         # memory leak chi2 measurement
                         try:
-                            memory_leak_x2_tmp = long(memory_leak_x2)
+                            memory_leak_x2_tmp = int(memory_leak_x2)
                             leak_x2_list.append(memory_leak_x2_tmp)
                             leak_x2_dict[memory_leak_x2_tmp] = pandaID
                         except Exception:
@@ -6378,7 +6371,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     if preBaseRamCount not in [0, None]:
                                         tmpPSS -= preBaseRamCount * 1024
                                     tmpPSS = float(tmpPSS) / float(coreCount)
-                                    tmpPSS = long(math.ceil(tmpPSS))
+                                    tmpPSS = int(math.ceil(tmpPSS))
                                     memSizeList.append(tmpPSS)
                                     memSizeDict[tmpPSS] = pandaID
                             else:
@@ -6386,7 +6379,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     tmpMEM = maxPSS
                                 else:
                                     tmpMatch = re.search("vmPeakMax=(\d+)", jobMetrics)
-                                    tmpMEM = long(tmpMatch.group(1))
+                                    tmpMEM = int(tmpMatch.group(1))
                                 memSizeList.append(tmpMEM)
                                 memSizeDict[tmpMEM] = pandaID
                         except Exception:
@@ -6432,7 +6425,7 @@ class DBProxy(OraDBProxy.DBProxy):
             upperLimit = 10 * 1024
             if median > upperLimit:
                 median = upperLimit
-            returnMap["outDiskCount"] = long(median)
+            returnMap["outDiskCount"] = int(median)
             if preOutputScaleWithEvents:
                 returnMap["outDiskUnit"] = "kBPerEvent"
             else:
@@ -6448,7 +6441,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 maxWallTime = 0
             median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
             median = math.ceil(median)
-            returnMap["walltime"] = long(median)
+            returnMap["walltime"] = int(median)
             # use preset value if larger
             if preWalltime is not None and (preWalltime > returnMap["walltime"] or preWalltime < 0):
                 returnMap["walltime"] = preWalltime
@@ -6469,30 +6462,30 @@ class DBProxy(OraDBProxy.DBProxy):
                 maxCpuTime *= 1000
                 returnMap["cpuTimeUnit"] = "mHS06sPerEvent"
                 if extraInfo["oldCpuTime"]:
-                    extraInfo["oldCpuTime"] = long(extraInfo["oldCpuTime"] * 1000)
+                    extraInfo["oldCpuTime"] = int(extraInfo["oldCpuTime"] * 1000)
             elif preCpuTimeUnit is not None:
                 # for mHS06sPerEvent -> HS06sPerEvent
                 returnMap["cpuTimeUnit"] = "HS06sPerEvent"
-            maxCpuTime = long(math.ceil(maxCpuTime))
+            maxCpuTime = int(math.ceil(maxCpuTime))
             returnMap["cpuTime"] = maxCpuTime
         if ioIntentList != []:
             maxIoIntent = max(ioIntentList)
             addTag(jobTagMap, ioIntentDict, maxIoIntent, "ioIntensity")
-            maxIoIntent = long(math.ceil(maxIoIntent))
+            maxIoIntent = int(math.ceil(maxIoIntent))
             returnMap["ioIntensity"] = maxIoIntent
             returnMap["ioIntensityUnit"] = "kBPerS"
         if diskIoList != []:
             aveDiskIo = sum(diskIoList) // len(diskIoList)
-            aveDiskIo = long(math.ceil(aveDiskIo))
+            aveDiskIo = int(math.ceil(aveDiskIo))
             if capOnDiskIO is not None:
                 aveDiskIo = min(aveDiskIo, capOnDiskIO)
             returnMap["diskIO"] = aveDiskIo
             returnMap["diskIOUnit"] = "kBPerS"
         if leak_list:
-            ave_leak = long(math.ceil(sum(leak_list) / len(leak_list)))
+            ave_leak = int(math.ceil(sum(leak_list) / len(leak_list)))
             returnMap["memory_leak_core"] = ave_leak
         if leak_x2_list:
-            ave_leak_x2 = long(math.ceil(sum(leak_x2_list) / len(leak_x2_list)))
+            ave_leak_x2 = int(math.ceil(sum(leak_x2_list) / len(leak_x2_list)))
             returnMap["memory_leak_x2"] = ave_leak_x2
         if memSizeList != []:
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
@@ -6500,7 +6493,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 addTag(jobTagMap, memSizeDict, origValue, "ramCount")
             memVal = memVal * (100 + ramCountMargin) // 100
             memVal /= 1024
-            memVal = long(memVal)
+            memVal = int(memVal)
             if memVal < 0:
                 memVal = 1
             if minRamCount is not None and minRamCount > memVal:
@@ -6515,7 +6508,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 returnMap["ramCount"] = memVal
         if workSizeList != []:
             median = max(workSizeList)
-            returnMap["workDiskCount"] = long(median)
+            returnMap["workDiskCount"] = int(median)
             returnMap["workDiskUnit"] = "MB"
             # use preset value if larger
             if preWorkDiskCount is not None and preWorkDiskCount > returnMap["workDiskCount"]:
@@ -9131,7 +9124,7 @@ class DBProxy(OraDBProxy.DBProxy):
             elif not simul:
                 self.cur.execute(sqlDS + comment, varMap)
                 val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                datasetID = long(val)
+                datasetID = int(val)
             else:
                 datasetID = 0
             # insert files
@@ -9143,7 +9136,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not simul:
                     self.cur.execute(sqlFI + comment, varMap)
                     val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
-                    fileID = long(val)
+                    fileID = int(val)
                 else:
                     fileID = 0
                 # change placeholder in filename
@@ -9300,7 +9293,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":newFileID"] = self.cur.var(varNUMBER)
                         self.cur.execute(sqlFI + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
-                        tmpFileSpec.fileID = long(val)
+                        tmpFileSpec.fileID = int(val)
                         tmpLog.debug("insert fileID={0} datasetID={1} rndmSeed={2}".format(tmpFileSpec.fileID, tmpFileSpec.datasetID, tmpFileSpec.firstEvent))
                     tmpFileSpec.status = "ready"
                 # cannot return JobFileSpec due to owner.PandaID
@@ -9424,7 +9417,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":newFileID"] = self.cur.var(varNUMBER)
                     self.cur.execute(sqlFI + comment, varMap)
                     val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
-                    tmpFileSpec.fileID = long(val)
+                    tmpFileSpec.fileID = int(val)
                     # increment nFiles
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -9974,7 +9967,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # insert dataset
                         self.cur.execute(sqlID + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                        datasetID = long(val)
+                        datasetID = int(val)
                         masterID = datasetID
                         datasetSpec.datasetID = datasetID
                         # insert secondary datasets
@@ -9987,7 +9980,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             # insert dataset
                             self.cur.execute(sqlID + comment, varMap)
                             val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
-                            datasetID = long(val)
+                            datasetID = int(val)
                             datasetSpec.datasetID = datasetID
                         goDefined = True
                     # update task
@@ -11722,7 +11715,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             if nHasVal != 0:
-                totWalltime = long(totWalltime * (1 + float(nNoVal) / float(nHasVal)))
+                totWalltime = int(totWalltime * (1 + float(nNoVal) / float(nHasVal)))
             else:
                 totWalltime = None
             tmpLog.debug("done totWalltime={0}".format(totWalltime))

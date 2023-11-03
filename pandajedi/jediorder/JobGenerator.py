@@ -8,13 +8,6 @@ import socket
 import sys
 import time
 import traceback
-
-try:
-    long()
-except Exception:
-    long = int
-
-
 from urllib.parse import unquote
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -384,7 +377,7 @@ class JobGenerator(JediKnight):
                                             if tmpCloudName == "":
                                                 tmpCloudName = "any"
                                             # add
-                                            self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName] = long(nXYZ)
+                                            self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName] = int(nXYZ)
                         except Exception:
                             pass
         # make return
@@ -1373,7 +1366,7 @@ class JobGeneratorThread(WorkerThread):
                     try:
                         if jobSpec.maxCpuCount > 0:
                             jobSpec.maxCpuCount *= totalMasterSize
-                            jobSpec.maxCpuCount = long(jobSpec.maxCpuCount)
+                            jobSpec.maxCpuCount = int(jobSpec.maxCpuCount)
                         else:
                             # negative cpu count to suppress looping job detection
                             jobSpec.maxCpuCount *= -1
@@ -1405,7 +1398,7 @@ class JobGeneratorThread(WorkerThread):
                         jobSpec.maxDiskCount += totalFileSize
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= 1024 * 1024
-                    jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
+                    jobSpec.maxDiskCount = int(jobSpec.maxDiskCount)
                     # cap not to go over site limit
                     if siteSpec.maxwdir and jobSpec.maxDiskCount and siteSpec.maxwdir < jobSpec.maxDiskCount:
                         jobSpec.maxDiskCount = siteSpec.maxwdir
@@ -1934,7 +1927,7 @@ class JobGeneratorThread(WorkerThread):
                 streamName = "IN"
                 tmpPFNs = []
                 for tmpLFN in tmpLFNs:
-                    tmpPFN = taskParamMap["pfnList"][long(tmpLFN.split(":")[0])]
+                    tmpPFN = taskParamMap["pfnList"][int(tmpLFN.split(":")[0])]
                     tmpPFNs.append(tmpPFN)
                 tmpLFNs = tmpPFNs
             # add to map

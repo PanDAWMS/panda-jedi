@@ -2,11 +2,6 @@ import copy
 import datetime
 import re
 
-try:
-    long()
-except Exception:
-    long = int
-
 from dataservice.DataServiceUtils import select_scope
 
 # logger
@@ -1005,7 +1000,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     siteMaxTime *= tmpSiteSpec.corepower
                     tmpSiteStr += "*{0}".format(tmpSiteSpec.corepower)
                 siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
-                siteMaxTime = long(siteMaxTime)
+                siteMaxTime = int(siteMaxTime)
                 tmpSiteStr += "*{0}%".format(taskSpec.cpuEfficiency)
             if origSiteMaxTime != 0:
                 toSkip = False
@@ -1062,7 +1057,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     siteMinTime *= tmpSiteSpec.corepower
                     tmpSiteStr += "*{0}".format(tmpSiteSpec.corepower)
                 siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
-                siteMinTime = long(siteMinTime)
+                siteMinTime = int(siteMinTime)
                 tmpSiteStr += "*{0}%".format(taskSpec.cpuEfficiency)
             if origSiteMinTime != 0:
                 toSkip = False
@@ -1439,14 +1434,14 @@ class AtlasProdJobBroker(JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # file size to move in MB
-                mbToMove = long((totalSize - siteSizeMap[tmpSiteName]) / (1024 * 1024))
+                mbToMove = int((totalSize - siteSizeMap[tmpSiteName]) / (1024 * 1024))
                 nFilesToMove = maxNumFiles - len(siteFilesMap[tmpSiteName])
-                mbToMoveWT = long((totalSize - siteSizeMapWT[tmpSiteName]) / (1024 * 1024))
+                mbToMoveWT = int((totalSize - siteSizeMapWT[tmpSiteName]) / (1024 * 1024))
                 nFilesToMoveWT = maxNumFiles - len(siteFilesMapWT[tmpSiteName])
                 if min(mbToMove, mbToMoveWT) > moveSizeCutoffGB * 1024 or min(nFilesToMove, nFilesToMoveWT) > moveNumFilesCutoff:
                     tmpMsg = "  skip site={0} ".format(tmpSiteName)
                     if mbToMove > moveSizeCutoffGB * 1024:
-                        tmpMsg += "since size of missing input is too large ({0} GB > {1} GB) ".format(long(mbToMove / 1024), moveSizeCutoffGB)
+                        tmpMsg += "since size of missing input is too large ({0} GB > {1} GB) ".format(int(mbToMove / 1024), moveSizeCutoffGB)
                     else:
                         tmpMsg += "since the number of missing input files is too large ({0} > {1}) ".format(nFilesToMove, moveNumFilesCutoff)
                     tmpMsg += "for IO intensive task ({0} > {1} kBPerS) ".format(taskSpec.ioIntensity, self.io_intensity_cutoff)
@@ -1456,7 +1451,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if mbToMove > moveSizeCutoffGB * 1024 or nFilesToMove > moveNumFilesCutoff:
                     tmpMsg = "  skip site={0} ".format(tmpSiteName)
                     if mbToMove > moveSizeCutoffGB * 1024:
-                        tmpMsg += "since size of missing disk input is too large ({0} GB > {1} GB) ".format(long(mbToMove / 1024), moveSizeCutoffGB)
+                        tmpMsg += "since size of missing disk input is too large ({0} GB > {1} GB) ".format(int(mbToMove / 1024), moveSizeCutoffGB)
                     else:
                         tmpMsg += "since the number of missing disk input files is too large ({0} > {1}) ".format(nFilesToMove, moveNumFilesCutoff)
                     tmpMsg += "for IO intensive task ({0} > {1} kBPerS) ".format(taskSpec.ioIntensity, self.io_intensity_cutoff)
@@ -1640,7 +1635,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 nAssigned,
                 nStarting,
                 nDefined,
-                long(totalSize / 1024 / 1024),
+                int(totalSize / 1024 / 1024),
                 manyAssigned,
                 nPilot,
                 maxNumFiles,
@@ -1652,7 +1647,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             skipRemoteData = False
             if totalSize > 0:
                 # file size to move in MB
-                mbToMove = long((totalSize - siteSizeMap[tmpSiteName]) / (1024 * 1024))
+                mbToMove = int((totalSize - siteSizeMap[tmpSiteName]) / (1024 * 1024))
                 # number of files to move
                 nFilesToMove = maxNumFiles - len(siteFilesMap[tmpSiteName])
                 # consider size and # of files

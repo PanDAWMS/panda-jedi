@@ -5,11 +5,6 @@ import re
 
 from pandaserver.taskbuffer import JobUtils
 
-try:
-    long()
-except Exception:
-    long = int
-
 
 # get effective file size
 def getEffectiveFileSize(fsize, startEvent, endEvent, nEvents):
@@ -19,7 +14,7 @@ def getEffectiveFileSize(fsize, startEvent, endEvent, nEvents):
         effectiveFsize = inMB
     elif nEvents is not None and startEvent is not None and endEvent is not None:
         # take event range into account
-        effectiveFsize = long(float(fsize) * float(endEvent - startEvent + 1) / float(nEvents))
+        effectiveFsize = int(float(fsize) * float(endEvent - startEvent + 1) / float(nEvents))
     else:
         effectiveFsize = fsize
     # use dummy size if input is too small
@@ -194,7 +189,7 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
                 jobSpec.maxWalltime /= float(taskSpec.cpuEfficiency) / 100.0
             if taskSpec.baseWalltime is not None:
                 jobSpec.maxWalltime += taskSpec.baseWalltime
-            jobSpec.maxWalltime = long(jobSpec.maxWalltime)
+            jobSpec.maxWalltime = int(jobSpec.maxWalltime)
             if taskSpec.useHS06():
                 jobSpec.maxCpuCount = jobSpec.maxWalltime
     except Exception:
