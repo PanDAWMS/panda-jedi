@@ -13,7 +13,6 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 from pandajedi.jedirefine import RefinerUtils
-from six import iteritems
 
 from .JediKnight import JediKnight
 
@@ -306,7 +305,7 @@ class ContentsFeederThread(WorkerThread):
                                 tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
                                 if tmpLostFiles != {}:
                                     tmpLog.debug('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
-                                    for tmpListGUID,tmpLostLFN in iteritems(tmpLostFiles):
+                                    for tmpListGUID,tmpLostLFN in tmpLostFiles.items():
                                         tmpLog.debug('removed {0}'.format(tmpLostLFN))
                                         del tmpRet[tmpListGUID]
                                 """

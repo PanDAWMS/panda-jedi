@@ -11,7 +11,6 @@ from dataservice.DataServiceUtils import select_scope
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils, ProcessGroups
-from six import iteritems
 
 
 # get hospital queues
@@ -169,7 +168,7 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
         avaNumAny = 0
         avaSizeDisk = 0
         avaSizeAny = 0
-        for tmpDataset, tmpRepMap in iteritems(replicaMap):
+        for tmpDataset, tmpRepMap in replicaMap.items():
             tmpTotalNum = 0
             tmpTotalSize = 0
             tmpAvaNumDisk = 0
@@ -177,7 +176,7 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
             tmpAvaSizeDisk = 0
             tmpAvaSizeAny = 0
             # loop over all endpoints
-            for tmpLoc, locData in iteritems(tmpRepMap):
+            for tmpLoc, locData in tmpRepMap.items():
                 # get total
                 if tmpTotalNum == 0:
                     tmpTotalNum = locData[0]["total"]
@@ -311,8 +310,8 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_in
     siteWithIncomp = []
     siteListNonVP = set()
     siteListVP = set()
-    for tmpSiteName, tmpSeValMap in iteritems(dataSiteMap):
-        for tmpSE, tmpValMap in iteritems(tmpSeValMap):
+    for tmpSiteName, tmpSeValMap in dataSiteMap.items():
+        for tmpSE, tmpValMap in tmpSeValMap.items():
             # VP
             if tmpValMap.get("vp"):
                 siteListVP.add(tmpSiteName)
@@ -350,12 +349,12 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
         return 0
     nJobs = 0
     # loop over all workQueues
-    for tmpWorkQueue, tmpWorkQueueVal in iteritems(jobStatMap[computingSite]):
+    for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].items():
         # workQueue is defined
         if workQueue_tag is not None and workQueue_tag != tmpWorkQueue:
             continue
         # loop over all job status
-        for tmpJobStatus, tmpCount in iteritems(tmpWorkQueueVal):
+        for tmpJobStatus, tmpCount in tmpWorkQueueVal.items():
             if tmpJobStatus == jobStatus:
                 nJobs += tmpCount
     # return

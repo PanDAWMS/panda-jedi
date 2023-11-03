@@ -6,7 +6,6 @@ import traceback
 
 from pandajedi.jedicore import JediException
 from pandaserver.dataservice import DataServiceUtils
-from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
 
@@ -97,7 +96,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                     if datasetSpec.isMaster() and datasetSpec.type == "input":
                         datasetSpec.enableCheckConsistency()
             # append attempt number
-            for tmpKey, tmpOutTemplateMapList in iteritems(self.outputTemplateMap):
+            for tmpKey, tmpOutTemplateMapList in self.outputTemplateMap.items():
                 for tmpOutTemplateMap in tmpOutTemplateMapList:
                     outFileTemplate = tmpOutTemplateMap["filenameTemplate"]
                     if re.search("\.\d+$", outFileTemplate) is None and not outFileTemplate.endswith(".panda.um"):
@@ -135,7 +134,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                                         str(metaData), self.taskSpec.parent_tid, datasetSpec.datasetID, datasetSpec.datasetName
                                     )
                                 )
-                                for metadataName, metadaValue in iteritems(metaData):
+                                for metadataName, metadaValue in metaData.items():
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName, metadataName, metadaValue)
             # input prestaging
             if self.taskSpec.inputPreStaging():

@@ -13,7 +13,6 @@ import traceback
 import uuid
 
 import numpy
-from six import iteritems
 
 try:
     long()
@@ -422,7 +421,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     raise RuntimeError("Commit error")
                 # check if files are 'finished' in JEDI table
                 newFileMap = {}
-                for guid, fileVal in iteritems(fileMap):
+                for guid, fileVal in fileMap.items():
                     if fileVal["lfn"] in producedFileList:
                         newFileMap[guid] = fileVal
                     else:
@@ -464,14 +463,14 @@ class DBProxy(OraDBProxy.DBProxy):
             # include files
             if includePatt != []:
                 newFileMap = {}
-                for guid, fileVal in iteritems(fileMap):
+                for guid, fileVal in fileMap.items():
                     if self.isMatched(fileVal["lfn"], includePatt):
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
             # exclude files
             if excludePatt != []:
                 newFileMap = {}
-                for guid, fileVal in iteritems(fileMap):
+                for guid, fileVal in fileMap.items():
                     if not self.isMatched(fileVal["lfn"], excludePatt):
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
@@ -487,7 +486,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         fileItem = {"lfn": tmpFileItem}
                     givenFileMap[tmpLFN] = fileItem
                 newFileMap = {}
-                for guid, fileVal in iteritems(fileMap):
+                for guid, fileVal in fileMap.items():
                     if fileVal["lfn"] in givenFileMap:
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
@@ -500,20 +499,20 @@ class DBProxy(OraDBProxy.DBProxy):
                     tmpErrStr = "failed to load XML config with {0}:{1}".format(errtype.__name__, errvalue)
                     raise RuntimeError(tmpErrStr)
                 newFileMap = {}
-                for guid, fileVal in iteritems(fileMap):
+                for guid, fileVal in fileMap.items():
                     if fileVal["lfn"] in xmlConfig.files_in_DS(datasetSpec.datasetName):
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
             # make map with LFN as key
             filelValMap = {}
-            for guid, fileVal in iteritems(fileMap):
+            for guid, fileVal in fileMap.items():
                 filelValMap[fileVal["lfn"]] = (guid, fileVal)
             # make LFN list
             listBoundaryID = []
             if order_by == "eventsAlignment" and nEventsPerJob:
                 aligned = []
                 unaligned = dict()
-                for tmpLFN, (tmpGUID, tmpFileVar) in iteritems(filelValMap):
+                for tmpLFN, (tmpGUID, tmpFileVar) in filelValMap.items():
                     if "events" in tmpFileVar and int(tmpFileVar["events"]) % nEventsPerJob == 0:
                         aligned.append(tmpLFN)
                     else:
@@ -1233,7 +1232,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # lost or recovered files
                         tmpLog.debug("lost or recovered files")
                         uniqueFileKeySet = set(uniqueFileKeyList)
-                        for uniqueFileKey, fileVarMap in iteritems(existingFiles):
+                        for uniqueFileKey, fileVarMap in existingFiles.items():
                             varMap = {}
                             varMap[":jediTaskID"] = datasetSpec.jediTaskID
                             varMap[":datasetID"] = datasetSpec.datasetID
@@ -1540,7 +1539,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql for update
             sql = "UPDATE {0}.JEDI_Datasets SET {1} WHERE ".format(jedi_config.db.schemaJEDI, datasetSpec.bindUpdateChangesExpression())
             useAND = False
-            for tmpKey, tmpVal in iteritems(criteria):
+            for tmpKey, tmpVal in criteria.items():
                 crKey = ":cr_%s" % tmpKey
                 if useAND:
                     sql += " AND"
@@ -1591,7 +1590,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             varMap[":datasetID"] = datasetID
-            for tmpKey, tmpVal in iteritems(attributes):
+            for tmpKey, tmpVal in attributes.items():
                 crKey = ":{0}".format(tmpKey)
                 sql += "{0}={1},".format(tmpKey, crKey)
                 varMap[crKey] = tmpVal
@@ -1679,7 +1678,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql = sql[:-1] + " "
             sql += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE jediTaskID=:jediTaskID "
-            for crKey, crVal in iteritems(criteria):
+            for crKey, crVal in criteria.items():
                 sql += "AND {0}=:{0} ".format(crKey)
                 varMap[":{0}".format(crKey)] = crVal
             # begin transaction
@@ -1971,7 +1970,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlS = "SELECT status,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sql = "WHERE "
             varMap = {}
-            for tmpKey, tmpVal in iteritems(criteria):
+            for tmpKey, tmpVal in criteria.items():
                 crKey = ":cr_{0}".format(tmpKey)
                 sql += "{0}={1} AND ".format(tmpKey, crKey)
                 varMap[crKey] = tmpVal
@@ -2005,7 +2004,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     taskSpec.frozenTime = None
             # update task
             sqlU = "UPDATE {0}.JEDI_Tasks SET {1} ".format(jedi_config.db.schemaJEDI, taskSpec.bindUpdateChangesExpression())
-            for tmpKey, tmpVal in iteritems(taskSpec.valuesMap(useSeq=False, onlyChanged=True)):
+            for tmpKey, tmpVal in taskSpec.valuesMap(useSeq=False, onlyChanged=True).items():
                 varMap[tmpKey] = tmpVal
             tmpLog.debug(sqlU + sql + comment + str(varMap))
             self.cur.execute(sqlU + sql + comment, varMap)
@@ -2318,7 +2317,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             isFirst = True
-            for tmpKey, tmpVal in iteritems(criteria):
+            for tmpKey, tmpVal in criteria.items():
                 if not isFirst:
                     sql += "AND "
                 else:
@@ -3030,7 +3029,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpLog.debug("bulk insert {0} files".format(len(varMapsForInsert)))
                 self.cur.executemany(sqlII + comment, varMapsForInsert)
             # set masterID to concrete datasets
-            for fileDatasetID, (masterID, instantiatedSite) in iteritems(mstr_RelationMap):
+            for fileDatasetID, (masterID, instantiatedSite) in mstr_RelationMap.items():
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
                 varMap[":datasetID"] = fileDatasetID
@@ -3066,7 +3065,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = {}
                 sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,".format(jedi_config.db.schemaJEDI)
                 sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,".format(jedi_config.db.schemaJEDI)
-                for tmpAttr, tmpVal in iteritems(template):
+                for tmpAttr, tmpVal in template.items():
                     tmpKey = ":" + tmpAttr
                     sqlH += "{0},".format(tmpAttr)
                     sqlL += "{0},".format(tmpKey)
@@ -4353,7 +4352,7 @@ class DBProxy(OraDBProxy.DBProxy):
             tmpLog.debug("returning {0} tasks".format(iTasks))
             # change map to list
             returnList = []
-            for tmpJediTaskID, tmpTaskDsList in iteritems(returnMap):
+            for tmpJediTaskID, tmpTaskDsList in returnMap.items():
                 returnList.append((tmpJediTaskID, tmpTaskDsList))
             tmpLog.debug("memUsage end {0} MB pid={1}".format(JediCoreUtils.getMemoryUsage(), os.getpid()))
             return returnList
@@ -4794,7 +4793,7 @@ class DBProxy(OraDBProxy.DBProxy):
             tmpLog.debug("got {0} tasks".format(len(taskDsMap)))
             # loop over all tasks
             ngTasks = set()
-            for jediTaskID, datasetIDs in iteritems(taskDsMap):
+            for jediTaskID, datasetIDs in taskDsMap.items():
                 self.conn.begin()
                 # lock task
                 toSkip = False
@@ -5737,7 +5736,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     datasetSpec.datasetID = datasetID
                 # insert outputTemplates
                 tmpLog.debug("inserting outTmpl")
-                for outputMapKey, outputTemplateList in iteritems(outputTemplateMap):
+                for outputMapKey, outputTemplateList in outputTemplateMap.items():
                     if outputMapKey not in datasetIdMap:
                         raise RuntimeError("datasetID is not defined for {0}".format(outputMapKey))
                     for outputTemplate in outputTemplateList:
@@ -5745,7 +5744,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID,".format(jedi_config.db.schemaJEDI)
                         varMap = {}
                         varMap[":datasetID"] = datasetIdMap[outputMapKey]
-                        for tmpAttr, tmpVal in iteritems(outputTemplate):
+                        for tmpAttr, tmpVal in outputTemplate.items():
                             tmpKey = ":" + tmpAttr
                             sqlH += "{0},".format(tmpAttr)
                             sqlL += "{0},".format(tmpKey)
@@ -6529,7 +6528,7 @@ class DBProxy(OraDBProxy.DBProxy):
         nShortJobsWithCtoS = 0
         nTotalForShort = 0
         longestShortExecTime = 0
-        for tmpPandaID, tmpExecTime in iteritems(execTimeMap):
+        for tmpPandaID, tmpExecTime in execTimeMap.items():
             if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
                 longestShortExecTime = max(longestShortExecTime, tmpExecTime.total_seconds())
                 if site_mapper and task_spec:
@@ -6545,21 +6544,21 @@ class DBProxy(OraDBProxy.DBProxy):
         extraInfo["nTotalForShort"] = nTotalForShort
         extraInfo["longestShortExecTime"] = longestShortExecTime
         nInefficientJobs = 0
-        for tmpPandaID, tmpCpuEff in iteritems(cpuEffMap):
+        for tmpPandaID, tmpCpuEff in cpuEffMap.items():
             if tmpCpuEff < lowCpuEff:
                 nInefficientJobs += 1
         extraInfo["nInefficientJobs"] = nInefficientJobs
         extraInfo["nTotalForIneff"] = len(cpuEffMap)
         # tag jobs
         if flagJob:
-            for tmpPandaID, tmpTags in iteritems(jobTagMap):
+            for tmpPandaID, tmpTags in jobTagMap.items():
                 self.updateJobMetrics_JEDI(jediTaskID, tmpPandaID, jMetricsMap[tmpPandaID], tmpTags)
         # reset NG
         taskSpec = JediTaskSpec()
         taskSpec.splitRule = splitRule
         if not mergeScout and taskSpec.getTgtMaxOutputForNG() is not None and "outDiskCount" in returnMap:
             # look for PandaID for outDiskCount
-            for tmpPandaID, tmpTags in iteritems(jobTagMap):
+            for tmpPandaID, tmpTags in jobTagMap.items():
                 if "outDiskCount" in tmpTags:
                     # get total and the largest output fsize
                     sqlBig = "SELECT SUM(fsize) FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type=:type GROUP BY dataset ".format(jedi_config.db.schemaPANDA)
@@ -6620,7 +6619,7 @@ class DBProxy(OraDBProxy.DBProxy):
             tmpKeys = sorted(returnMap.keys())
             for tmpKey in tmpKeys:
                 tmpMsg += "{0}={1} ".format(tmpKey, returnMap[tmpKey])
-            for tmpPandaID, tmpTags in iteritems(jobTagMap):
+            for tmpPandaID, tmpTags in jobTagMap.items():
                 for tmpTag in tmpTags:
                     tmpMsg += "{0}_by={1} ".format(tmpTag, tmpPandaID)
             tmpLog.info(tmpMsg[:-1])
@@ -6661,7 +6660,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             sqlTSD = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
-            for scoutKey, scoutVal in iteritems(scoutData):
+            for scoutKey, scoutVal in scoutData.items():
                 # skip new NG
                 if scoutKey in ["newNG"]:
                     continue
@@ -6690,7 +6689,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
                 sqlTSD = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
-                for mergeScoutKey, mergeScoutVal in iteritems(mergeScoutData):
+                for mergeScoutKey, mergeScoutVal in mergeScoutData.items():
                     # only walltime and ramCount
                     if not mergeScoutKey.startswith("walltime") and not mergeScoutKey.startswith("ram"):
                         continue
@@ -7626,7 +7625,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         try:
             if taskCloudMap != {}:
-                for jediTaskID, tmpVal in iteritems(taskCloudMap):
+                for jediTaskID, tmpVal in taskCloudMap.items():
                     # begin transaction
                     self.conn.begin()
                     if isinstance(tmpVal, str):
@@ -7829,7 +7828,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if cloud not in retMap:
                         retMap[cloud] = 0
                     retMap[cloud] += tmpRW
-            for cloudName, rwValue in iteritems(retMap):
+            for cloudName, rwValue in retMap.items():
                 retMap[cloudName] = int(rwValue / 24 / 3600)
             tmpLog.debug("RW={0}".format(str(retMap)))
             # return
@@ -7977,7 +7976,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":comm_owner"] = "DEFT"
             sqlC = "SELECT comm_task,comm_cmd,comm_comment FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd IN ("
-            for commandStr, taskStatusMap in iteritems(commandStatusMap):
+            for commandStr, taskStatusMap in commandStatusMap.items():
                 tmpKey = ":comm_cmd_{0}".format(commandStr)
                 varMap[tmpKey] = commandStr
                 sqlC += "{0},".format(tmpKey)
@@ -8200,7 +8199,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError("Commit error")
             # find orphaned tasks to rescue
-            for commandStr, taskStatusMap in iteritems(commandStatusMap):
+            for commandStr, taskStatusMap in commandStatusMap.items():
                 varMap = {}
                 varMap[":status"] = taskStatusMap["doing"]
                 # skip dummy status
@@ -8259,7 +8258,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         raise RuntimeError("Commit error")
             # convert to list
             retTaskList = []
-            for jediTaskID, varMap in iteritems(retTaskIDs):
+            for jediTaskID, varMap in retTaskIDs.items():
                 retTaskList.append((jediTaskID, varMap))
             # return
             tmpLog.debug("return {0} tasks".format(len(retTaskList)))
@@ -10046,7 +10045,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:originPandaID,:relationType) "
             # start transaction
             self.conn.begin()
-            for newPandaID, oldPandaIDs in iteritems(oldNewPandaIDs):
+            for newPandaID, oldPandaIDs in oldNewPandaIDs.items():
                 for oldPandaID in oldPandaIDs:
                     # get origin
                     originIDs = self.getOriginPandaIDsJEDI(oldPandaID, jediTaskID, self.cur)
@@ -10108,7 +10107,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if prodSourceLabel not in [None, "any"]:
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
-            for tmpKey, tmpVal in iteritems(taskCriteria):
+            for tmpKey, tmpVal in taskCriteria.items():
                 if isinstance(tmpVal, list):
                     sqlRT += "AND tabT.{0} IN (".format(tmpKey)
                     for tmpValItem in tmpVal:
@@ -10121,7 +10120,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":{0}".format(tmpKey)] = tmpVal
                 else:
                     sqlRT += "AND tabT.{0} IS NULL ".format(tmpKey)
-            for tmpKey, tmpVal in iteritems(datasetCriteria):
+            for tmpKey, tmpVal in datasetCriteria.items():
                 if isinstance(tmpVal, list):
                     sqlRT += "AND tabD.{0} IN (".format(tmpKey)
                     for tmpValItem in tmpVal:
@@ -12369,7 +12368,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # remove uncommon
             for datasetID in datasetIDs:
                 nLost = 0
-                for idx, fileIDs in iteritems(lfnMap[datasetID]):
+                for idx, fileIDs in lfnMap[datasetID].items():
                     if idx not in commonIdx:
                         for fileID in fileIDs:
                             varMap = {}
@@ -12626,10 +12625,10 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlDJ += "AND tabT.jediTaskID=tabD.jediTaskID "
             sqlDJ += "AND tabT.vo=:vo AND tabT.prodSourceLabel=:label "
             sqlDJ += "AND tabT.status IN (:st1,:st2,:st3,:st4,:st5,:st6,:st7) AND tabD.type=:type AND tabD.masterID IS NULL "
-            for key, val in iteritems(criteria):
+            for key, val in criteria.items():
                 sqlDJ += "AND tabT.{0}=:{0} ".format(key)
                 varMap[":{0}".format(key)] = val
-            for key, val in iteritems(neg_criteria):
+            for key, val in neg_criteria.items():
                 sqlDJ += "AND tabT.{0}<>:neg_{0} ".format(key)
                 varMap[":neg_{0}".format(key)] = val
             sqlDJ += ") "
@@ -12646,7 +12645,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlPD += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlPD += "AND tabT.vo=:vo AND tabT.prodSourceLabel=:label "
             sqlPD += "AND tabT.status IN (:st1,:st2) "
-            for key, val in iteritems(criteria):
+            for key, val in criteria.items():
                 sqlPD += "AND tabT.{0}=:{0} ".format(key)
             # get num events
             self.conn.begin()
@@ -12660,7 +12659,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":label"] = prodSourceLabel
             varMap[":st1"] = "pending"
             varMap[":st2"] = "registered"
-            for key, val in iteritems(criteria):
+            for key, val in criteria.items():
                 varMap[":{0}".format(key)] = val
             self.cur.execute(sqlPD + comment, varMap)
             (nPending,) = self.cur.fetchone()
@@ -12743,14 +12742,14 @@ class DBProxy(OraDBProxy.DBProxy):
             for siteid, catchall in resList:
                 numMap = JobUtils.parseNumStandby(catchall)
                 if numMap is not None:
-                    for wq_tag, resource_num in iteritems(numMap):
+                    for wq_tag, resource_num in numMap.items():
                         if workqueue.is_global_share:
                             if workqueue.queue_name != wq_tag:
                                 continue
                         else:
                             if str(workqueue.queue_id) != wq_tag:
                                 continue
-                        for resource_type, num in iteritems(resource_num):
+                        for resource_type, num in resource_num.items():
                             if num == 0:
                                 retMap = retMapDynamic
                                 # dynamic : use # of starting jobs as # of standby jobs

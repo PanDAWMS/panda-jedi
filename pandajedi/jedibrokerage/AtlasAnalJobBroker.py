@@ -13,7 +13,6 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import JobUtils
-from six import iteritems
 
 from . import AtlasBrokerUtils
 from .JobBrokerBase import JobBrokerBase
@@ -99,7 +98,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 except Exception:
                     pass
         # loop over all sites
-        for siteName, tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
+        for siteName, tmpSiteSpec in self.siteMapper.siteSpecList.items():
             if tmpSiteSpec.type == "analysis" or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
@@ -469,7 +468,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 scanSiteListOnDiskUnion = None
                 scanSiteWoVpUnion = None
                 normFactor = 0
-                for datasetName, tmpDataSite in iteritems(self.dataSiteMap):
+                for datasetName, tmpDataSite in self.dataSiteMap.items():
                     normFactor += 1
                     useIncomplete = datasetName in ddsList
                     # get sites where replica is available
@@ -1552,7 +1551,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             for fileSpec in datasetSpec.Files:
                 totalSize += fileSpec.fsize
             if datasetSpec.datasetName in availableFileMap:
-                for tmpSiteName, tmpAvFileMap in iteritems(availableFileMap[datasetSpec.datasetName]):
+                for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].items():
                     totalDiskSizeMap.setdefault(tmpSiteName, 0)
                     totalTapeSizeMap.setdefault(tmpSiteName, 0)
                     for fileSpec in tmpAvFileMap["localdisk"]:
@@ -1589,10 +1588,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
             nWorkers = 0
             nWorkersCutoff = 20
             if tmpSiteName in workerStat:
-                for tmpHarvesterID, tmpLabelStat in iteritems(workerStat[tmpSiteName]):
-                    for tmpHarvesterID, tmpResStat in iteritems(tmpLabelStat):
-                        for tmpResType, tmpCounts in iteritems(tmpResStat):
-                            for tmpStatus, tmpNum in iteritems(tmpCounts):
+                for tmpHarvesterID, tmpLabelStat in workerStat[tmpSiteName].items():
+                    for tmpHarvesterID, tmpResStat in tmpLabelStat.items():
+                        for tmpResType, tmpCounts in tmpResStat.items():
+                            for tmpStatus, tmpNum in tmpCounts.items():
                                 if tmpStatus in ["running", "submitted"]:
                                     nWorkers += tmpNum
                 # cap
@@ -2022,7 +2021,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             else:
                 isAvailable = False
             isAvailableBase = isAvailable
-            for tmpDatasetName, availableFiles in iteritems(availableFileMap):
+            for tmpDatasetName, availableFiles in availableFileMap.items():
                 tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
                 isAvailable = isAvailableBase
                 # check remote files

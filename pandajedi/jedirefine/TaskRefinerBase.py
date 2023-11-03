@@ -10,7 +10,6 @@ from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.taskbuffer import EventServiceUtils
-from six import iteritems
 
 from . import RefinerUtils
 
@@ -790,14 +789,14 @@ class TaskRefinerBase(object):
             except Exception as e:
                 errStr = "iDDS failed with {0}".format(str(e))
                 raise JediException.ExternalTempError(errStr)
-        # return
+
         return
 
     # replace placeholder with dict provided by prepro job
     def replacePlaceHolders(self, paramItem, placeHolderName, newValue):
         if isinstance(paramItem, dict):
             # loop over all dict params
-            for tmpParName, tmpParVal in iteritems(paramItem):
+            for tmpParName, tmpParVal in paramItem.items():
                 if tmpParVal == placeHolderName:
                     # replace placeholder
                     paramItem[tmpParName] = newValue
@@ -822,7 +821,7 @@ class TaskRefinerBase(object):
                 # replace placeholders
                 replaceParams = RefinerUtils.decodeJSON(tmpJsonStr)
                 self.tmpLog.debug("replace placeholders with " + str(replaceParams))
-                for tmpKey, tmpVal in iteritems(replaceParams):
+                for tmpKey, tmpVal in replaceParams.items():
                     self.replacePlaceHolders(taskParamMap, tmpKey, tmpVal)
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]

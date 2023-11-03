@@ -3,11 +3,9 @@ import re
 import sys
 import uuid
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from six import iteritems
 
 from .TaskGeneratorBase import TaskGeneratorBase
 
@@ -46,7 +44,7 @@ class AtlasTaskGenerator(TaskGeneratorBase):
                             return retFatal
                         missingFilesMap = varMap["missingFilesMap"]
                         # check datasets
-                        for datasetName, datasetValMap in iteritems(missingFilesMap):
+                        for datasetName, datasetValMap in missingFilesMap.items():
                             # dataset needs specify container
                             datasetSpec = datasetValMap["datasetSpec"]
                             if datasetSpec.containerName in ["", None]:
@@ -56,7 +54,7 @@ class AtlasTaskGenerator(TaskGeneratorBase):
                                 return retFatal
                         # make parameters for new task
                         newJsonStrList = []
-                        for datasetName, datasetValMap in iteritems(missingFilesMap):
+                        for datasetName, datasetValMap in missingFilesMap.items():
                             datasetSpec = datasetValMap["datasetSpec"]
                             newTaskParamMap = {}
                             newTaskParamMap["oldDatasetName"] = datasetName

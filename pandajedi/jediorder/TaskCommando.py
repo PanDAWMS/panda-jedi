@@ -2,11 +2,9 @@ import datetime
 import os
 import re
 import socket
-import sys
 import time
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
@@ -14,7 +12,6 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 from pandajedi.jedirefine import RefinerUtils
-from six import iteritems
 
 from .JediKnight import JediKnight
 
@@ -225,7 +222,7 @@ class TaskCommandoThread(WorkerThread):
                                 # convert new params
                                 newParamMap = RefinerUtils.decodeJSON(commentStr)
                                 # change params
-                                for newKey, newVal in iteritems(newParamMap):
+                                for newKey, newVal in newParamMap.items():
                                     if newVal is None:
                                         # delete
                                         if newKey in taskParamMap:

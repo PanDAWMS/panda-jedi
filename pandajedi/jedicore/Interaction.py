@@ -5,17 +5,11 @@ import os
 import signal
 import sys
 import time
-import types
 
 try:
     from multiprocessing.connection import reduce_connection
 except ImportError:
     from multiprocessing.reduction import reduce_connection
-
-from six import iteritems
-
-# patch multiprocessing
-from . import JediPatch
 
 # import multiprocessing
 # logger = multiprocessing.log_to_stderr()
@@ -59,7 +53,7 @@ statusCodeMap = {
 
 # install the list of status codes to a class
 def installSC(cls):
-    for sc, val in iteritems(statusCodeMap):
+    for sc, val in statusCodeMap.items():
         setattr(cls, sc, val)
 
 
@@ -342,7 +336,7 @@ class CommandReceiveInterface(object):
             tmpKey = "{0}:{1}:".format(className, methodName)
             for argItem in argList:
                 tmpKey += "{0}:".format(str(argItem))
-            for argKey, argVal in iteritems(argMap):
+            for argKey, argVal in argMap.items():
                 tmpKey += "{0}={1}:".format(argKey, str(argVal))
             tmpKey = tmpKey[:-1]
             return tmpKey

@@ -228,7 +228,7 @@ setup(
         "pandajedi.jedipprocess",
         "pandajedi.jedimsgprocessor",
     ],
-    install_requires=["six", "panda-common>=0.0.44", "panda-server>=0.0.37", "python-daemon", "numpy", "pyyaml", "requests", "packaging"],
+    install_requires=["panda-common>=0.0.44", "panda-server>=0.0.37", "python-daemon", "numpy", "pyyaml", "requests", "packaging"],
     extras_require={
         "oracle": ["cx_Oracle"],
         "mysql": ["mysqlclient"],

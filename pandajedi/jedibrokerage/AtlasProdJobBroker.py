@@ -2,8 +2,6 @@ import copy
 import datetime
 import re
 
-from six import iteritems
-
 try:
     long()
 except Exception:
@@ -483,7 +481,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     cloudHasData = False
                 t1hasData = False
                 if cloudHasData:
-                    for tmpSE,tmpSeVal in iteritems(self.dataSiteMap[datasetName][cloudName]['t1']):
+                    for tmpSE,tmpSeVal in self.dataSiteMap[datasetName][cloudName]['t1'].items():
                         if tmpSeVal['state'] == 'complete':
                             t1hasData = True
                             break
@@ -1571,10 +1569,10 @@ class AtlasProdJobBroker(JobBrokerBase):
             nWorkers = 0
             nWorkersCutoff = 20
             if tmpSiteName in workerStat:
-                for tmpHarvesterID, tmpLabelStat in iteritems(workerStat[tmpSiteName]):
-                    for tmpHarvesterID, tmpResStat in iteritems(tmpLabelStat):
-                        for tmpResType, tmpCounts in iteritems(tmpResStat):
-                            for tmpStatus, tmpNum in iteritems(tmpCounts):
+                for tmpHarvesterID, tmpLabelStat in workerStat[tmpSiteName].items():
+                    for tmpHarvesterID, tmpResStat in tmpLabelStat.items():
+                        for tmpResType, tmpCounts in tmpResStat.items():
+                            for tmpStatus, tmpNum in tmpCounts.items():
                                 if tmpStatus in ["running", "submitted"]:
                                     nWorkers += tmpNum
                 # cap
@@ -1743,7 +1741,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             siteCandidateSpec.nRunningJobs = nRunning
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
-            for tmpDatasetName, availableFiles in iteritems(availableFileMap):
+            for tmpDatasetName, availableFiles in availableFileMap.items():
                 if tmpSiteName in availableFiles:
                     siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]["localdisk"])
                     siteCandidateSpec.add_local_tape_files(availableFiles[tmpSiteName]["localtape"])
@@ -1842,7 +1840,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                         largestNumRun = (tmpPseudoSiteName, nRunningAll)
                         okAsPrimay = True
                         # copy primaries to secondary map
-                        for tmpWeight, tmpCandidates in iteritems(weightMapPrimary):
+                        for tmpWeight, tmpCandidates in weightMapPrimary.items():
                             weightMapSecondary.setdefault(tmpWeight, [])
                             weightMapSecondary[tmpWeight] += tmpCandidates
                         weightMapPrimary = {}
@@ -1876,7 +1874,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         if weightMapPrimary == {}:
             tmpLog.info("available sites all capped")
         # add jumbo sites
-        for weight, tmpList in iteritems(weightMapJumbo):
+        for weight, tmpList in weightMapJumbo.items():
             if weight not in weightMap:
                 weightMap[weight] = []
             for tmpItem in tmpList:

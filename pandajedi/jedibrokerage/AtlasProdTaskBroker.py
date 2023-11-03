@@ -4,8 +4,6 @@ import random
 import sys
 import traceback
 
-from six import iteritems
-
 try:
     long()
 except Exception:
@@ -65,7 +63,7 @@ class AtlasProdTaskBroker(TaskBrokerBase):
             return retTmpError
         # make return map
         retMap = {}
-        for tmpTaskID, tmpCoreName in iteritems(cloudsInPanda):
+        for tmpTaskID, tmpCoreName in cloudsInPanda.items():
             tmpLog.debug("jediTaskID={0} -> {1}".format(tmpTaskID, tmpCoreName))
             if tmpCoreName not in ["NULL", "", None]:
                 taskSpec = taskSpecMap[tmpTaskID]
@@ -356,7 +354,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                     nucleusList = copy.copy(siteMapper.nuclei)
                     if taskSpec.get_full_chain():
                         # use satellites with bareNucleus as nuclei for full chain
-                        for tmpNucleus, tmpNucleusSpec in iteritems(siteMapper.satellites):
+                        for tmpNucleus, tmpNucleusSpec in siteMapper.satellites.items():
                             if tmpNucleusSpec.get_bare_nucleus_mode():
                                 nucleusList[tmpNucleus] = tmpNucleusSpec
                     # init summary list
@@ -372,7 +370,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         # check status
                         newNucleusList = {}
                         oldNucleusList = copy.copy(nucleusList)
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             if tmpNucleusSpec.state not in ["ACTIVE"]:
                                 tmpLog.info("  skip nucleus={0} due to status={1} criteria=-status".format(tmpNucleus, tmpNucleusSpec.state))
                             else:
@@ -392,7 +390,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                             newNucleusList = {}
                             oldNucleusList = copy.copy(nucleusList)
                             backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
-                            for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                            for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                                 if tmpNucleus in backlogged_nuclei:
                                     tmpLog.info("  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog".format(tmpNucleus))
                                 else:
@@ -409,7 +407,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         newNucleusList = {}
                         oldNucleusList = copy.copy(nucleusList)
                         tmpStat, tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID, ["output", "log"])
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             toSkip = False
                             origNucleusSpec = tmpNucleusSpec
                             for tmpDatasetSpec in tmpDatasetSpecList:
@@ -480,7 +478,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         oldNucleusList = copy.copy(nucleusList)
                         # get all panda sites
                         tmpSiteList = []
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             tmpSiteList += tmpNucleusSpec.allPandaSites
                         tmpSiteList = list(set(tmpSiteList))
                         tmpLog.debug("===== start for job check")
@@ -499,7 +497,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         for tmpSite in tmpRet:
                             siteSpec = siteMapper.getSite(tmpSite)
                             okNuclei.add(siteSpec.pandasite)
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             if tmpNucleus in okNuclei:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                             else:
@@ -543,11 +541,11 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                 toSkip = True
                                 break
                             # sum
-                            for tmpNucleus, tmpVals in iteritems(tmpRet):
+                            for tmpNucleus, tmpVals in tmpRet.items():
                                 if tmpNucleus not in availableData:
                                     availableData[tmpNucleus] = tmpVals
                                 else:
-                                    availableData[tmpNucleus] = dict((k, v + tmpVals[k]) for (k, v) in iteritems(availableData[tmpNucleus]))
+                                    availableData[tmpNucleus] = dict((k, v + tmpVals[k]) for (k, v) in availableData[tmpNucleus].items())
                         if toSkip:
                             continue
                         if availableData != {}:
@@ -555,7 +553,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                             oldNucleusList = copy.copy(nucleusList)
                             # skip if no data
                             skipMsgList = []
-                            for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                            for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                                 if taskSpec.inputPreStaging() and availableData[tmpNucleus]["ava_num_any"] > 0:
                                     # use incomplete replicas for data carousel since the completeness is guaranteed
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
@@ -619,7 +617,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                 )
                                 continue
                             parent_full_chain = parentTaskSpec.check_full_chain_with_nucleus(siteMapper.getNucleus(parentTaskSpec.nucleus))
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             # nucleus to run only full-chain tasks
                             if tmpNucleusSpec.get_bare_nucleus_mode() == "only" and taskSpec.get_full_chain() is None:
                                 tmpLog.info("  skip nucleus={} since only full-chain tasks are " "allowed criteria=-full_chain".format(tmpNucleus))
@@ -650,7 +648,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         self.prioRW.release()
                         totalWeight = 0
                         nucleusweights = []
-                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.items():
                             if tmpNucleus not in nucleusRW:
                                 nucleusRW[tmpNucleus] = 0
                             wStr = "1"
@@ -712,7 +710,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         tmpLog.sendMsg(tmpMsg, self.msgType)
                     # update RW table
                     self.prioRW.acquire()
-                    for prio, rwMap in iteritems(self.prioRW):
+                    for prio, rwMap in self.prioRW.items():
                         if prio > taskSpec.currentPriority:
                             continue
                         if candidateNucleus in rwMap:

@@ -2,8 +2,6 @@ import copy
 import math
 import random
 
-from six import iteritems
-
 try:
     long()
 except Exception:
@@ -115,24 +113,24 @@ class InputChunk:
 
     # return dataset with datasetName
     def getDatasetWithName(self, datasetName):
-        for tmpDatasetID, tmpDatasetVal in iteritems(self.datasetMap):
+        for tmpDatasetID, tmpDatasetVal in self.datasetMap.items():
             if tmpDatasetVal["datasetSpec"].datasetName == datasetName:
                 return tmpDatasetVal["datasetSpec"]
         return None
 
     # reset used counters
     def resetUsedCounters(self):
-        for tmpKey, tmpVal in iteritems(self.datasetMap):
+        for tmpKey, tmpVal in self.datasetMap.items():
             tmpVal["used"] = 0
 
     # checkpoint file usage
     def checkpoint_file_usage(self):
-        for tmpKey, tmpVal in iteritems(self.datasetMap):
+        for tmpKey, tmpVal in self.datasetMap.items():
             self.file_checkpoints[tmpKey] = tmpVal["used"]
 
     # rollback file usage
     def rollback_file_usage(self):
-        for tmpKey, tmpVal in iteritems(self.datasetMap):
+        for tmpKey, tmpVal in self.datasetMap.items():
             if tmpKey in self.file_checkpoints:
                 tmpVal["used"] = self.file_checkpoints[tmpKey]
             else:
@@ -958,7 +956,7 @@ class InputChunk:
                     dumpStr += "total num of input files exceeds {}. ".format(self.maxTotalNumFiles)
                 break
         # reset nUsed for repeated datasets
-        for tmpDatasetID, datasetUsage in iteritems(self.datasetMap):
+        for tmpDatasetID, datasetUsage in self.datasetMap.items():
             tmpDatasetSpec = datasetUsage["datasetSpec"]
             if tmpDatasetSpec.isRepeated():
                 if len(tmpDatasetSpec.Files) > 0:
@@ -970,7 +968,7 @@ class InputChunk:
                 return []
         # make copy to return
         returnList = []
-        for tmpDatasetID, inputFileList in iteritems(inputFileMap):
+        for tmpDatasetID, inputFileList in inputFileMap.items():
             tmpRetList = []
             for tmpFileSpec in inputFileList:
                 # split par site or get atomic subchunk

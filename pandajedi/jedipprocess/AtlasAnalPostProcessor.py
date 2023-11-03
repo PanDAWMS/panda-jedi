@@ -4,14 +4,6 @@ import re
 import sys
 import time
 import traceback
-
-from six import iteritems
-
-try:
-    from urllib.parse import urlencode
-except ImportError:
-    from urllib import urlencode
-
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -90,7 +82,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     )
                     # check all files
                     to_delete = []
-                    for tmpGUID, attMap in iteritems(ddm_files):
+                    for tmpGUID, attMap in ddm_files.items():
                         if attMap["lfn"] not in ok_files:
                             did = {"scope": attMap["scope"], "name": attMap["lfn"]}
                             to_delete.append(did)

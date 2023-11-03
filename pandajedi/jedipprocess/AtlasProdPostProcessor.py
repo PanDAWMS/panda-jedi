@@ -1,9 +1,7 @@
-import re
 import sys
 
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
-from six import iteritems
 
 from . import AtlasPostProcessorUtils
 from .PostProcessorBase import PostProcessorBase
@@ -50,7 +48,7 @@ class AtlasProdPostProcessor(PostProcessorBase):
                     )
                     # check all files
                     toDelete = []
-                    for tmpGUID, attMap in iteritems(ddmFiles):
+                    for tmpGUID, attMap in ddmFiles.items():
                         if attMap["lfn"] not in okFiles:
                             did = {"scope": attMap["scope"], "name": attMap["lfn"]}
                             toDelete.append(did)
@@ -128,7 +126,7 @@ class AtlasProdPostProcessor(PostProcessorBase):
                 if datasetSpec.type in ["log", "output"]:
                     if datasetSpec.getTransient() is True:
                         tmpLog.debug("set metadata={0} to datasetID={1}:Name={2}".format(str(metaData), datasetSpec.datasetID, datasetSpec.datasetName))
-                        for metadataName, metadaValue in iteritems(metaData):
+                        for metadataName, metadaValue in metaData.items():
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName, metadataName, metadaValue)
                 # collect dataset types
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
@@ -166,7 +164,7 @@ class AtlasProdPostProcessor(PostProcessorBase):
                                             str(metaData), taskSpec.parent_tid, datasetSpec.datasetID, datasetSpec.datasetName
                                         )
                                     )
-                                    for metadataName, metadaValue in iteritems(metaData):
+                                    for metadataName, metadaValue in metaData.items():
                                         ddmIF.setDatasetMetadata(datasetSpec.datasetName, metadataName, metadaValue)
         # set lifetime to failed datasets
         if taskSpec.status in ["failed", "broken", "aborted"]:
@@ -177,6 +175,6 @@ class AtlasProdPostProcessor(PostProcessorBase):
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ["log"]:
                     tmpLog.debug("set metadata={0} to failed datasetID={1}:Name={2}".format(str(metaData), datasetSpec.datasetID, datasetSpec.datasetName))
-                    for metadataName, metadaValue in iteritems(metaData):
+                    for metadataName, metadaValue in metaData.items():
                         ddmIF.setDatasetMetadata(datasetSpec.datasetName, metadataName, metadaValue)
         return self.SC_SUCCEEDED

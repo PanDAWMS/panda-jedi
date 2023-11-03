@@ -1,7 +1,3 @@
-import re
-
-from six import iteritems
-
 """
 cache specification for JEDI
 

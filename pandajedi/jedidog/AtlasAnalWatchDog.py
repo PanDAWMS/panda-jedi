@@ -8,7 +8,6 @@ import traceback
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice.Activator import Activator
-from six import iteritems
 
 from .TypicalWatchDogBase import TypicalWatchDogBase
 
@@ -132,7 +131,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             # throttle interval
             thrInterval = 120
             # loop over all users
-            for userName, userDict in iteritems(dispUserTasks):
+            for userName, userDict in dispUserTasks.items():
                 # loop over all transfer types
                 for transferType, maxSize in [("prestaging", maxPrestaging), ("transfer", maxTransfer)]:
                     if transferType not in userDict:
@@ -154,8 +153,8 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                         if userName in thrUserTasks and transferType in thrUserTasks[userName]:
                             del thrUserTasks[userName][transferType]
             # release users
-            for userName, taskData in iteritems(thrUserTasks):
-                for transferType, taskIDs in iteritems(taskData):
+            for userName, taskData in thrUserTasks.items():
+                for transferType, taskIDs in taskData.items():
                     tmpLog.debug("user={0} release throttled tasks with {1}".format(userName, transferType))
                     # unthrottle tasks
                     for taskID in taskIDs:
@@ -242,7 +241,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                             # throttle user
                             tmpNumJobs = self.taskBufferIF.throttleUserJobs(prodUserName, workingGroup, get_dict=True)
                             if tmpNumJobs is not None:
-                                for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
+                                for tmpJediTaskID, tmpNumJob in tmpNumJobs.items():
                                     msg = (
                                         'throttled {} jobs in jediTaskID={} for user="{}" group={} ' "since too many running jobs ({} > {}) or cores ({} > {}) "
                                     ).format(tmpNumJob, tmpJediTaskID, prodUserName, workingGroup, tmpNumTotalJobs, maxNumRun, tmpNumTotalCores, maxNumCore)
@@ -252,7 +251,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                             # unthrottle user
                             tmpNumJobs = self.taskBufferIF.unThrottleUserJobs(prodUserName, workingGroup, get_dict=True)
                             if tmpNumJobs is not None:
-                                for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
+                                for tmpJediTaskID, tmpNumJob in tmpNumJobs.items():
                                     msg = (
                                         'released {} jobs in jediTaskID={} for user="{}" group={} '
                                         "since number of running jobs and cores are less than {} and {}"

@@ -1,9 +1,6 @@
 import random
 import re
 
-import six
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore import Interaction, JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -321,7 +318,7 @@ class GenJobBroker(JobBrokerBase):
             # set weight
             siteCandidateSpec.weight = weight
             # files
-            for tmpDatasetName, availableFiles in six.iteritems(availableFileMap):
+            for tmpDatasetName, availableFiles in availableFileMap.items():
                 if tmpSiteName in availableFiles:
                     siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]["localdisk"])
             # append

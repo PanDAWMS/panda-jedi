@@ -8,7 +8,6 @@ from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils
-from six import iteritems
 
 from .JumboWatchDog import JumboWatchDog
 from .TypicalWatchDogBase import TypicalWatchDogBase
@@ -288,7 +287,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # failed
             gTmpLog.error("failed to thottle jobs in paused tasks")
         else:
-            for jediTaskID, pandaIDs in iteritems(tmpRet):
+            for jediTaskID, pandaIDs in tmpRet.items():
                 gTmpLog.info("throttled jobs in paused jediTaskID={0} successfully".format(jediTaskID))
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs, "reassign", "51", True)
                 gTmpLog.info("reassigned {0} jobs in paused jediTaskID={1} with {2}".format(len(pandaIDs), jediTaskID, tmpRet))

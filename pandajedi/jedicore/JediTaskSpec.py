@@ -2,8 +2,6 @@ import enum
 import math
 import re
 
-from six import iteritems
-
 """
 task specification for JEDI
 
@@ -600,7 +598,7 @@ class JediTaskSpec(object):
     # set limited sites
     def setLimitedSites(self, policy):
         tag = None
-        for tmpIdx, tmpPolicy in iteritems(self.enum_limitedSites):
+        for tmpIdx, tmpPolicy in self.enum_limitedSites.items():
             if policy == tmpPolicy:
                 tag = tmpIdx
                 break
@@ -1087,7 +1085,7 @@ class JediTaskSpec(object):
 
     # check attribute length
     def checkAttrLength(self):
-        for attrName, attrLength in iteritems(self._attrLength):
+        for attrName, attrLength in self._attrLength.items():
             attrVal = getattr(self, attrName)
             if attrVal is None:
                 continue
@@ -1106,14 +1104,14 @@ class JediTaskSpec(object):
             return
         ipConnectivity = values[0]
         if ipConnectivity in self.enum_ipConnectivity.values():
-            for tmpKey, tmpVal in iteritems(self.enum_ipConnectivity):
+            for tmpKey, tmpVal in self.enum_ipConnectivity.items():
                 if ipConnectivity == tmpVal:
                     self.setSplitRule("ipConnectivity", tmpKey)
                     break
         if len(values) > 1:
             ipStack = values[1]
             if ipStack in self.enum_ipStack.values():
-                for tmpKey, tmpVal in iteritems(self.enum_ipStack):
+                for tmpKey, tmpVal in self.enum_ipStack.items():
                     if ipStack == tmpVal:
                         self.setSplitRule("ipStack", tmpKey)
                         break
@@ -1196,7 +1194,7 @@ class JediTaskSpec(object):
     # set alternative stage-out
     def setAltStageOut(self, value):
         if value in self.enum_altStageOut.values():
-            for tmpKey, tmpVal in iteritems(self.enum_altStageOut):
+            for tmpKey, tmpVal in self.enum_altStageOut.items():
                 if value == tmpVal:
                     self.setSplitRule("altStageOut", tmpKey)
                     break
@@ -1216,7 +1214,7 @@ class JediTaskSpec(object):
     # set mode for input LAN access
     def setAllowInputLAN(self, value):
         if value in self.enum_inputLAN.values():
-            for tmpKey, tmpVal in iteritems(self.enum_inputLAN):
+            for tmpKey, tmpVal in self.enum_inputLAN.items():
                 if value == tmpVal:
                     self.setSplitRule("allowInputLAN", tmpKey)
                     break

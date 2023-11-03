@@ -4,7 +4,6 @@ import sys
 import traceback
 
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from six import iteritems
 
 
 # watchdog to take actions for jumbo jobs
@@ -75,7 +74,7 @@ class JumboWatchDog:
             totEvents = 0
             doneEvents = 0
             nTasks = 0
-            for jediTaskID, taskData in iteritems(tasksWithJumbo):
+            for jediTaskID, taskData in tasksWithJumbo.items():
                 # disable jumbo
                 if taskData["useJumbo"] != JediTaskSpec.enum_useJumbo["disabled"] and taskData["site"] is None:
                     if taskData["nEvents"] - taskData["nEventsDone"] < nEventsToDisable:
@@ -122,8 +121,8 @@ class JumboWatchDog:
                     JediTaskSpec.enum_useJumbo["running"],
                 ]:
                     nActiveJumbo = 0
-                    for computingSite, jobStatusMap in iteritems(taskData["jumboJobs"]):
-                        for jobStatus, nJobs in iteritems(jobStatusMap):
+                    for computingSite, jobStatusMap in taskData["jumboJobs"].items():
+                        for jobStatus, nJobs in jobStatusMap.items():
                             if jobStatus in ["defined", "assigned", "activated", "sent", "starting", "running", "transferring", "holding"]:
                                 nActiveJumbo += nJobs
                     if nActiveJumbo == 0:

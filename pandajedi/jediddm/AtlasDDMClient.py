@@ -8,11 +8,6 @@ import traceback
 import requests
 
 try:
-    from urllib.request import urlopen
-except ImportError:
-    from urllib2 import urlopen
-
-try:
     import urllib3
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -34,7 +29,6 @@ from rucio.common.exception import (
     InvalidObject,
     UnsupportedOperation,
 )
-from six import iteritems
 
 from .DDMClientBase import DDMClientBase
 
@@ -187,7 +181,7 @@ class AtlasDDMClient(DDMClientBase):
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, usefileLookup=use_deep, use_vp=use_vp, skip_incomplete_element=skip_incomplete_element)
                     detailedRetMap[tmpName] = tmpRet
                     # loop over all sites
-                    for tmpSite, tmpValMap in iteritems(tmpRet):
+                    for tmpSite, tmpValMap in tmpRet.items():
                         # add site
                         retMap.setdefault(tmpSite, [{"found": 0}])
                         # sum
@@ -272,7 +266,7 @@ class AtlasDDMClient(DDMClientBase):
     def getAssociatedEndpoints(self, altName):
         self.updateEndPointDict()
         epList = []
-        for seName, seVal in iteritems(self.endPointDict):
+        for seName, seVal in self.endPointDict.items():
             if seVal["site"] == altName:
                 epList.append(seName)
         return epList
@@ -283,7 +277,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName is not None:
-                for seName, seVal in iteritems(self.endPointDict):
+                for seName, seVal in self.endPointDict.items():
                     if seVal["site"] == altName:
                         # space token
                         if seVal["token"] == token:
@@ -410,7 +404,7 @@ class AtlasDDMClient(DDMClientBase):
             rse_list = []
 
             # figure out complete replicas and storage types
-            for site_name, endpoint_list in iteritems(site_endpoint_map):
+            for site_name, endpoint_list in site_endpoint_map.items():
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 has_complete = False
@@ -459,9 +453,9 @@ class AtlasDDMClient(DDMClientBase):
                 if not file_scan_in_container and is_container:
                     # remove incomplete
                     detailed_comp_replica_map = dict()
-                    for tmp_ds_name, tmp_ds_value in iteritems(detailed_replica_map):
+                    for tmp_ds_name, tmp_ds_value in detailed_replica_map.items():
                         new_map = {}
-                        for tmp_k, tmp_v in iteritems(tmp_ds_value):
+                        for tmp_k, tmp_v in tmp_ds_value.items():
                             if tmp_v[0]["total"] and tmp_v[0]["total"] == tmp_v[0]["found"]:
                                 new_map[tmp_k] = tmp_v
                         if new_map:
@@ -481,7 +475,7 @@ class AtlasDDMClient(DDMClientBase):
             # initialize the return map and add complete/cached replicas
             return_map = {}
             checked_dst = set()
-            for site_name, tmp_endpoints in iteritems(site_endpoint_map):
+            for site_name, tmp_endpoints in site_endpoint_map.items():
                 return_map.setdefault(site_name, {"localdisk": [], "localtape": [], "cache": [], "remote": []})
                 tmp_site_spec = site_mapper.getSite(site_name)
 
@@ -513,18 +507,18 @@ class AtlasDDMClient(DDMClientBase):
                             break
 
             # aggregate all types of storage types into the 'all' key
-            for site, storage_type_files in iteritems(return_map):
+            for site, storage_type_files in return_map.items():
                 site_all_file_list = set()
-                for storage_type, file_list in iteritems(storage_type_files):
+                for storage_type, file_list in storage_type_files.items():
                     for tmp_file_spec in file_list:
                         site_all_file_list.add(tmp_file_spec)
                 storage_type_files["all"] = site_all_file_list
 
             # dump for logging
             logging_str = ""
-            for site, storage_type_file in iteritems(return_map):
+            for site, storage_type_file in return_map.items():
                 logging_str += "{0}:(".format(site)
-                for storage_type, file_list in iteritems(storage_type_file):
+                for storage_type, file_list in storage_type_file.items():
                     logging_str += "{0}:{1},".format(storage_type, len(file_list))
                 logging_str = logging_str[:-1]
                 logging_str += ") "
@@ -554,7 +548,7 @@ class AtlasDDMClient(DDMClientBase):
             i_loop = 0
             startTime = datetime.datetime.utcnow()
             tmp_log.debug("start")
-            for guid, lfn in iteritems(files):
+            for guid, lfn in files.items():
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({"scope": scope, "name": lfn})
@@ -1244,7 +1238,7 @@ class AtlasDDMClient(DDMClientBase):
                 return tmpStat, tmpRetMap
             # look for missing files
             lfnMap = {}
-            for tmpGUID, tmpLFN in iteritems(lfnMap):
+            for tmpGUID, tmpLFN in lfnMap.items():
                 if tmpLFN not in tmpRetMap:
                     lfnMap[tmpGUID] = tmpLFN
 
@@ -1534,7 +1528,7 @@ class AtlasDDMClient(DDMClientBase):
             scope, dsn = self.extract_scope(datasetName)
             # get rules
             for rule in client.list_did_rules(scope=scope, name=dsn):
-                for dataKey, data in iteritems(dataMap):
+                for dataKey, data in dataMap.items():
                     if rule["rse_expression"] == dataKey or re.search(dataKey, rule["rse_expression"]) is not None:
                         tmpLog.debug("set data={0} on {1}".format(str(data), rule["rse_expression"]))
                         client.update_replication_rule(rule["id"], data)

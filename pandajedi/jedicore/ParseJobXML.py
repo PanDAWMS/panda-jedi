@@ -1,14 +1,8 @@
 #!/usr/bin/env python
-import re
+
 import sys
 import xml.dom.minidom
-
-try:
-    from urllib.parse import quote
-except ImportError:
-    from urllib import quote
-
-from six import iteritems
+from urllib.parse import quote
 
 
 class dom_job:
@@ -125,7 +119,7 @@ class dom_job:
     def get_outmap_str(s, outMap):
         """return mapping of original and new filenames"""
         newMap = {}
-        for oldLFN, fileSpec in iteritems(outMap):
+        for oldLFN, fileSpec in outMap.items():
             newMap[oldLFN] = str(fileSpec.lfn)
         return str(newMap)
 
@@ -248,7 +242,7 @@ class dom_parser:
         if s.tag:
             submission.appendChild(x.createElement("tag"))
             submission.childNodes[-1].appendChild(x.createTextNode(s.tag))
-        for name, stream in iteritems(s.inds):
+        for name, stream in s.inds.items():
             submission.appendChild(x.createElement("inds"))
             if name == s.primaryds:
                 submission.childNodes[-1].setAttribute("primary", "true")
@@ -382,7 +376,7 @@ class dom_parser:
                 P("outfiles", job.outputs())
                 P("INPUTS:")
                 j = 0
-                for dsname, files in iteritems(job.infiles):
+                for dsname, files in job.infiles.items():
                     P("  Dataset%d" % j, dsname)
                     for k, fname in enumerate(files):
                         P("     File%d" % k, fname)

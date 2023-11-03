@@ -4,7 +4,6 @@ import re
 import sys
 
 from liveconfigparser.LiveConfigParser import LiveConfigParser, expand_values
-from six import iteritems
 
 # get ConfigParser
 tmpConf = LiveConfigParser()

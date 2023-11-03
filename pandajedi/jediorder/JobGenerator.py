@@ -9,19 +9,14 @@ import sys
 import time
 import traceback
 
-from six import iteritems
-
 try:
     long()
 except Exception:
     long = int
 
-try:
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import unquote
 
-# logger
+from urllib.parse import unquote
+
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediCoreUtils, ParseJobXML
@@ -1492,7 +1487,7 @@ class JobGeneratorThread(WorkerThread):
                             except Exception:
                                 fileIDPool = []
                     # update parallel output mapping
-                    for tmpParFileID, tmpParFileList in iteritems(tmpParOutMap):
+                    for tmpParFileID, tmpParFileList in tmpParOutMap.items():
                         if tmpParFileID not in parallelOutMap:
                             parallelOutMap[tmpParFileID] = []
                         parallelOutMap[tmpParFileID] += tmpParFileList
@@ -1965,7 +1960,7 @@ class JobGeneratorThread(WorkerThread):
         if skipEvents is None:
             skipEvents = 0
         # output
-        for streamName, tmpFileSpec in iteritems(outSubChunk):
+        for streamName, tmpFileSpec in outSubChunk.items():
             streamName = streamName.split("|")[0]
             streamLFNsMap.setdefault(streamName, [])
             streamLFNsMap[streamName].append(tmpFileSpec.lfn)
@@ -2115,7 +2110,7 @@ class JobGeneratorThread(WorkerThread):
         # replace params related to transient files
         replaceStrMap = {}
         emptyStreamMap = {}
-        for streamName, transientStreamMap in iteritems(transientStreamCombo):
+        for streamName, transientStreamMap in transientStreamCombo.items():
             # remove serial number
             streamNameBase = re.sub("\d+$", "", streamName)
             # empty streams
@@ -2137,7 +2132,7 @@ class JobGeneratorThread(WorkerThread):
             if streamNameBase not in replaceStrMap:
                 replaceStrMap[streamNameBase] = ""
             replaceStrMap[streamNameBase] += "{0} ".format(replaceStr)
-        for streamNameBase, replaceStr in iteritems(replaceStrMap):
+        for streamNameBase, replaceStr in replaceStrMap.items():
             targetName = "${TRN_" + streamNameBase + ":" + streamNameBase + "}"
             if targetName in parTemplate:
                 parTemplate = parTemplate.replace(targetName, replaceStr)
@@ -2150,7 +2145,7 @@ class JobGeneratorThread(WorkerThread):
                             break
                         tmpFileIdx += 1
         # remove outputs and params for deleted streams
-        for streamName, deletedLFNs in iteritems(streamToDelete):
+        for streamName, deletedLFNs in streamToDelete.items():
             # remove params
             parTemplate = re.sub("--[^=]+=\$\{" + streamName + "\}", "", parTemplate)
             # remove output files
@@ -2199,8 +2194,8 @@ class JobGeneratorThread(WorkerThread):
             multiExecSpec = None
         else:
             multiExecSpec = copy.deepcopy(taskParamMap["multiStepExec"])
-            for k, v in iteritems(multiExecSpec):
-                for kk, vv in iteritems(v):
+            for k, v in multiExecSpec.items():
+                for kk, vv in v.items():
                     # resolve placeholders
                     new_vv = vv.replace("${TRF_ARGS}", parTemplate)
                     new_vv = new_vv.replace("${TRF}", jobSpec.transformation)
@@ -2218,7 +2213,7 @@ class JobGeneratorThread(WorkerThread):
     def makeBuildJobParameters(self, jobParameters, paramMap):
         parTemplate = jobParameters
         # replace placeholders
-        for streamName, parVal in iteritems(paramMap):
+        for streamName, parVal in paramMap.items():
             # ignore undefined
             if parVal is None:
                 continue
@@ -2343,14 +2338,14 @@ class JobGeneratorThread(WorkerThread):
             return jumboJobs
         # sites which already have jumbo jobs
         sitesWithJumbo = dict()
-        for tmpPandaID, activeJumboJob in iteritems(activeJumboJobs):
+        for tmpPandaID, activeJumboJob in activeJumboJobs.items():
             sitesWithJumbo.setdefault(activeJumboJob["site"], [])
             if activeJumboJob["status"] not in ["transferring", "holding"]:
                 sitesWithJumbo[activeJumboJob["site"]].append(tmpPandaID)
         # sites with enough jumbo
         maxJumboPerSite = taskSpec.getMaxJumboPerSite()
         ngSites = []
-        for tmpSite, tmpPandaIDs in iteritems(sitesWithJumbo):
+        for tmpSite, tmpPandaIDs in sitesWithJumbo.items():
             if len(tmpPandaIDs) >= maxJumboPerSite:
                 ngSites.append(tmpSite)
         # get sites
@@ -2381,7 +2376,7 @@ class JobGeneratorThread(WorkerThread):
             if jobParams != "":
                 newJumboJob.jobParameters = jobParams
                 # change output file name
-                for outDatasetID, outLFN in iteritems(outFileMap):
+                for outDatasetID, outLFN in outFileMap.items():
                     for fileSpec in newJumboJob.Files:
                         if fileSpec.type == "output" and fileSpec.datasetID == outDatasetID:
                             newJumboJob.jobParameters = newJumboJob.jobParameters.replace(outLFN, fileSpec.lfn)

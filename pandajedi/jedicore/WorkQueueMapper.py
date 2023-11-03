@@ -5,9 +5,7 @@ mapper to map task/job to a work queue
 
 import re
 
-from six import iteritems
-
-from .WorkQueue import ACTIVE_FUNCTIONS, RESOURCE, WorkQueue
+from .WorkQueue import WorkQueue
 
 
 class WorkQueueMapper:
@@ -145,7 +143,7 @@ class WorkQueueMapper:
             ret_str = ret_str[:-1]
             if ret_str != "":
                 new_ret_str = "eval with VO={0} ".format(vo)
-                for tmp_param_key, tmp_param_val in iteritems(param_map):
+                for tmp_param_key, tmp_param_val in param_map.items():
                     new_ret_str += "{0}={1} failed for {0}".format(tmp_param_key, tmp_param_val, ret_str)
                 ret_str = new_ret_str
 
@@ -197,7 +195,7 @@ class WorkQueueMapper:
 
             # include all queue types
             else:
-                for tmp_type, tmp_wq_list in iteritems(self.work_queue_map[vo]):
+                for tmp_type, tmp_wq_list in self.work_queue_map[vo].items():
                     for tmp_wq in tmp_wq_list:
                         if tmp_wq.isAligned():
                             ret_list.append(tmp_wq)
