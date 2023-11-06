@@ -1039,12 +1039,13 @@ class JsonSoftwareCheck:
                                 if "any" not in architecture_map["cpu"]["arch"] and host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
                                     continue
                             # check vendor
-                            if host_cpu_spec["vendor"] == "*":
-                                if "vendor" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["vendor"]:
-                                    continue
-                            else:
-                                if "any" not in architecture_map["cpu"]["vendor"] and host_cpu_spec["vendor"] not in architecture_map["cpu"]["vendor"]:
-                                    continue
+                            if "vendor" in architecture_map["cpu"]:
+                                if host_cpu_spec["vendor"] == "*":
+                                    if "excl" in architecture_map["cpu"]["vendor"]:
+                                        continue
+                                else:
+                                    if "any" not in architecture_map["cpu"]["vendor"] and host_cpu_spec["vendor"] not in architecture_map["cpu"]["vendor"]:
+                                        continue
                             # check instruction set
                             if host_cpu_spec["instr"] == "*":
                                 if "instr" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["instr"]:
@@ -1060,12 +1061,13 @@ class JsonSoftwareCheck:
                             if "gpu" not in architecture_map:
                                 continue
                             # check vendor
-                            if host_gpu_spec["vendor"] == "*":
-                                if "excl" in architecture_map["gpu"]["vendor"]:
-                                    continue
-                            else:
-                                if "any" not in architecture_map["gpu"]["vendor"] and host_gpu_spec["vendor"] not in architecture_map["gpu"]["vendor"]:
-                                    continue
+                            if "vendor" in architecture_map["gpu"]:
+                                if host_gpu_spec["vendor"] == "*":
+                                    if "excl" in architecture_map["gpu"]["vendor"]:
+                                        continue
+                                else:
+                                    if "any" not in architecture_map["gpu"]["vendor"] and host_gpu_spec["vendor"] not in architecture_map["gpu"]["vendor"]:
+                                        continue
                             # check model
                             if host_gpu_spec["model"] == "*":
                                 if "model" in architecture_map["gpu"] and "excl" in architecture_map["gpu"]["model"]:
