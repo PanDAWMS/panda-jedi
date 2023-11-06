@@ -22,15 +22,15 @@ taskParamMap["taskType"] = "prod"
 taskParamMap["workingGroup"] = "AP_Higgs"
 taskParamMap["coreCount"] = 1
 taskParamMap["cloud"] = "US"
-logDatasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
+logDatasetName = f"panda.jeditest.log.{uuid.uuid4()}"
 taskParamMap["log"] = {
     "dataset": logDatasetName,
     "type": "template",
     "param_type": "log",
     "token": "ATLASDATADISK",
-    "value": "{0}.${{SN}}.log.tgz".format(logDatasetName),
+    "value": f"{logDatasetName}.${{SN}}.log.tgz",
 }
-outDatasetName = "panda.jeditest.NTUP_EMBLLDN.{0}".format(uuid.uuid4())
+outDatasetName = f"panda.jeditest.NTUP_EMBLLDN.{uuid.uuid4()}"
 taskParamMap["jobParameters"] = [
     {
         "type": "template",
@@ -54,7 +54,7 @@ taskParamMap["jobParameters"] = [
         "type": "template",
         "param_type": "output",
         "token": "ATLASDATADISK",
-        "value": "outputNTUP_EMBLLDNFile={0}.${{SN}}.pool.root".format(outDatasetName),
+        "value": f"outputNTUP_EMBLLDNFile={outDatasetName}.${{SN}}.pool.root",
         "dataset": outDatasetName,
     },
 ]

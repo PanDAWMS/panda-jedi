@@ -18,7 +18,7 @@ def send_notification(taskBufferIF, ddmIF, taskSpec, tmpLog):
         taskParam = taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
         taskParamMap = RefinerUtils.decodeJSON(taskParam)
     except Exception as e:
-        errStr = "task param conversion from json failed with {0}".format(str(e))
+        errStr = f"task param conversion from json failed with {str(e)}"
         raise JediException.ExternalTempError(errStr)
     if "outputPostProcessing" in taskParamMap and "system" in taskParamMap["outputPostProcessing"]:
         if taskParamMap["outputPostProcessing"]["system"] == "idds":
@@ -42,9 +42,9 @@ def send_notification(taskBufferIF, ddmIF, taskSpec, tmpLog):
                             "lifetime": 30,
                             "request_metadata": data,
                         }
-                        tmpLog.debug("req {0}".format(str(req)))
+                        tmpLog.debug(f"req {str(req)}")
                         ret = c.add_request(**req)
-                        tmpLog.debug("got requestID={0}".format(str(ret)))
+                        tmpLog.debug(f"got requestID={str(ret)}")
             except Exception as e:
-                errStr = "iDDS failed with {0}".format(str(e))
+                errStr = f"iDDS failed with {str(e)}"
                 raise JediException.ExternalTempError(errStr)

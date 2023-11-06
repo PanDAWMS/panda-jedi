@@ -22,7 +22,7 @@ def format_weight(weight):
         weight /= power
         n += 1
 
-    weight_str = "{0:.2f} {1}".format(weight, power_labels[n])
+    weight_str = f"{weight:.2f} {power_labels[n]}"
     return weight_str
 
 
@@ -62,7 +62,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 # check if already closed
                 dataset_attrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID, ["state"])
                 if "state" in dataset_attrs and dataset_attrs["state"] == "closed":
-                    tmp_logger.info("skip freezing closed datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    tmp_logger.info(f"skip freezing closed datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                     closed_flag = True
                 else:
                     closed_flag = False
@@ -71,14 +71,12 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     # get successful files
                     ok_files = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID)
                     if ok_files is None:
-                        tmp_logger.warning("failed to get successful files for {0}".format(datasetSpec.datasetName))
+                        tmp_logger.warning(f"failed to get successful files for {datasetSpec.datasetName}")
                         return self.SC_FAILED
                     # get files in dataset
                     ddm_files = ddmIF.getFilesInDataset(datasetSpec.datasetName, skipDuplicate=False)
                     tmp_logger.debug(
-                        "datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM".format(
-                            datasetSpec.datasetID, datasetSpec.datasetName, len(ok_files), len(ddm_files)
-                        )
+                        f"datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName} has {len(ok_files)} files in DB, {len(ddm_files)} files in DDM"
                     )
                     # check all files
                     to_delete = []
@@ -86,18 +84,18 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                         if attMap["lfn"] not in ok_files:
                             did = {"scope": attMap["scope"], "name": attMap["lfn"]}
                             to_delete.append(did)
-                            tmp_logger.debug("delete {0} from {1}".format(attMap["lfn"], datasetSpec.datasetName))
+                            tmp_logger.debug(f"delete {attMap['lfn']} from {datasetSpec.datasetName}")
                     # delete
                     if to_delete:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName, to_delete)
 
                 # freeze datasets
                 if not closed_flag and not (datasetSpec.type.startswith("trn_") and datasetSpec.type not in ["trn_log"]):
-                    tmp_logger.debug("freeze datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    tmp_logger.debug(f"freeze datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                     ddmIF.freezeDataset(datasetSpec.datasetName, ignoreUnknown=True)
                 else:
                     if datasetSpec.type.startswith("trn_") and datasetSpec.type not in ["trn_log"]:
-                        tmp_logger.debug("skip freezing transient datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                        tmp_logger.debug(f"skip freezing transient datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                 # update dataset
                 datasetSpec.state = "closed"
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
@@ -116,7 +114,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     tmp_logger.debug(retStr)
                 # extend lifetime
                 if datasetSpec.type in ["output"] and datasetSpec.datasetName.startswith("user"):
-                    tmp_logger.debug("extend lifetime datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    tmp_logger.debug(f"extend lifetime datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                     ddmIF.updateReplicationRules(
                         datasetSpec.datasetName, {"type=.+": {"lifetime": 14 * 24 * 60 * 60}, "(SCRATCH|USER)DISK": {"lifetime": 14 * 24 * 60 * 60}}
                     )
@@ -134,13 +132,13 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 taskSpec.setErrDiag("No build jobs succeeded", True)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.warning("failed to freeze datasets with {0}:{1}".format(err_type.__name__, err_value))
+            tmp_logger.warning(f"failed to freeze datasets with {err_type.__name__}:{err_value}")
         ret_val = self.SC_SUCCEEDED
         try:
             self.doBasicPostProcess(taskSpec, tmp_logger)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error("doBasicPostProcess failed with {0}:{1}".format(err_type.__name__, err_value))
+            tmp_logger.error(f"doBasicPostProcess failed with {err_type.__name__}:{err_value}")
             ret_val = self.SC_FATAL
         return ret_val
 
@@ -163,7 +161,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         except Exception:
             carbon_footprint_redacted = {}
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error("failed to calculate task carbon footprint {0}:{1}".format(err_type.__name__, err_value))
+            tmp_logger.error(f"failed to calculate task carbon footprint {err_type.__name__}:{err_value}")
 
         # read task parameters
         try:
@@ -171,7 +169,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             self.taskParamMap = RefinerUtils.decodeJSON(task_parameters)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error("task param conversion from json failed with {0}:{1}".format(err_type.__name__, err_value))
+            tmp_logger.error(f"task param conversion from json failed with {err_type.__name__}:{err_value}")
         if to_add is None or (self.taskParamMap is not None and "noEmail" in self.taskParamMap and self.taskParamMap["noEmail"] is True):
             tmp_logger.debug("email notification is suppressed")
         else:
@@ -254,11 +252,11 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         log_datasets.sort()
         dataset_summary = ""
         for tmpDS in input_datasets:
-            dataset_summary += "In  : {0}\n".format(tmpDS)
+            dataset_summary += f"In  : {tmpDS}\n"
         for tmpDS in output_datasets:
-            dataset_summary += "Out : {0}\n".format(tmpDS)
+            dataset_summary += f"Out : {tmpDS}\n"
         for tmpDS in log_datasets:
-            dataset_summary += "Log : {0}\n".format(tmpDS)
+            dataset_summary += f"Log : {tmpDS}\n"
         dataset_summary = dataset_summary[:-1]
 
         # CLI param
@@ -314,9 +312,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             cancelled_str=cancelled_str,
         )
 
-        subject = "JEDI notification for TaskID:{jedi_task_id} ({n_succeeded}/{n_total} {msg_succeeded})".format(
-            jedi_task_id=taskSpec.jediTaskID, n_succeeded=n_succeeded_jobs, n_total=n_total_jobs, msg_succeeded=msg_succeeded
-        )
+        subject = f"JEDI notification for TaskID:{taskSpec.jediTaskID} ({n_succeeded_jobs}/{n_total_jobs} {msg_succeeded})"
 
         # return
         return message_html, message_plain, subject
@@ -326,11 +322,11 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         # return to suppress mail
         ret_suppressed = None
         # get DN
-        tmp_logger.debug("getting email for {0}".format(user_name))
+        tmp_logger.debug(f"getting email for {user_name}")
 
         # get email from PANDAMETA DB
         mail_address_db, dn, db_uptime = self.taskBufferIF.getEmailAddr(user_name, withDN=True)
-        tmp_logger.debug("email from MetaDB : {0}".format(mail_address_db))
+        tmp_logger.debug(f"email from MetaDB : {mail_address_db}")
         # email notification is suppressed
         not_send_mail = False
         if mail_address_db is not None and mail_address_db.startswith("notsend"):
@@ -349,13 +345,13 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     return mail_address_db.split(":")[-1]
             else:
                 # get email from DQ2
-                tmp_logger.debug("getting email using dq2Info.finger({0})".format(dn))
+                tmp_logger.debug(f"getting email using dq2Info.finger({dn})")
                 n_tries = 3
                 for iDDMTry in range(n_tries):
                     try:
                         user_info = self.ddmIF.getInterface(vo).finger(dn)
                         mail_address = user_info["email"]
-                        tmp_logger.debug("email from DQ2 : {0}".format(mail_address))
+                        tmp_logger.debug(f"email from DQ2 : {mail_address}")
                         if mail_address is None:
                             mail_address = ""
                         # make email field to update DB
@@ -364,7 +360,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                             mail_addr_to_db += "notsend:"
                         mail_addr_to_db += mail_address
                         # update database
-                        tmp_logger.debug("update email to {0}".format(mail_addr_to_db))
+                        tmp_logger.debug(f"update email to {mail_addr_to_db}")
                         self.taskBufferIF.setEmailAddr(user_name, mail_addr_to_db)
 
                         if not_send_mail or mail_address == "":
@@ -372,11 +368,11 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                         return mail_address
                     except Exception:
                         if iDDMTry + 1 < n_tries:
-                            tmp_logger.debug("sleep for retry {0}/{1}".format(iDDMTry, n_tries))
+                            tmp_logger.debug(f"sleep for retry {iDDMTry}/{n_tries}")
                             time.sleep(10)
                         else:
                             err_type, err_value = sys.exc_info()[:2]
-                            tmp_logger.error("{0}:{1}".format(err_type, err_value))
+                            tmp_logger.error(f"{err_type}:{err_value}")
         # not send email
         return ret_suppressed
 

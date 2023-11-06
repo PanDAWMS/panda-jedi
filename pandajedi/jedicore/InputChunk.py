@@ -23,7 +23,7 @@ class InputChunk:
     def __str__(self):
         sb = []
         for key in self.__dict__:
-            sb.append("{key}='{value}'".format(key=key, value=self.__dict__[key]))
+            sb.append(f"{key}='{self.__dict__[key]}'")
 
         return ", ".join(sb)
 
@@ -181,7 +181,7 @@ class InputChunk:
         if newSiteCandidateList:
             retSiteCandidate = random.choice(newSiteCandidateList)
             self.bootstrapped.add(retSiteCandidate.siteName)
-            retMsg = "to bootstrap: {}".format(retSiteCandidate.siteName)
+            retMsg = f"to bootstrap: {retSiteCandidate.siteName}"
         else:
             # get total weight
             totalWeight = 0
@@ -202,17 +202,15 @@ class InputChunk:
                 # skip incapable
                 if not siteCandidate.can_accept_jobs():
                     nFull += 1
-                    fullStr += "{}:{}/{} ".format(siteCandidate.siteName, siteCandidate.nQueuedJobs, siteCandidate.nRunningJobsCap)
+                    fullStr += f"{siteCandidate.siteName}:{siteCandidate.nQueuedJobs}/{siteCandidate.nRunningJobsCap} "
                     continue
                 totalWeight += siteCandidate.weight
                 newSiteCandidateList.append(siteCandidate)
                 nOK += 1
             siteCandidateList = newSiteCandidateList
             if fullStr:
-                fullStr = " (skipped {})".format(fullStr[:-1])
-            retMsg = "OK={} NG={} {} n_bootstrapped={} n_occupied={}{}".format(
-                nOK, ",".join(ngSites) if ngSites else None, dist_str, len(self.bootstrapped), nFull, fullStr
-            )
+                fullStr = f" (skipped {fullStr[:-1]})"
+            retMsg = f"OK={nOK} NG={','.join(ngSites) if ngSites else None} {dist_str} n_bootstrapped={len(self.bootstrapped)} n_occupied={nFull}{fullStr}"
             # empty
             if not siteCandidateList:
                 if get_msg:
@@ -391,7 +389,7 @@ class InputChunk:
     # get value with unit
     def get_value_str(self, value):
         try:
-            return "{}MB".format(int(math.ceil(value / 1024 / 1024)))
+            return f"{int(math.ceil(value / 1024 / 1024))}MB"
         except Exception:
             return None
 
@@ -915,7 +913,7 @@ class InputChunk:
             ):
                 dumpStr = "check for the next loop. "
                 if maxNumFiles is not None and (not dynNumEvents and newInputNumFiles > maxNumFiles):
-                    dumpStr += "maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. ".format(maxNumFiles, inputNumFiles, newInputNumFiles)
+                    dumpStr += f"maxNumFiles exceeds maxNumFiles={maxNumFiles} inputNumFiles={inputNumFiles} newInputNumFiles={newInputNumFiles}. "
                 if maxSize is not None and newFileSize > maxSize:
                     dumpStr += "maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={} newSecMap={}. ".format(
                         self.get_value_str(maxSize),
@@ -933,11 +931,9 @@ class InputChunk:
                         self.get_value_str(newOutSize),
                     )
                 if maxWalltime is not None and 0 < maxWalltime < newExpWalltime:
-                    dumpStr += "maxWalltime exceeds maxWalltime={} expWalltime={} newExpWalltime={}. ".format(maxWalltime, expWalltime, newExpWalltime)
+                    dumpStr += f"maxWalltime exceeds maxWalltime={maxWalltime} expWalltime={expWalltime} newExpWalltime={newExpWalltime}. "
                 if maxNumEvents is not None and newInputNumEvents > maxNumEvents:
-                    dumpStr += "maxNumEvents exceeds maxNumEvents={} inputNumEvents={} newInputNumEvents={}. ".format(
-                        maxNumEvents, inputNumEvents, newInputNumEvents
-                    )
+                    dumpStr += f"maxNumEvents exceeds maxNumEvents={maxNumEvents} inputNumEvents={inputNumEvents} newInputNumEvents={newInputNumEvents}. "
                 if maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize:
                     dumpStr += "maxOutSize exceeds maxOutSize={} getOutSize(newOutSizeMap)={}. ".format(
                         self.get_value_str(maxOutSize), self.get_value_str(self.getOutSize(newOutSizeMap))
@@ -947,7 +943,7 @@ class InputChunk:
                         self.get_value_str(maxDiskSize), self.get_value_str(diskSize), self.get_value_str(newDiskSize)
                     )
                 if newTotalNumFiles > self.maxTotalNumFiles:
-                    dumpStr += "total num of input files exceeds {}. ".format(self.maxTotalNumFiles)
+                    dumpStr += f"total num of input files exceeds {self.maxTotalNumFiles}. "
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID, datasetUsage in self.datasetMap.items():
@@ -958,7 +954,7 @@ class InputChunk:
         # check min walltime
         if dynNumEvents and min_walltime and min_walltime > expWalltime:
             if enableLog and tmpLog:
-                tmpLog.debug("expected walltime {} less than min walltime {} at {}".format(expWalltime, min_walltime, siteName))
+                tmpLog.debug(f"expected walltime {expWalltime} less than min walltime {min_walltime} at {siteName}")
                 return []
         # make copy to return
         returnList = []

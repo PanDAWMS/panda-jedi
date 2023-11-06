@@ -14,14 +14,14 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
         # parse
         if decoded_data is None:
             # json decode
             try:
                 msg_dict = json.loads(msg_obj.data)
             except Exception as e:
-                err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+                err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         else:
@@ -38,9 +38,9 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
             elif msg_type == "work_hyperparameteropt":
                 pass
             else:
-                raise ValueError("invalid msg_type value: {0}".format(msg_type))
+                raise ValueError(f"invalid msg_type value: {msg_type}")
         except Exception as e:
-            err_str = "failed to parse message object dict {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_dict)
+            err_str = f"failed to parse message object dict {msg_dict} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # run
@@ -66,11 +66,11 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
                     res = self.tbIF.insertHpoEventAboutIdds_JEDI(jedi_task_id=jeditaskid, event_id_list=event_id_list)
                     # check if ok
                     if res:
-                        tmp_log.debug("jeditaskid={0}, inserted {1} events: {2}".format(jeditaskid, n_events, event_id_list))
+                        tmp_log.debug(f"jeditaskid={jeditaskid}, inserted {n_events} events: {event_id_list}")
                     else:
-                        tmp_log.warning("jeditaskid={0}, failed to insert events: {1}".format(jeditaskid, event_id_list))
+                        tmp_log.warning(f"jeditaskid={jeditaskid}, failed to insert events: {event_id_list}")
             except Exception as e:
-                err_str = "failed to parse message object, skipped. {0} : {1}".format(e.__class__.__name__, e)
+                err_str = f"failed to parse message object, skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         elif msg_type == "collection_hyperparameteropt":
@@ -80,15 +80,15 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
                 retVal, retStr = self.tbIF.sendCommandTaskPanda(jeditaskid, "iDDS. HPO task finished", True, "finish", comQualifier="soft")
                 # check if ok
                 if retVal:
-                    tmp_log.debug("jeditaskid={0}, finished the task".format(jeditaskid))
+                    tmp_log.debug(f"jeditaskid={jeditaskid}, finished the task")
                 else:
-                    tmp_log.warning("jeditaskid={0}, failed finish the task: {1}".format(jeditaskid, retStr))
+                    tmp_log.warning(f"jeditaskid={jeditaskid}, failed finish the task: {retStr}")
             except Exception as e:
-                err_str = "failed to parse message object, skipped. {0} : {1}".format(e.__class__.__name__, e)
+                err_str = f"failed to parse message object, skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         else:
             # do nothing
-            tmp_log.debug("jeditaskid={jeditaskid}, msg_type={msg_type}, did nothing".format(jeditaskid=jeditaskid, msg_type=msg_type))
+            tmp_log.debug(f"jeditaskid={jeditaskid}, msg_type={msg_type}, did nothing")
         # done
         tmp_log.info("done")

@@ -14,7 +14,7 @@ tbIF.setupInterface()
 
 reqIdx = 100000000
 dsName = "mc12_8TeV.129933.McAtNloJimmy_AUET2CT10_WW_e_e_0_0_0_0_0.merge.AOD.e1563_s1499_s1504_r3658_r3549_tid00999168_00"
-logDatasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
+logDatasetName = f"panda.jeditest.log.{uuid.uuid4()}"
 
 taskParamMap = {}
 
@@ -47,9 +47,9 @@ taskParamMap["log"] = {
     "param_type": "log",
     "token": "ATLASDATADISK",
     "offset": 1000,
-    "value": "{0}.${{SN}}.log.tgz".format(logDatasetName),
+    "value": f"{logDatasetName}.${{SN}}.log.tgz",
 }
-outDatasetName = "panda.jeditest.EVNT.{0}".format(uuid.uuid4())
+outDatasetName = f"panda.jeditest.EVNT.{uuid.uuid4()}"
 
 
 taskParamMap["jobParameters"] = [
@@ -74,7 +74,7 @@ taskParamMap["jobParameters"] = [
         "type": "template",
         "param_type": "output",
         "token": "ATLASDATADISK",
-        "value": "outputEVNTFile={0}.${{SN}}.pool.root".format(outDatasetName),
+        "value": f"outputEVNTFile={outDatasetName}.${{SN}}.pool.root",
         "dataset": outDatasetName,
         "offset": 1000,
     },

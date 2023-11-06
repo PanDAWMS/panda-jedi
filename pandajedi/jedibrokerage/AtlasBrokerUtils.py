@@ -81,14 +81,14 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, job_label,
             totalNumDatasets = len(tmpDsMap)
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        return errtype, "ddmIF.listDatasetsInContainer failed with %s" % errvalue
+        return errtype, f"ddmIF.listDatasetsInContainer failed with {errvalue}"
     # get replicas
     try:
         replicaMap = {}
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        return errtype, "ddmIF.listDatasetReplicas failed with %s" % errvalue
+        return errtype, f"ddmIF.listDatasetReplicas failed with {errvalue}"
     # loop over all clouds
     retMap = {}
     for tmpCloudName in siteMapper.cloudSpec.keys():
@@ -156,7 +156,7 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
         replicaMap = ddmIF.listReplicasPerDataset(datasetName, deepScan)
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        return errtype, "ddmIF.listReplicasPerDataset failed with %s" % errvalue
+        return errtype, f"ddmIF.listReplicasPerDataset failed with {errvalue}"
     # loop over all clouds
     retMap = {}
     for tmpNucleus in candidateNuclei:
@@ -231,7 +231,7 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True, element_list=element_list)
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        return errtype, "ddmIF.listDatasetReplicas failed with %s" % errvalue
+        return errtype, f"ddmIF.listDatasetReplicas failed with {errvalue}"
     # loop over all clouds
     retMap = {}
     for tmpSiteName in siteList:
@@ -401,7 +401,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
         for tmpItem in siteSpec.fairsharePolicy.split(","):
             if re.search("(^|,|:)id=", tmpItem) is not None:
                 # new format
-                tmpMatch = re.search("(^|,|:)id={0}:".format(taskSpec.workQueue_ID), tmpItem)
+                tmpMatch = re.search(f"(^|,|:)id={taskSpec.workQueue_ID}:", tmpItem)
                 if tmpMatch is not None:
                     # check priority if any
                     tmpPrio = None
@@ -411,7 +411,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                             break
                     if tmpPrio is not None:
                         try:
-                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority, tmpPrio), globals())
+                            exec(f"tmpStat = {taskSpec.currentPriority}{tmpPrio}", globals())
                             if not tmpStat:
                                 continue
                         except Exception:
@@ -453,7 +453,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                 # check priority
                 if tmpPrio is not None and not ignorePrio:
                     try:
-                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority, tmpPrio), globals())
+                        exec(f"tmpStat = {taskSpec.currentPriority}{tmpPrio}", globals())
                         if not tmpStat:
                             continue
                     except Exception:
@@ -466,7 +466,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                     return False
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        tmpLog.error("hasZeroShare failed with {0}:{1}".format(errtype, errvalue))
+        tmpLog.error(f"hasZeroShare failed with {errtype}:{errvalue}")
     # return
     return False
 
@@ -508,8 +508,8 @@ def getDictToSetNucleus(nucleusSpec, tmpDatasetSpecs):
         token = endPoint["ddm_endpoint_name"]
         # add original token
         if datasetSpec.storageToken not in ["", None]:
-            token += "/{0}".format(datasetSpec.storageToken.split("/")[-1])
-        retMap["datasets"].append({"datasetID": datasetSpec.datasetID, "token": "dst:{0}".format(token), "destination": "nucleus:{0}".format(nucleusSpec.name)})
+            token += f"/{datasetSpec.storageToken.split('/')[-1]}"
+        retMap["datasets"].append({"datasetID": datasetSpec.datasetID, "token": f"dst:{token}", "destination": f"nucleus:{nucleusSpec.name}"})
     return retMap
 
 
@@ -537,7 +537,7 @@ def skipProblematicSites(candidateSpecList, ngSites, sitesUsedByTask, preSetSite
     newcandidateSpecList = newcandidateSpecList[:maxNumSites]
     # dump
     for skippedSite in skippedSites:
-        tmpLog.debug("getting rid of problematic site {0}".format(skippedSite))
+        tmpLog.debug(f"getting rid of problematic site {skippedSite}")
     return newcandidateSpecList
 
 
@@ -600,7 +600,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     dc_sub_key = "SiteToRunRate"
     # arguments for process lock
     this_prodsourcelabel = "user"
-    this_pid = "{0}-{1}_{2}-broker".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+    this_pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-broker"
     this_component = "Cache.SiteToRunRate"
     # timestamps
     current_time = datetime.datetime.utcnow()
@@ -671,7 +671,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
                 break
             except Exception as e:
                 # dump error message
-                err_str = "AtlasBrokerUtils.getSiteToRunRateStats got {0}: {1} \n".format(e.__class__.__name__, e)
+                err_str = f"AtlasBrokerUtils.getSiteToRunRateStats got {e.__class__.__name__}: {e} \n"
                 sys.stderr.write(err_str)
                 # break trying
                 break
@@ -682,7 +682,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
                 try:
                     del CACHE_SiteToRunRateStats[lc_key]
                 except Exception as e:
-                    err_str = "AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {0}: {1} \n".format(e.__class__.__name__, e)
+                    err_str = f"AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {e.__class__.__name__}: {e} \n"
                     sys.stderr.write(err_str)
     # return
     return ret_val, ret_map
@@ -701,7 +701,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
     dc_sub_key = "UsersJobsStats"
     # arguments for process lock
     this_prodsourcelabel = prod_source_label
-    this_pid = this_pid = "{0}-{1}_{2}-broker".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+    this_pid = this_pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-broker"
     this_component = "Cache.UsersJobsStats"
     # local cache key; a must if not using global variable
     local_cache_key = "_main"
@@ -768,7 +768,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                 break
             except Exception as e:
                 # dump error message
-                err_str = "AtlasBrokerUtils.getUsersJobsStats got {0}: {1} \n".format(e.__class__.__name__, e)
+                err_str = f"AtlasBrokerUtils.getUsersJobsStats got {e.__class__.__name__}: {e} \n"
                 sys.stderr.write(err_str)
                 # break trying
                 break
@@ -817,7 +817,7 @@ def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
             break
         except Exception as e:
             # dump error message
-            err_str = "AtlasBrokerUtils.getGShareUsage got {0}: {1} \n".format(e.__class__.__name__, e)
+            err_str = f"AtlasBrokerUtils.getGShareUsage got {e.__class__.__name__}: {e} \n"
             sys.stderr.write(err_str)
             # break trying
             break
@@ -841,9 +841,7 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
             break
         try:
             # query from PanDA DB directly
-            sql_get_user_eval = (
-                """SELECT m.value_json."{user}" """ """FROM ATLAS_PANDA.Metrics m """ """WHERE m.metric=:metric """ """AND m.timestamp>=:min_timestamp """
-            ).format(user=user)
+            sql_get_user_eval = f'SELECT m.value_json."{user}" FROM ATLAS_PANDA.Metrics m WHERE m.metric=:metric AND m.timestamp>=:min_timestamp '
             # varMap
             varMap = {
                 ":metric": "analy_user_eval",
@@ -861,7 +859,7 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
             break
         except Exception as e:
             # dump error message
-            err_str = "AtlasBrokerUtils.getUserEval got {0}: {1} \n".format(e.__class__.__name__, e)
+            err_str = f"AtlasBrokerUtils.getUserEval got {e.__class__.__name__}: {e} \n"
             sys.stderr.write(err_str)
             # break trying
             break
@@ -910,7 +908,7 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
             break
         except Exception as e:
             # dump error message
-            err_str = "AtlasBrokerUtils.getUserTaskEval got {0}: {1} \n".format(e.__class__.__name__, e)
+            err_str = f"AtlasBrokerUtils.getUserTaskEval got {e.__class__.__name__}: {e} \n"
             sys.stderr.write(err_str)
             # break trying
             break
@@ -956,7 +954,7 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
             break
         except Exception as e:
             # dump error message
-            err_str = "AtlasBrokerUtils.getAnalySitesEval got {0}: {1} \n".format(e.__class__.__name__, e)
+            err_str = f"AtlasBrokerUtils.getAnalySitesEval got {e.__class__.__name__}: {e} \n"
             sys.stderr.write(err_str)
             # break trying
             break
@@ -1077,7 +1075,7 @@ class JsonSoftwareCheck:
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
-                        log_stream.error("json check {} failed for {} {} {} ".format(str(architecture_map), tmpSiteName, str(e), traceback.format_exc()))
+                        log_stream.error(f"json check {str(architecture_map)} failed for {tmpSiteName} {str(e)} {traceback.format_exc()} ")
                 if not go_ahead:
                     continue
                 # only HW check

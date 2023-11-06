@@ -42,8 +42,8 @@ class JobBrokerBase(object):
         return self.liveCounter.get(siteName)
 
     def setLockID(self, pid, tid):
-        self.baseLockID = "{0}-jbr".format(pid)
-        self.lockID = "{0}-{1}".format(self.baseLockID, tid)
+        self.baseLockID = f"{pid}-jbr"
+        self.lockID = f"{self.baseLockID}-{tid}"
 
     def getBaseLockID(self):
         if self.useLock:
@@ -106,10 +106,10 @@ class JobBrokerBase(object):
     # init summary list
     def init_summary_list(self, header, comment, initial_list):
         self.summaryList = []
-        self.summaryList.append("===== {} =====".format(header))
+        self.summaryList.append(f"===== {header} =====")
         if comment:
             self.summaryList.append(comment)
-        self.summaryList.append("the number of initial candidates: {}".format(len(initial_list)))
+        self.summaryList.append(f"the number of initial candidates: {len(initial_list)}")
 
     # dump summary
     def dump_summary(self, tmp_log, final_candidates=None):
@@ -120,14 +120,14 @@ class JobBrokerBase(object):
             tmp_log.info(m)
         if not final_candidates:
             final_candidates = []
-        tmp_log.info("the number of final candidates: {}".format(len(final_candidates)))
+        tmp_log.info(f"the number of final candidates: {len(final_candidates)}")
         tmp_log.info("")
 
     # make summary
     def add_summary_message(self, old_list, new_list, message):
         if old_list and len(old_list) != len(new_list):
             red = int(math.ceil(((len(old_list) - len(new_list)) * 100) / len(old_list)))
-            self.summaryList.append("{:>5} -> {:>3} candidates, {:>3}% cut : {}".format(len(old_list), len(new_list), red, message))
+            self.summaryList.append(f"{len(old_list):>5} -> {len(new_list):>3} candidates, {red:>3}% cut : {message}")
 
 
 Interaction.installSC(JobBrokerBase)

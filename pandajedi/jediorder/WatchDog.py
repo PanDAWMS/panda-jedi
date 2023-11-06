@@ -24,7 +24,7 @@ class WatchDog(JediKnight, FactoryBase):
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.subStr = subStr
         self.period = period
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         JediKnight.__init__(self, commuChannel, taskBufferIF, ddmIF, logger)
         FactoryBase.__init__(self, self.vos, self.prodSourceLabels, logger, jedi_config.watchdog.modConfig)
 
@@ -48,18 +48,18 @@ class WatchDog(JediKnight, FactoryBase):
                         impl = self.getImpl(vo, prodSourceLabel, subType=self.subStr)
                         if impl is not None:
                             plugin_name = impl.__class__.__name__
-                            tmpLog.info("pre-action for vo={} label={} cls={}".format(vo, prodSourceLabel, plugin_name))
+                            tmpLog.info(f"pre-action for vo={vo} label={prodSourceLabel} cls={plugin_name}")
                             impl.pre_action(tmpLog, vo, prodSourceLabel, self.pid)
-                            tmpLog.info("do action for vo={} label={} cls={}".format(vo, prodSourceLabel, plugin_name))
+                            tmpLog.info(f"do action for vo={vo} label={prodSourceLabel} cls={plugin_name}")
                             tmpStat = impl.doAction()
                             if tmpStat != Interaction.SC_SUCCEEDED:
-                                tmpLog.error("failed to run special action for vo={} label={} cls={}".format(vo, prodSourceLabel, plugin_name))
+                                tmpLog.error(f"failed to run special action for vo={vo} label={prodSourceLabel} cls={plugin_name}")
                             else:
-                                tmpLog.info("done for vo={} label={} cls={}".format(vo, prodSourceLabel, plugin_name))
+                                tmpLog.info(f"done for vo={vo} label={prodSourceLabel} cls={plugin_name}")
                 tmpLog.info("done")
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
-                tmpLog.error("failed in {0}.start() with {1} {2}".format(self.__class__.__name__, errtype.__name__, errvalue))
+                tmpLog.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = jedi_config.watchdog.loopCycle if self.period is None else self.period
             timeDelta = datetime.datetime.utcnow() - startTime

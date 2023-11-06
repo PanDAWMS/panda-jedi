@@ -422,11 +422,11 @@ class TaskRefinerBase(object):
                 campaign=taskSpec.campaign,
             )
         if workQueue is None:
-            errStr = "workqueue is undefined for vo={0} label={1} ".format(taskSpec.vo, taskSpec.prodSourceLabel)
+            errStr = f"workqueue is undefined for vo={taskSpec.vo} label={taskSpec.prodSourceLabel} "
             errStr += "processingType={0} workingGroup={1} coreCount={2} eventService={3} ".format(
                 taskSpec.processingType, taskSpec.workingGroup, taskSpec.coreCount, taskSpec.eventService
             )
-            errStr += "splitRule={0} campaign={1}".format(taskSpec.splitRule, taskSpec.campaign)
+            errStr += f"splitRule={taskSpec.splitRule} campaign={taskSpec.campaign}"
             raise RuntimeError(errStr)
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
@@ -506,7 +506,7 @@ class TaskRefinerBase(object):
                 if "attributes" in tmpItem:
                     datasetSpec.setDatasetAttribute(tmpItem["attributes"])
                 if "ratio" in tmpItem:
-                    datasetSpec.setDatasetAttribute("ratio={0}".format(tmpItem["ratio"]))
+                    datasetSpec.setDatasetAttribute(f"ratio={tmpItem['ratio']}")
                 if "eventRatio" in tmpItem:
                     datasetSpec.setEventRatio(tmpItem["eventRatio"])
                 if "check" in tmpItem:
@@ -552,7 +552,7 @@ class TaskRefinerBase(object):
                     # dataset names could be comma-concatenated
                     datasetNameList = datasetSpec.datasetName.split(",")
                     # datasets could be added by incexec
-                    incexecDS = "dsFor{0}".format(datasetSpec.streamName)
+                    incexecDS = f"dsFor{datasetSpec.streamName}"
                     # remove /XYZ
                     incexecDS = incexecDS.split("/")[0]
                     if incexecDS in taskParamMap:
@@ -566,7 +566,7 @@ class TaskRefinerBase(object):
                             containerName = tmpItem["consolidate"]
                             tmpStat = tmpIF.registerNewDataset(containerName)
                             if not tmpStat:
-                                errStr = "failed to register {}".format(containerName)
+                                errStr = f"failed to register {containerName}"
                                 raise JediException.ExternalTempError(errStr)
                             tmpDsListInCont = tmpIF.listDatasetsInContainer(containerName)
                             for tmpContName in datasetNameList:
@@ -575,7 +575,7 @@ class TaskRefinerBase(object):
                                     if tmpDsName not in tmpDsListInCont:
                                         tmpStat = tmpIF.addDatasetsToContainer(containerName, [tmpDsName])
                                         if not tmpStat:
-                                            errStr = "failed to add {} to {}".format(tmpDsName, containerName)
+                                            errStr = f"failed to add {tmpDsName} to {containerName}"
                                             raise JediException.ExternalTempError(errStr)
                             datasetNameList = [containerName]
                     # loop over all dataset names
@@ -620,7 +620,7 @@ class TaskRefinerBase(object):
                             i_element += 1
                     # empty input
                     if inDatasetSpecList == [] and self.oldTaskStatus != "rerefine":
-                        errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
+                        errStr = f'doBasicRefine : unknown input dataset "{datasetSpec.datasetName}"'
                         self.taskSpec.setErrDiag(errStr)
                         if datasetSpec.datasetName not in self.unknownDatasetList:
                             self.unknownDatasetList.append(datasetSpec.datasetName)
@@ -640,7 +640,7 @@ class TaskRefinerBase(object):
                         nOutMap[datasetSpec.type] = 0
                     # make stream name
                     if not datasetSpec.is_merge_only():
-                        datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(), nOutMap[datasetSpec.type])
+                        datasetSpec.streamName = f"{datasetSpec.type.upper()}{nOutMap[datasetSpec.type]}"
                     else:
                         datasetSpec.streamName = "LOG_MERGE"
                     nOutMap[datasetSpec.type] += 1
@@ -693,7 +693,7 @@ class TaskRefinerBase(object):
                             umDatasetSpec.allowNoOutput()
                         # ratio
                         if datasetSpec.getRatioToMaster() > 1:
-                            umDatasetSpec.setDatasetAttribute("ratio={0}".format(datasetSpec.getRatioToMaster()))
+                            umDatasetSpec.setDatasetAttribute(f"ratio={datasetSpec.getRatioToMaster()}")
                         # make unmerged output template
                         if outFileTemplate is not None:
                             umOutTemplateMap = {
@@ -738,7 +738,7 @@ class TaskRefinerBase(object):
                     esOnly = True
                 if esOnly:
                     jobParameters += "<PANDA_ES_ONLY>"
-                jobParameters += "{0}".format(tmpItem["value"])
+                jobParameters += f"{tmpItem['value']}"
                 if esOnly:
                     jobParameters += "</PANDA_ES_ONLY>"
                 # padding
@@ -783,11 +783,11 @@ class TaskRefinerBase(object):
                     "request_metadata": data,
                 }
                 c = iDDS_Client(idds.common.utils.get_rest_host())
-                self.tmpLog.debug("req {0}".format(str(req)))
+                self.tmpLog.debug(f"req {str(req)}")
                 ret = c.add_request(**req)
-                self.tmpLog.debug("got requestID={0}".format(str(ret)))
+                self.tmpLog.debug(f"got requestID={str(ret)}")
             except Exception as e:
-                errStr = "iDDS failed with {0}".format(str(e))
+                errStr = f"iDDS failed with {str(e)}"
                 raise JediException.ExternalTempError(errStr)
 
         return
@@ -825,14 +825,14 @@ class TaskRefinerBase(object):
                     self.replacePlaceHolders(taskParamMap, tmpKey, tmpVal)
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
-                self.tmpLog.error("{0} failed to get additional task params with {1}:{2}".format(self.__class__.__name__, errtype.__name__, errvalue))
+                self.tmpLog.error(f"{self.__class__.__name__} failed to get additional task params with {errtype.__name__}:{errvalue}")
                 return False, taskParamMap
             # succeeded
             self.updatedTaskParams = taskParamMap
             return None, taskParamMap
         # make dummy dataset to keep track of preprocessing
         datasetSpec = JediDatasetSpec()
-        datasetSpec.datasetName = "panda.pp.in.{0}.{1}".format(uuid.uuid4(), self.taskSpec.jediTaskID)
+        datasetSpec.datasetName = f"panda.pp.in.{uuid.uuid4()}.{self.taskSpec.jediTaskID}"
         datasetSpec.jediTaskID = self.taskSpec.jediTaskID
         datasetSpec.type = "pp_input"
         datasetSpec.vo = self.taskSpec.vo
@@ -856,7 +856,7 @@ class TaskRefinerBase(object):
         datasetSpec.addFile(fileSpec)
         # make log dataset
         logDatasetSpec = JediDatasetSpec()
-        logDatasetSpec.datasetName = "panda.pp.log.{0}.{1}".format(uuid.uuid4(), self.taskSpec.jediTaskID)
+        logDatasetSpec.datasetName = f"panda.pp.log.{uuid.uuid4()}.{self.taskSpec.jediTaskID}"
         logDatasetSpec.jediTaskID = self.taskSpec.jediTaskID
         logDatasetSpec.type = "tmpl_pp_log"
         logDatasetSpec.streamName = "PP_LOG"
@@ -874,7 +874,7 @@ class TaskRefinerBase(object):
             "jediTaskID": self.taskSpec.jediTaskID,
             "serialNr": 1,
             "streamName": logDatasetSpec.streamName,
-            "filenameTemplate": "{0}._${{SN}}.log.tgz".format(logDatasetSpec.datasetName),
+            "filenameTemplate": f"{logDatasetSpec.datasetName}._${{SN}}.log.tgz",
             "outtype": re.sub("^tmpl_", "", logDatasetSpec.type),
         }
         self.outputTemplateMap[logDatasetSpec.outputMapKey()] = [outTemplateMap]
@@ -890,16 +890,16 @@ class TaskRefinerBase(object):
         if taskParamMap is not None:
             if keyName not in taskParamMap:
                 return
-            tmpStr = "{0}={1}".format(valName, taskParamMap[keyName])
+            tmpStr = f"{valName}={taskParamMap[keyName]}"
         else:
-            tmpStr = "{0}={1}".format(valName, keyName)
+            tmpStr = f"{valName}={keyName}"
         if self.taskSpec.splitRule in [None, ""]:
             self.taskSpec.splitRule = tmpStr
         else:
             tmpMatch = re.search(valName + "=(-*\d+)(,-*\d+)*", self.taskSpec.splitRule)
             if tmpMatch is None:
                 # append
-                self.taskSpec.splitRule += ",{0}".format(tmpStr)
+                self.taskSpec.splitRule += f",{tmpStr}"
             else:
                 # replace
                 self.taskSpec.splitRule = self.taskSpec.splitRule.replace(tmpMatch.group(0), tmpStr)

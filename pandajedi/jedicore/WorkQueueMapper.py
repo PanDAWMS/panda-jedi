@@ -20,7 +20,7 @@ class WorkQueueMapper:
         """
         Generates the SQL to get all work queues
         """
-        sql = "SELECT {0} FROM ATLAS_PANDA.JEDI_Work_Queue".format(WorkQueue.column_names())
+        sql = f"SELECT {WorkQueue.column_names()} FROM ATLAS_PANDA.JEDI_Work_Queue"
 
         return sql
 
@@ -104,11 +104,11 @@ class WorkQueueMapper:
         """
         dump_str = "WorkQueue mapping\n"
         for VO in self.work_queue_map:
-            dump_str += "  VO=%s\n" % VO
+            dump_str += f"  VO={VO}\n"
             for type in self.work_queue_map[VO]:
-                dump_str += "    type=%s\n" % type
+                dump_str += f"    type={type}\n"
                 for workQueue in self.work_queue_map[VO][type]:
-                    dump_str += "    %s\n" % workQueue.dump()
+                    dump_str += f"    {workQueue.dump()}\n"
         # return
         return dump_str
 
@@ -122,10 +122,10 @@ class WorkQueueMapper:
         """
         ret_str = ""
         if vo not in self.work_queue_map:
-            ret_str = "queues for vo=%s are undefined" % vo
+            ret_str = f"queues for vo={vo} are undefined"
         elif type not in self.work_queue_map[vo]:
             # check type
-            ret_str = "queues for type=%s are undefined in vo=%s" % (type, vo)
+            ret_str = f"queues for type={type} are undefined in vo={vo}"
         else:
             for wq in self.work_queue_map[vo][type]:
                 # don't return global share IDs for work queues
@@ -138,11 +138,11 @@ class WorkQueueMapper:
                     if result:
                         return ret_queue, ret_str
                 except Exception:
-                    ret_str += "{0},".format(wq.queue_name)
+                    ret_str += f"{wq.queue_name},"
 
             ret_str = ret_str[:-1]
             if ret_str != "":
-                new_ret_str = "eval with VO={0} ".format(vo)
+                new_ret_str = f"eval with VO={vo} "
                 for tmp_param_key, tmp_param_val in param_map.items():
                     new_ret_str += "{0}={1} failed for {0}".format(tmp_param_key, tmp_param_val, ret_str)
                 ret_str = new_ret_str

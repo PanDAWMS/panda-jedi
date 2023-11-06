@@ -36,7 +36,7 @@ class ContentsFeeder(JediKnight):
     def __init__(self, commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
-        self.pid = "{0}-{1}_{2}-con".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-con"
         JediKnight.__init__(self, commuChannel, taskBufferIF, ddmIF, logger)
 
     # main
@@ -57,7 +57,7 @@ class ContentsFeeder(JediKnight):
                             # failed
                             logger.error("failed to get the list of datasets to feed contents")
                         else:
-                            logger.debug("got %s datasets" % len(tmpList))
+                            logger.debug(f"got {len(tmpList)} datasets")
                             # put to a locked list
                             dsList = ListWithLock(tmpList)
                             # make thread pool
@@ -71,7 +71,7 @@ class ContentsFeeder(JediKnight):
                             threadPool.join()
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
-                logger.error("failed in %s.start() with %s %s" % (self.__class__.__name__, errtype.__name__, errvalue))
+                logger.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = jedi_config.confeeder.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
@@ -104,12 +104,12 @@ class ContentsFeederThread(WorkerThread):
                 taskDsList = self.taskDsList.get(nTasks)
                 # no more datasets
                 if len(taskDsList) == 0:
-                    self.logger.debug("%s terminating since no more items" % self.__class__.__name__)
+                    self.logger.debug(f"{self.__class__.__name__} terminating since no more items")
                     return
                 # feed to tasks
                 self.feed_contents_to_tasks(taskDsList)
             except Exception as e:
-                logger.error("{0} failed in runImpl() with {1}: {2}".format(self.__class__.__name__, str(e), traceback.format_exc()))
+                logger.error(f"{self.__class__.__name__} failed in runImpl() with {str(e)}: {traceback.format_exc()}")
 
     # feed contents to tasks
     def feed_contents_to_tasks(self, task_ds_list):
@@ -128,7 +128,7 @@ class ContentsFeederThread(WorkerThread):
             # get task
             tmpStat, taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID, False, True, self.pid, 10, clearError=True)
             if not tmpStat or taskSpec is None:
-                self.logger.debug("failed to get taskSpec for jediTaskID={0}".format(jediTaskID))
+                self.logger.debug(f"failed to get taskSpec for jediTaskID={jediTaskID}")
                 continue
 
             # make logger
@@ -136,17 +136,17 @@ class ContentsFeederThread(WorkerThread):
                 gshare = "_".join(taskSpec.gshare.split(" "))
             except Exception:
                 gshare = "Undefined"
-            tmpLog = MsgWrapper(self.logger, "<jediTaskID={0} gshare={1}>".format(jediTaskID, gshare))
+            tmpLog = MsgWrapper(self.logger, f"<jediTaskID={jediTaskID} gshare={gshare}>")
 
             try:
                 # get task parameters
                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                 taskParamMap = RefinerUtils.decodeJSON(taskParam)
             except Exception as e:
-                tmpLog.error("task param conversion from json failed with {}".format(str(e)))
+                tmpLog.error(f"task param conversion from json failed with {str(e)}")
                 # unlock
                 tmpStat = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID, self.pid)
-                tmpLog.debug("unlocked with {}".format(tmpStat))
+                tmpLog.debug(f"unlocked with {tmpStat}")
                 continue
             # renaming of parameters
             if "nEventsPerInputFile" in taskParamMap:
@@ -196,7 +196,7 @@ class ContentsFeederThread(WorkerThread):
                 id_to_container = {}
                 [id_to_container.update({datasetSpec.datasetID: datasetSpec.containerName}) for datasetSpec in dsList]
                 for datasetSpec in dsList:
-                    tmpLog.debug("start loop for {0}(id={1})".format(datasetSpec.datasetName, datasetSpec.datasetID))
+                    tmpLog.debug(f"start loop for {datasetSpec.datasetName}(id={datasetSpec.datasetID})")
                     # index consistency
                     if datasetSpec.indexConsistent():
                         datasetsIdxConsistency.append(datasetSpec.datasetID)
@@ -231,7 +231,7 @@ class ContentsFeederThread(WorkerThread):
                         gotMetadata = True
                     except Exception:
                         errtype, errvalue = sys.exc_info()[:2]
-                        tmpLog.error("{0} failed to get metadata to {1}:{2}".format(self.__class__.__name__, errtype.__name__, errvalue))
+                        tmpLog.error(f"{self.__class__.__name__} failed to get metadata to {errtype.__name__}:{errvalue}")
                         if errtype == Interaction.JEDIFatalError:
                             # fatal error
                             datasetStatus = "broken"
@@ -247,7 +247,7 @@ class ContentsFeederThread(WorkerThread):
                                 datasetStatus = "failed"
                                 # update dataset status
                                 self.updateDatasetStatus(datasetSpec, datasetStatus, tmpLog)
-                        taskSpec.setErrDiag("failed to get metadata for {0}".format(datasetSpec.datasetName))
+                        taskSpec.setErrDiag(f"failed to get metadata for {datasetSpec.datasetName}")
                         if not taskSpec.ignoreMissingInDS():
                             allUpdated = False
                     else:
@@ -257,7 +257,7 @@ class ContentsFeederThread(WorkerThread):
                             datasetStatus = "finished"
                             # update dataset status
                             self.updateDatasetStatus(datasetSpec, datasetStatus, tmpLog, "closed")
-                            tmpLog.debug("disabled missing {0}".format(datasetSpec.datasetName))
+                            tmpLog.debug(f"disabled missing {datasetSpec.datasetName}")
                             continue
                         # get file list specified in task parameters
                         if taskSpec.is_work_segmented() and not datasetSpec.isPseudo() and not datasetSpec.isMaster():
@@ -299,7 +299,7 @@ class ContentsFeederThread(WorkerThread):
                                 if taskSpec.respectLumiblock() or taskSpec.orderByLB():
                                     longFormat = True
                                 tmpRet = ddmIF.getFilesInDataset(tmpDatasetName, getNumEvents=getNumEvents, skipDuplicate=skipDuplicate, longFormat=longFormat)
-                                tmpLog.debug("got {0} files in {1}".format(len(tmpRet), tmpDatasetName))
+                                tmpLog.debug(f"got {len(tmpRet)} files in {tmpDatasetName}")
                                 # remove lost files
                                 """
                                 tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
@@ -383,7 +383,7 @@ class ContentsFeederThread(WorkerThread):
                                             base_name, n_events = base_name.split("^")
 
                                         tmpRet[str(uuid.uuid4())] = {
-                                            "lfn": "{0:06d}:{1}".format(iPFN, base_name),
+                                            "lfn": f"{iPFN:06d}:{base_name}",
                                             "scope": None,
                                             "filesize": 0,
                                             "checksum": None,
@@ -392,7 +392,7 @@ class ContentsFeederThread(WorkerThread):
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             reason = str(errvalue)
-                            tmpLog.error("failed to get files in {0}:{1} due to {2}".format(self.__class__.__name__, errtype.__name__, reason))
+                            tmpLog.error(f"failed to get files in {self.__class__.__name__}:{errtype.__name__} due to {reason}")
                             if errtype == Interaction.JEDIFatalError:
                                 # fatal error
                                 datasetStatus = "broken"
@@ -560,7 +560,7 @@ class ContentsFeederThread(WorkerThread):
                                 skip_short_output,
                             )
                             if retDB is False:
-                                taskSpec.setErrDiag("failed to insert files for {0}. {1}".format(datasetSpec.datasetName, diagMap["errMsg"]))
+                                taskSpec.setErrDiag(f"failed to insert files for {datasetSpec.datasetName}. {diagMap['errMsg']}")
                                 allUpdated = False
                                 taskBroken = True
                                 break
@@ -571,7 +571,7 @@ class ContentsFeederThread(WorkerThread):
                                 break
                             elif missingFileList != []:
                                 # files are missing
-                                tmpErrStr = "{0} files missing in {1}".format(len(missingFileList), datasetSpec.datasetName)
+                                tmpErrStr = f"{len(missingFileList)} files missing in {datasetSpec.datasetName}"
                                 tmpLog.debug(tmpErrStr)
                                 taskSpec.setErrDiag(tmpErrStr)
                                 allUpdated = False
@@ -630,7 +630,7 @@ class ContentsFeederThread(WorkerThread):
                     taskSpec.status = "tobroken"
                 else:
                     taskSpec.status = "finishing"
-                tmpMsg = "set task_status={0}".format(taskSpec.status)
+                tmpMsg = f"set task_status={taskSpec.status}"
                 tmpLog.info(tmpMsg)
                 tmpLog.sendMsg(tmpMsg, self.msgType)
                 allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID, taskSpec, pid=self.pid)
@@ -649,7 +649,7 @@ class ContentsFeederThread(WorkerThread):
                     # go to pending state
                     if taskSpec.status not in ["broken", "tobroken", "finishing"]:
                         taskSpec.setOnHold()
-                    tmpMsg = "set task_status={0}".format(taskSpec.status)
+                    tmpMsg = f"set task_status={taskSpec.status}"
                     tmpLog.info(tmpMsg)
                     tmpLog.sendMsg(tmpMsg, self.msgType)
                     allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID, taskSpec, pid=self.pid, setFrozenTime=setFrozenTime)
@@ -658,16 +658,16 @@ class ContentsFeederThread(WorkerThread):
                     allRet, newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(
                         jediTaskID, getTaskStatus=True, pid=self.pid, useWorldCloud=taskSpec.useWorldCloud()
                     )
-                    tmpMsg = "set task_status={0}".format(newTaskStatus)
+                    tmpMsg = f"set task_status={newTaskStatus}"
                     tmpLog.info(tmpMsg)
                     tmpLog.sendMsg(tmpMsg, self.msgType)
                 # just unlock
                 retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID, self.pid)
-                tmpLog.debug("unlock not-running task with {0}".format(retUnlock))
+                tmpLog.debug(f"unlock not-running task with {retUnlock}")
             else:
                 # just unlock
                 retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID, self.pid)
-                tmpLog.debug("unlock task with {0}".format(retUnlock))
+                tmpLog.debug(f"unlock task with {retUnlock}")
             # send message to job generator if new inputs are ready
             if not taskOnHold and not taskBroken and allUpdated and taskSpec.is_msg_driven():
                 self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jediTaskID)
@@ -681,7 +681,7 @@ class ContentsFeederThread(WorkerThread):
         datasetSpec.lockedBy = None
         if datasetState:
             datasetSpec.state = datasetState
-        tmpLog.info("update dataset status to {} state to {}".format(datasetSpec.status, datasetSpec.state))
+        tmpLog.info(f"update dataset status to {datasetSpec.status} state to {datasetSpec.state}")
         self.taskBufferIF.updateDataset_JEDI(datasetSpec, {"datasetID": datasetSpec.datasetID, "jediTaskID": datasetSpec.jediTaskID}, lockTask=True)
 
     # send prestaging request
@@ -713,9 +713,9 @@ class ContentsFeederThread(WorkerThread):
                         if rule_id is None:
                             continue
                 except Exception as e:
-                    return False, "DDM error : {}".format(str(e))
+                    return False, f"DDM error : {str(e)}"
                 # request
-                tmp_log.debug("sending request to iDDS for {0}".format(datasetSpec.datasetName))
+                tmp_log.debug(f"sending request to iDDS for {datasetSpec.datasetName}")
                 req = {
                     "scope": tmp_scope,
                     "name": tmp_name,
@@ -730,11 +730,11 @@ class ContentsFeederThread(WorkerThread):
                         "rule_id": rule_id,
                     },
                 }
-                tmp_log.debug("req {0}".format(str(req)))
+                tmp_log.debug(f"req {str(req)}")
                 ret = c.add_request(**req)
-                tmp_log.debug("got requestID={0}".format(str(ret)))
+                tmp_log.debug(f"got requestID={str(ret)}")
         except Exception as e:
-            return False, "iDDS error : {0}".format(str(e))
+            return False, f"iDDS error : {str(e)}"
         return True, None
 
 

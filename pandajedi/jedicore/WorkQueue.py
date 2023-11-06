@@ -66,13 +66,13 @@ class WorkQueue(object):
         Creates a human-friendly string with the work queue information
         :return: string representation of the work queue
         """
-        dump_str = "id:{0} order:{1} name:{2} share:{3} ".format(self.queue_id, self.queue_order, self.queue_name, self.queue_share)
+        dump_str = f"id:{self.queue_id} order:{self.queue_order} name:{self.queue_name} share:{self.queue_share} "
 
         # normal queue
         if self.is_global_share:
-            dump_str += "gs_name:{0} (global share)".format(self.queue_name)
+            dump_str += f"gs_name:{self.queue_name} (global share)"
         else:
-            dump_str += "criteria:{0} var:{1} eval:{2}".format(self.criteria, str(self.variables), self.evalString)
+            dump_str += f"criteria:{self.criteria} var:{str(self.variables)} eval:{self.evalString}"
 
         return dump_str
 
@@ -107,7 +107,7 @@ class WorkQueue(object):
                 if len(items) != 2:
                     continue
                 # add
-                tmp_map[":%s" % items[0]] = items[1]
+                tmp_map[f":{items[0]}"] = items[1]
         except Exception:
             pass
         # assign map
@@ -139,10 +139,10 @@ class WorkQueue(object):
                 if "%" in tmp_val:
                     # wildcard
                     tmp_val = tmp_val.replace("%", ".*")
-                    tmp_val = "'^%s$'" % tmp_val
+                    tmp_val = f"'^{tmp_val}$'"
                 else:
                     # normal variable
-                    tmp_val = "'%s'" % tmp_val
+                    tmp_val = f"'{tmp_val}'"
                 tmp_eval_str = tmp_eval_str.replace(tmp_key, tmp_val)
             # assign
             self.evalString = tmp_eval_str
@@ -170,7 +170,7 @@ class WorkQueue(object):
                 if attr in self._params_gs_conversion_dic:
                     param_wq = self._params_gs_conversion_dic[attr]
                     val = getattr(gshare, attr)
-                    tmp_map[":{0}".format(param_wq)] = val
+                    tmp_map[f":{param_wq}"] = val
 
                 # 3. Special case for throttled. This is defined additionally, since it's not present in WQs
                 if attr == "throttled" and gshare.throttled == "N":
@@ -189,15 +189,15 @@ class WorkQueue(object):
             for tmp_param_key, tmp_param_val in param_map.items():
                 if isinstance(tmp_param_val, str):
                     # add quotes for string
-                    exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val), globals())
+                    exec(f'{tmp_param_key}="{tmp_param_val}"', globals())
                 else:
-                    exec("{0}={1}".format(tmp_param_key, tmp_param_val), globals())
+                    exec(f"{tmp_param_key}={tmp_param_val}", globals())
             # add default parameters if missing
             for tmp_param in self._paramsForSelection:
                 if tmp_param not in param_map:
-                    exec("{0}=None".format(tmp_param), globals())
+                    exec(f"{tmp_param}=None", globals())
             # evaluate
-            exec("ret_var = {0}".format(self.evalString), globals())
+            exec(f"ret_var = {self.evalString}", globals())
             return self, ret_var
 
         # return False

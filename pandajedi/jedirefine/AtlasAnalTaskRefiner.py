@@ -34,13 +34,13 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
         if "transPath" not in taskParamMap:
             if "athena" in processingTypes:
                 # athena
-                taskParamMap["transPath"] = "http://{0}:{1}/trf/user/runAthena-00-00-12".format(panda_config.pserveralias, panda_config.pserverportcache)
+                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runAthena-00-00-12"
             elif "cont" in processingTypes:
                 # container
-                taskParamMap["transPath"] = "http://{0}:{1}/trf/user/runcontainer".format(panda_config.pserveralias, panda_config.pserverportcache)
+                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runcontainer"
             else:
                 # general executable
-                taskParamMap["transPath"] = "http://{0}:{1}/trf/user/runGen-00-00-02".format(panda_config.pserveralias, panda_config.pserverportcache)
+                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runGen-00-00-02"
                 # shorter base walltime
                 if "baseWalltime" not in taskParamMap:
                     taskParamMap["baseWalltime"] = 60
@@ -48,31 +48,21 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
         if "buildSpec" in taskParamMap and "transPath" not in taskParamMap["buildSpec"]:
             if "athena" in processingTypes:
                 # athena
-                taskParamMap["buildSpec"]["transPath"] = "http://{0}:{1}/trf/user/buildJob-00-00-03".format(
-                    panda_config.pserveralias, panda_config.pserverportcache
-                )
+                taskParamMap["buildSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/buildJob-00-00-03"
             else:
                 # general executable
-                taskParamMap["buildSpec"]["transPath"] = "http://{0}:{1}/trf/user/buildGen-00-00-01".format(
-                    panda_config.pserveralias, panda_config.pserverportcache
-                )
+                taskParamMap["buildSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/buildGen-00-00-01"
         # set transPath for preprocessing
         if "preproSpec" in taskParamMap and "transPath" not in taskParamMap["preproSpec"]:
             if "evp" in processingTypes:
                 # event picking
-                taskParamMap["preproSpec"]["transPath"] = "http://{0}:{1}/trf/user/preEvtPick-00-00-01".format(
-                    panda_config.pserveralias, panda_config.pserverportcache
-                )
+                taskParamMap["preproSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/preEvtPick-00-00-01"
             elif "grl" in processingTypes:
                 # good run list
-                taskParamMap["preproSpec"]["transPath"] = "http://{0}:{1}/trf/user/preGoodRunList-00-00-01".format(
-                    panda_config.pserveralias, panda_config.pserverportcache
-                )
+                taskParamMap["preproSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/preGoodRunList-00-00-01"
         # set transPath for merge
         if "mergeSpec" in taskParamMap and "transPath" not in taskParamMap["mergeSpec"]:
-            taskParamMap["mergeSpec"]["transPath"] = "http://{0}:{1}/trf/user/runMerge-00-00-02".format(
-                panda_config.pserveralias, panda_config.pserverportcache
-            )
+            taskParamMap["mergeSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runMerge-00-00-02"
         # min ram count
         if "ramCount" not in taskParamMap:
             taskParamMap["ramCount"] = 2000
@@ -150,7 +140,7 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
     def doRefine(self, jediTaskID, taskParamMap):
         # make logger
         tmpLog = self.tmpLog
-        tmpLog.debug("start taskType={0}".format(self.taskSpec.taskType))
+        tmpLog.debug(f"start taskType={self.taskSpec.taskType}")
         try:
             # preprocessing
             tmpStat, taskParamMap = self.doPreProRefine(taskParamMap)
@@ -167,7 +157,7 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             for datasetSpec in self.inSecDatasetSpecList:
                 # get the latest version of DBR
                 if datasetSpec.datasetName == "DBR_LATEST":
-                    tmpLog.debug("resolving real name for {0}".format(datasetSpec.datasetName))
+                    tmpLog.debug(f"resolving real name for {datasetSpec.datasetName}")
                     datasetSpec.datasetName = self.ddmIF.getInterface(self.taskSpec.vo).getLatestDBRelease(useResultCache=3600)
                     datasetSpec.containerName = datasetSpec.datasetName
                 # set attributes to DBR
@@ -176,7 +166,7 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             # check invalid characters
             for datasetSpec in self.outDatasetSpecList:
                 if not DataServiceUtils.checkInvalidCharacters(datasetSpec.datasetName):
-                    errStr = "invalid characters in {0}".format(datasetSpec.datasetName)
+                    errStr = f"invalid characters in {datasetSpec.datasetName}"
                     tmpLog.error(errStr)
                     self.taskSpec.setErrDiag(errStr, None)
                     return self.SC_FATAL
@@ -191,7 +181,7 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken["instantiateTmpl"])
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken["instantiateTmplSite"])
             for datasetSpec in self.outDatasetSpecList:
-                datasetSpec.type = "tmpl_{0}".format(datasetSpec.type)
+                datasetSpec.type = f"tmpl_{datasetSpec.type}"
             # get jobsetID
             tmpStat, tmpJobID = self.taskBufferIF.getUserJobsetID_JEDI(self.taskSpec.userName)
             if not tmpStat:
@@ -207,7 +197,7 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                 self.taskSpec.setLimitedSites("inc")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            errStr = "doRefine failed with {0}:{1}".format(errtype.__name__, errvalue)
+            errStr = f"doRefine failed with {errtype.__name__}:{errvalue}"
             tmpLog.error(errStr)
             self.taskSpec.setErrDiag(errStr, None)
             raise errtype(errvalue)

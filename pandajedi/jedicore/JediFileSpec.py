@@ -91,7 +91,7 @@ class JediFileSpec(object):
                     val = 0
                 else:
                     val = None
-            ret[":%s" % attr] = val
+            ret[f":{attr}"] = val
         return ret
 
     # pack tuple into FileSpec
@@ -112,16 +112,16 @@ class JediFileSpec(object):
             if ret != "":
                 ret += ","
             if useSeq and attr in cls._seqAttrMap:
-                ret += "%s" % cls._seqAttrMap[attr]
+                ret += f"{cls._seqAttrMap[attr]}"
                 continue
             if attr in defaultVales:
                 arg = defaultVales[attr]
                 if arg is None:
                     ret += "NULL"
                 elif isinstance(arg, str):
-                    ret += "'{0}'".format(arg)
+                    ret += f"'{arg}'"
                 else:
-                    ret += "{0}".format(arg)
+                    ret += f"{arg}"
                 continue
             ret += attr
         return ret
@@ -133,9 +133,9 @@ class JediFileSpec(object):
         ret = "VALUES("
         for attr in cls._attributes:
             if useSeq and attr in cls._seqAttrMap:
-                ret += "%s," % cls._seqAttrMap[attr]
+                ret += f"{cls._seqAttrMap[attr]},"
             else:
-                ret += ":%s," % attr
+                ret += f":{attr},"
         ret = ret[:-1]
         ret += ")"
         return ret
@@ -147,7 +147,7 @@ class JediFileSpec(object):
         ret = ""
         for attr in self._attributes:
             if attr in self._changedAttrs:
-                ret += "%s=:%s," % (attr, attr)
+                ret += f"{attr}=:{attr},"
         ret = ret[:-1]
         ret += " "
         return ret
@@ -192,7 +192,7 @@ class JediFileSpec(object):
                     jobFileSpec.destinationSE = datasetSpec.destination
                 # set prodDBlockToken for Event Service
                 if useEventService and datasetSpec.getObjectStore() is not None:
-                    jobFileSpec.prodDBlockToken = "objectstore^{0}".format(datasetSpec.getObjectStore())
+                    jobFileSpec.prodDBlockToken = f"objectstore^{datasetSpec.getObjectStore()}"
                 # allow no output
                 if datasetSpec.isAllowedNoOutput():
                     jobFileSpec.allowNoOutput()

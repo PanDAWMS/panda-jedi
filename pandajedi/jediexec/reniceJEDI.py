@@ -3,7 +3,7 @@ import subprocess
 from pandajedi.jediconfig import jedi_config
 
 proc = subprocess.Popen(
-    "ps -l x -U {0}".format(jedi_config.master.uname),
+    f"ps -l x -U {jedi_config.master.uname}",
     shell=True,
     stdout=subprocess.PIPE,
 )
@@ -17,7 +17,7 @@ for line in stdoutList:
         nice = int(items[7])
         if "JediMaster.py" in line and nice > 0:
             reniceProc = subprocess.Popen(
-                "renice 0 {0}".format(pid),
+                f"renice 0 {pid}",
                 shell=True,
                 stdout=subprocess.PIPE,
             )

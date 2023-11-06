@@ -10,7 +10,7 @@ tbIF.setupInterface()
 
 task = JediTaskSpec()
 task.jediTaskID = sys.argv[1]
-task.taskName = "pandatest.{0}".format(uuid.uuid4())
+task.taskName = f"pandatest.{uuid.uuid4()}"
 task.status = "defined"
 task.userName = "pandasrv1"
 task.vo = "atlas"
@@ -64,7 +64,7 @@ tbIF.insertDataset_JEDI(ds)
 
 ds = JediDatasetSpec()
 ds.jediTaskID = task.jediTaskID
-ds.datasetName = "panda.jeditest.GEN.{0}".format(uuid.uuid4())
+ds.datasetName = f"panda.jeditest.GEN.{uuid.uuid4()}"
 ds.type = "output"
 ds.vo = task.vo
 ds.cloud = "US"
@@ -82,7 +82,7 @@ tbIF.insertOutputTemplate_JEDI(
         {
             "jediTaskID": task.jediTaskID,
             "datasetID": datasetID,
-            "filenameTemplate": "{0}.${{SN}}.pool.root".format(ds.datasetName),
+            "filenameTemplate": f"{ds.datasetName}.${{SN}}.pool.root",
             "serialNr": 1,
             "streamName": "OUT",
             "outtype": ds.type,
@@ -92,7 +92,7 @@ tbIF.insertOutputTemplate_JEDI(
 
 ds = JediDatasetSpec()
 ds.jediTaskID = task.jediTaskID
-ds.datasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
+ds.datasetName = f"panda.jeditest.log.{uuid.uuid4()}"
 ds.type = "log"
 ds.vo = task.vo
 ds.cloud = "US"
@@ -110,7 +110,7 @@ tbIF.insertOutputTemplate_JEDI(
         {
             "jediTaskID": task.jediTaskID,
             "datasetID": datasetID,
-            "filenameTemplate": "{0}.${{SN}}.log.tgz".format(ds.datasetName),
+            "filenameTemplate": f"{ds.datasetName}.${{SN}}.log.tgz",
             "serialNr": 1,
             "streamName": "LOG",
             "outtype": ds.type,

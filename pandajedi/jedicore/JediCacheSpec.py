@@ -24,7 +24,7 @@ class JediCacheSpec(object):
         ret = {}
         for attr in self.attributes:
             val = getattr(self, attr)
-            ret[":%s" % attr] = val
+            ret[f":{attr}"] = val
         return ret
 
     # pack tuple into JediCacheSpec
@@ -40,14 +40,14 @@ class JediCacheSpec(object):
         if prefix is None:
             ret = ",".join(cls.attributes)
         else:
-            ret = ",".join(["{0}.{1}".format(prefix, attr) for attr in cls.attributes])
+            ret = ",".join([f"{prefix}.{attr}" for attr in cls.attributes])
         return ret
 
     # return expression of bind variables for INSERT
     @classmethod
     def bindValuesExpression(cls):
-        values_str = ",".join([":{0}".format(attr) for attr in cls.attributes])
-        ret = "VALUES({0})".format(values_str)
+        values_str = ",".join([f":{attr}" for attr in cls.attributes])
+        ret = f"VALUES({values_str})"
         return ret
 
     # return an expression of bind variables for UPDATE

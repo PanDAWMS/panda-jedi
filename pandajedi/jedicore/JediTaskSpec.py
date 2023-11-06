@@ -340,7 +340,7 @@ class JediTaskSpec(object):
             if attr in self._limitLength:
                 if val is not None:
                     val = val[: self._limitLength[attr]]
-            ret[":%s" % attr] = val
+            ret[f":{attr}"] = val
         return ret
 
     # pack tuple into TaskSpec
@@ -355,8 +355,8 @@ class JediTaskSpec(object):
         ret = ""
         for attr in cls.attributes:
             if prefix is not None:
-                ret += "{0}.".format(prefix)
-            ret += "{0},".format(attr)
+                ret += f"{prefix}."
+            ret += f"{attr},"
         ret = ret[:-1]
         return ret
 
@@ -367,9 +367,9 @@ class JediTaskSpec(object):
         ret = "VALUES("
         for attr in cls.attributes:
             if useSeq and attr in cls._seqAttrMap:
-                ret += "%s," % cls._seqAttrMap[attr]
+                ret += f"{cls._seqAttrMap[attr]},"
             else:
-                ret += ":%s," % attr
+                ret += f":{attr},"
         ret = ret[:-1]
         ret += ")"
         return ret
@@ -381,7 +381,7 @@ class JediTaskSpec(object):
         ret = ""
         for attr in self.attributes:
             if attr in self._changedAttrs:
-                ret += "%s=:%s," % (attr, attr)
+                ret += f"{attr}=:{attr},"
         ret = ret[:-1]
         ret += " "
         return ret
@@ -866,9 +866,9 @@ class JediTaskSpec(object):
         # set error dialog
         if append is True and self.errorDialog is not None:
             if not prepend:
-                self.errorDialog = "{0} {1}".format(self.errorDialog, diag)
+                self.errorDialog = f"{self.errorDialog} {diag}"
             else:
-                self.errorDialog = "{0} {1}".format(diag, self.errorDialog)
+                self.errorDialog = f"{diag} {self.errorDialog}"
         elif append is None:
             # keep old log
             if self.errorDialog is None:
@@ -884,10 +884,10 @@ class JediTaskSpec(object):
     def makeFQANs(self):
         # no working group
         if self.workingGroup is not None:
-            fqan = "/{0}/{1}/Role=production".format(self.vo, self.workingGroup)
+            fqan = f"/{self.vo}/{self.workingGroup}/Role=production"
         else:
             if self.vo is not None:
-                fqan = "/{0}/Role=NULL".format(self.vo)
+                fqan = f"/{self.vo}/Role=NULL"
             else:
                 return []
         # return
@@ -1091,7 +1091,7 @@ class JediTaskSpec(object):
                 continue
             if len(attrVal) > attrLength:
                 setattr(self, attrName, None)
-                self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName, len(attrVal), attrLength)
+                self.errorDialog = f"{attrName} is too long (actual: {len(attrVal)}, maximum: {attrLength})"
                 return False
         return True
 

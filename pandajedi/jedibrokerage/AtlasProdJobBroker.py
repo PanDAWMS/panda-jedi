@@ -108,14 +108,14 @@ class AtlasProdJobBroker(JobBrokerBase):
         if glLog is None:
             tmpLog = MsgWrapper(
                 logger,
-                "<jediTaskID={0}>".format(taskSpec.jediTaskID),
-                monToken="<jediTaskID={0} {1}>".format(taskSpec.jediTaskID, datetime.datetime.utcnow().isoformat("/")),
+                f"<jediTaskID={taskSpec.jediTaskID}>",
+                monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.utcnow().isoformat('/')}>",
             )
         else:
             tmpLog = glLog
 
         if not hintForTB:
-            tmpLog.debug("start currentPriority={}".format(taskSpec.currentPriority))
+            tmpLog.debug(f"start currentPriority={taskSpec.currentPriority}")
 
         if self.nwActive:
             tmpLog.debug("Network weights are ACTIVE!")
@@ -148,7 +148,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 else:
                     scanSiteList += self.get_pseudo_sites([tmpSiteName], self.siteMapper.getCloud(cloudName)["sites"])
             for tmpSiteName in scanSiteList:
-                tmpLog.info("site={0} is pre-assigned criteria=+preassign".format(tmpSiteName))
+                tmpLog.info(f"site={tmpSiteName} is pre-assigned criteria=+preassign")
             if len(scanSiteList) > 1:
                 siteListPreAssigned = True
             else:
@@ -166,7 +166,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 # ignore pre-assigned site since pmerge is timed out
                 tmpLog.info("ignore pre-assigned for pmerge due to timeout")
                 scanSiteList = self.siteMapper.getCloud(cloudName)["sites"]
-                tmpLog.info("cloud=%s has %s candidates" % (cloudName, len(scanSiteList)))
+                tmpLog.info(f"cloud={cloudName} has {len(scanSiteList)} candidates")
             else:
                 # pmerge
                 siteListPreAssigned = True
@@ -180,7 +180,7 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)["sites"]
-            tmpLog.info("cloud=%s has %s candidates" % (cloudName, len(scanSiteList)))
+            tmpLog.info(f"cloud={cloudName} has {len(scanSiteList)} candidates")
 
         # high prio ES
         if taskSpec.useEventService() and not taskSpec.useJobCloning() and (taskSpec.currentPriority >= 900 or inputChunk.useScout()):
@@ -208,7 +208,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 # get nucleus
                 nucleusSpec = self.siteMapper.getNucleus(taskSpec.nucleus)
                 if nucleusSpec is None:
-                    tmpLog.error("unknown nucleus {0}".format(taskSpec.nucleus))
+                    tmpLog.error(f"unknown nucleus {taskSpec.nucleus}")
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
                 t1Sites = []
@@ -280,14 +280,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                     skipFlag = True
 
                 if msgFlag:
-                    tmpStr = "  skip site=%s due to status=%s criteria=-status" % (tmpSiteName, tmpSiteSpec.status)
+                    tmpStr = f"  skip site={tmpSiteName} due to status={tmpSiteSpec.status} criteria=-status"
                     if skipFlag:
                         tmpLog.info(tmpStr)
                     else:
                         siteSkippedTmp[tmpSiteName] = tmpStr
 
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed site status check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed site status check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "status check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -303,11 +303,11 @@ class AtlasProdJobBroker(JobBrokerBase):
         if taskSpec.useWorldCloud() and nucleus:
             # get connectivity stats to the nucleus in case of WORLD cloud
             if inputChunk.isExpress():
-                transferred_tag = "{0}{1}".format(URG_ACTIVITY, TRANSFERRED_6H)
-                queued_tag = "{0}{1}".format(URG_ACTIVITY, QUEUED)
+                transferred_tag = f"{URG_ACTIVITY}{TRANSFERRED_6H}"
+                queued_tag = f"{URG_ACTIVITY}{QUEUED}"
             else:
-                transferred_tag = "{0}{1}".format(PRD_ACTIVITY, TRANSFERRED_6H)
-                queued_tag = "{0}{1}".format(PRD_ACTIVITY, QUEUED)
+                transferred_tag = f"{PRD_ACTIVITY}{TRANSFERRED_6H}"
+                queued_tag = f"{PRD_ACTIVITY}{QUEUED}"
 
             networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS, transferred_tag, queued_tag, FTS_1H, FTS_1D, FTS_1W])
 
@@ -319,7 +319,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             else:
                 totalQueued = 0
 
-            tmpLog.debug("Total number of files being transferred to the nucleus : {0}".format(totalQueued))
+            tmpLog.debug(f"Total number of files being transferred to the nucleus : {totalQueued}")
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             newSkippedTmp = dict()
@@ -329,14 +329,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                     skipFlag = False
                     tempFlag = False
                     criteria = "-link_unusable"
-                    from_str = "from satellite={0}".format(tmpAtlasSiteName)
+                    from_str = f"from satellite={tmpAtlasSiteName}"
                     reason = ""
                     if nucleus == tmpAtlasSiteName:
                         # nucleus
                         pass
                     elif totalQueued >= self.total_queue_threshold:
                         # total exceed
-                        reason = "too many output files being transferred to the nucleus {0}(>{1} total limit)".format(totalQueued, self.total_queue_threshold)
+                        reason = f"too many output files being transferred to the nucleus {totalQueued}(>{self.total_queue_threshold} total limit)"
                         criteria = "-links_full"
                         from_str = ""
                         tempFlag = True
@@ -346,17 +346,15 @@ class AtlasProdJobBroker(JobBrokerBase):
                         pass
                     elif AGIS_CLOSENESS in networkMap[tmpAtlasSiteName] and networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
                         # blocked link
-                        reason = "agis_closeness={0}".format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
+                        reason = f"agis_closeness={networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]}"
                         skipFlag = True
                     elif queued_tag in networkMap[tmpAtlasSiteName] and networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
                         # too many queued
-                        reason = "too many output files queued in the channel {0}(>{1} link limit)".format(
-                            networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold
-                        )
+                        reason = f"too many output files queued in the channel {networkMap[tmpAtlasSiteName][queued_tag]}(>{self.queue_threshold} link limit)"
                         tempFlag = True
 
                     # add
-                    tmpStr = "  skip site={0} due to {1}, {2} to nucleus={3}: criteria={4}".format(tmpPandaSiteName, reason, from_str, nucleus, criteria)
+                    tmpStr = f"  skip site={tmpPandaSiteName} due to {reason}, {from_str} to nucleus={nucleus}: criteria={criteria}"
                     if skipFlag:
                         tmpLog.info(tmpStr)
                     else:
@@ -369,7 +367,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     newScanSiteList.append(tmpPandaSiteName)
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info("{0} candidates passed link check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed link check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "link check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -391,12 +389,12 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if not tmpSiteSpec.is_opportunistic():
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpMsg = "  skip site={0} to avoid opportunistic for high priority jobs ".format(tmpSiteName)
+                    tmpMsg = f"  skip site={tmpSiteName} to avoid opportunistic for high priority jobs "
                     tmpMsg += "criteria=-opportunistic"
                     tmpLog.info(tmpMsg)
 
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed for opportunistic check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed for opportunistic check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "opportunistic check")
 
             if not scanSiteList:
@@ -435,7 +433,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info("{0} candidates passed for slowness/inactive check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed for slowness/inactive check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "slowness/inactive check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -518,11 +516,11 @@ class AtlasProdJobBroker(JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec, taskSpec, inputChunk.isMerging, tmpLog):
-                    tmpLog.info("  skip site={0} due to zero share criteria=-zeroshare".format(tmpSiteName))
+                    tmpLog.info(f"  skip site={tmpSiteName} due to zero share criteria=-zeroshare")
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed zero share check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed zero share check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "zero share check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -538,11 +536,11 @@ class AtlasProdJobBroker(JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.useJumboJobs():
-                    tmpLog.info("  skip site={0} since it is only for jumbo jobs criteria=-jumbo".format(tmpSiteName))
+                    tmpLog.info(f"  skip site={tmpSiteName} since it is only for jumbo jobs criteria=-jumbo")
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed jumbo job check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed jumbo job check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "jumbo job check")
             if scanSiteList == []:
                 self.dump_summary(tmpLog)
@@ -559,13 +557,11 @@ class AtlasProdJobBroker(JobBrokerBase):
                     if tmpSiteSpec.useJumboJobs():
                         minEvents = tmpSiteSpec.getMinEventsForJumbo()
                         if minEvents is not None and nReadyEvents < minEvents:
-                            tmpLog.info(
-                                "  skip site={0} since not enough events ({1}<{2}) for jumbo criteria=-fewevents".format(tmpSiteName, minEvents, nReadyEvents)
-                            )
+                            tmpLog.info(f"  skip site={tmpSiteName} since not enough events ({minEvents}<{nReadyEvents}) for jumbo criteria=-fewevents")
                             continue
                     newScanSiteList.append(tmpSiteName)
                 scanSiteList = newScanSiteList
-                tmpLog.info("{0} candidates passed jumbo events check nReadyEvents={1}".format(len(scanSiteList), nReadyEvents))
+                tmpLog.info(f"{len(scanSiteList)} candidates passed jumbo events check nReadyEvents={nReadyEvents}")
                 self.add_summary_message(oldScanSiteList, scanSiteList, "jumbo events check")
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
@@ -607,20 +603,20 @@ class AtlasProdJobBroker(JobBrokerBase):
                 diskio_task_tmp = taskSpec.diskIO // tmpSiteSpec.coreCount
 
             try:  # generate a log message parseable by logstash for monitoring
-                log_msg = "diskIO measurements: site={0} jediTaskID={1} ".format(tmpSiteName, taskSpec.jediTaskID)
+                log_msg = f"diskIO measurements: site={tmpSiteName} jediTaskID={taskSpec.jediTaskID} "
                 if diskio_task_tmp is not None:
-                    log_msg += "diskIO_task={:.2f} ".format(diskio_task_tmp)
+                    log_msg += f"diskIO_task={diskio_task_tmp:.2f} "
                 if diskio_usage_tmp is not None:
-                    log_msg += "diskIO_site_usage={:.2f} ".format(diskio_usage_tmp)
+                    log_msg += f"diskIO_site_usage={diskio_usage_tmp:.2f} "
                 if diskio_limit_tmp is not None:
-                    log_msg += "diskIO_site_limit={:.2f} ".format(diskio_limit_tmp)
+                    log_msg += f"diskIO_site_limit={diskio_limit_tmp:.2f} "
                 tmpLog.info(log_msg)
             except Exception:
                 tmpLog.debug("diskIO measurements: Error generating diskIO message")
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
             if diskio_task_tmp and diskio_usage_tmp and diskio_limit_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
-                tmpMsg = "  skip site={0} due to diskIO overload criteria=-diskIO".format(tmpSiteName)
+                tmpMsg = f"  skip site={tmpSiteName} due to diskIO overload criteria=-diskIO"
                 newSkippedTmp[tmpSiteName] = tmpMsg
 
             newScanSiteList.append(tmpSiteName)
@@ -628,7 +624,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
 
-        tmpLog.info("{0} candidates passed diskIO check".format(len(scanSiteList)))
+        tmpLog.info(f"{len(scanSiteList)} candidates passed diskIO check")
         self.add_summary_message(oldScanSiteList, scanSiteList, "diskIO check")
         if not scanSiteList:
             self.dump_summary(tmpLog)
@@ -648,17 +644,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                     max_core_count = taskSpec.get_max_core_count()
                     if max_core_count and tmpSiteSpec.coreCount and tmpSiteSpec.coreCount > max_core_count:
                         tmpLog.info(
-                            "  skip site=%s due to larger core count site:%s than task_max=%s criteria=-cpucore"
-                            % (tmpSiteName, tmpSiteSpec.coreCount, max_core_count)
+                            f"  skip site={tmpSiteName} due to larger core count site:{tmpSiteSpec.coreCount} than task_max={max_core_count} criteria=-cpucore"
                         )
                     else:
                         newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.info(
-                        "  skip site=%s due to core mismatch site:%s <> task:%s criteria=-cpucore" % (tmpSiteName, tmpSiteSpec.coreCount, taskCoreCount)
-                    )
+                    tmpLog.info(f"  skip site={tmpSiteName} due to core mismatch site:{tmpSiteSpec.coreCount} <> task:{taskCoreCount} criteria=-cpucore")
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed for core count check with policy={1}".format(len(scanSiteList), useMP))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed for core count check with policy={useMP}")
             self.add_summary_message(oldScanSiteList, scanSiteList, "core count check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -757,7 +750,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info("{} candidates ({} with AUTO, {} with ANY) passed SW check ".format(len(scanSiteList), len(sitesAuto), len(sitesAny)))
+            tmpLog.info(f"{len(scanSiteList)} candidates ({len(sitesAuto)} with AUTO, {len(sitesAny)} with ANY) passed SW check ")
             self.add_summary_message(oldScanSiteList, scanSiteList, "SW check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -770,11 +763,11 @@ class AtlasProdJobBroker(JobBrokerBase):
         origMinRamCount = inputChunk.getMaxRamCount()
         if origMinRamCount not in [0, None]:
             if inputChunk.isMerging:
-                strMinRamCount = "{0}(MB)".format(origMinRamCount)
+                strMinRamCount = f"{origMinRamCount}(MB)"
             else:
-                strMinRamCount = "{0}({1})".format(origMinRamCount, taskSpec.ramUnit)
+                strMinRamCount = f"{origMinRamCount}({taskSpec.ramUnit})"
             if not inputChunk.isMerging and taskSpec.baseRamCount not in [0, None]:
-                strMinRamCount += "+{0}".format(taskSpec.baseRamCount)
+                strMinRamCount += f"+{taskSpec.baseRamCount}"
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
@@ -793,7 +786,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     site_maxmemory = tmpSiteSpec.maxrss
                 # check at the site
                 if site_maxmemory not in [0, None] and minRamCount != 0 and minRamCount > site_maxmemory:
-                    tmpMsg = "  skip site={0} due to site RAM shortage {1}(site upper limit) less than {2} ".format(tmpSiteName, site_maxmemory, minRamCount)
+                    tmpMsg = f"  skip site={tmpSiteName} due to site RAM shortage {site_maxmemory}(site upper limit) less than {minRamCount} "
                     tmpMsg += "criteria=-lowmemory"
                     tmpLog.info(tmpMsg)
                     continue
@@ -802,13 +795,13 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if tmpSiteSpec.minrss not in [0, None]:
                     site_minmemory = tmpSiteSpec.minrss
                 if site_minmemory not in [0, None] and minRamCount != 0 and minRamCount < site_minmemory:
-                    tmpMsg = "  skip site={0} due to job RAM shortage {1}(site lower limit) greater than {2} ".format(tmpSiteName, site_minmemory, minRamCount)
+                    tmpMsg = f"  skip site={tmpSiteName} due to job RAM shortage {site_minmemory}(site lower limit) greater than {minRamCount} "
                     tmpMsg += "criteria=-highmemory"
                     tmpLog.info(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed memory check {1}".format(len(scanSiteList), strMinRamCount))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed memory check {strMinRamCount}")
             self.add_summary_message(oldScanSiteList, scanSiteList, "memory check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -834,7 +827,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check direct access
             if taskSpec.allowInputLAN() == "only" and not tmpSiteSpec.isDirectIO() and not tmpSiteSpec.always_use_direct_io() and not inputChunk.isMerging:
-                tmpMsg = "  skip site={0} since direct IO is disabled ".format(tmpSiteName)
+                tmpMsg = f"  skip site={tmpSiteName} since direct IO is disabled "
                 tmpMsg += "criteria=-remoteio"
                 tmpLog.info(tmpMsg)
                 continue
@@ -861,14 +854,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                 maxwdir_scaled = tmpSiteSpec.maxwdir * task_cc / site_cc
 
                 if minDiskCount > maxwdir_scaled:
-                    tmpMsg = "  skip site={0} due to small scratch disk {1} MB less than {2} MB".format(tmpSiteName, maxwdir_scaled, minDiskCount)
+                    tmpMsg = f"  skip site={tmpSiteName} due to small scratch disk {maxwdir_scaled} MB less than {minDiskCount} MB"
                     tmpMsg += " criteria=-disk"
                     tmpLog.info(tmpMsg)
                     continue
                 newMaxwdir[tmpSiteName] = maxwdir_scaled
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-        tmpLog.info("{0} candidates passed scratch disk check minDiskCount>{1} MB".format(len(scanSiteList), minDiskCount))
+        tmpLog.info(f"{len(scanSiteList)} candidates passed scratch disk check minDiskCount>{minDiskCount} MB")
         self.add_summary_message(oldScanSiteList, scanSiteList, "disk check")
         if not scanSiteList:
             self.dump_summary(tmpLog)
@@ -903,15 +896,13 @@ class AtlasProdJobBroker(JobBrokerBase):
                     )
                 # check if blacklisted
                 elif tmpEndPoint["blacklisted"] == "Y":
-                    tmpMsg = "  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist".format(
-                        tmpSiteName, tmpSiteSpec.ddm_output[scope_output]
-                    )
+                    tmpMsg = f"  skip site={tmpSiteName} since endpoint={tmpSiteSpec.ddm_output[scope_output]} is blacklisted in DDM criteria=-blacklist"
                 if tmpMsg is not None:
                     newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-        tmpLog.info("{0} candidates passed SE space check".format(len(scanSiteList)))
+        tmpLog.info(f"{len(scanSiteList)} candidates passed SE space check")
         self.add_summary_message(oldScanSiteList, scanSiteList, "SE space check")
         if not scanSiteList:
             self.dump_summary(tmpLog)
@@ -949,11 +940,9 @@ class AtlasProdJobBroker(JobBrokerBase):
                 minWalltime = None
             # take # of consumers into account
             if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                strMinWalltime = "walltime*inputSize={0}*{1}".format(taskSpec.walltime, tmpMaxAtomSize)
+                strMinWalltime = f"walltime*inputSize={taskSpec.walltime}*{tmpMaxAtomSize}"
             else:
-                strMinWalltime = "walltime*inputSize/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}".format(
-                    taskSpec.walltime, tmpMaxAtomSize, nEsConsumers, maxAttemptEsJob
-                )
+                strMinWalltime = f"walltime*inputSize/nEsConsumers/maxAttemptEsJob={taskSpec.walltime}*{tmpMaxAtomSize}/{nEsConsumers}/{maxAttemptEsJob}"
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.getCpuTime() is not None:
@@ -973,11 +962,9 @@ class AtlasProdJobBroker(JobBrokerBase):
                     strMaxWalltime_dyn = f"cpuTime*maxEventsPerJob={taskSpec.getCpuTime()}*{totalEvents}"
             # take # of consumers into account
             if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                strMinWalltime = "cpuTime*nEventsPerJob={0}*{1}".format(taskSpec.getCpuTime(), tmpMaxAtomSize)
+                strMinWalltime = f"cpuTime*nEventsPerJob={taskSpec.getCpuTime()}*{tmpMaxAtomSize}"
             else:
-                strMinWalltime = "cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}".format(
-                    taskSpec.getCpuTime(), tmpMaxAtomSize, nEsConsumers, maxAttemptEsJob
-                )
+                strMinWalltime = f"cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={taskSpec.getCpuTime()}*{tmpMaxAtomSize}/{nEsConsumers}/{maxAttemptEsJob}"
         if minWalltime:
             minWalltime /= nEsConsumers * maxAttemptEsJob
         newScanSiteList = []
@@ -987,21 +974,21 @@ class AtlasProdJobBroker(JobBrokerBase):
             siteMaxTime = tmpSiteSpec.maxtime
             origSiteMaxTime = siteMaxTime
             # check max walltime at the site
-            tmpSiteStr = "{0}".format(siteMaxTime)
+            tmpSiteStr = f"{siteMaxTime}"
             if taskSpec.useHS06():
                 oldSiteMaxTime = siteMaxTime
                 siteMaxTime -= taskSpec.baseWalltime
-                tmpSiteStr = "({0}-{1})".format(oldSiteMaxTime, taskSpec.baseWalltime)
+                tmpSiteStr = f"({oldSiteMaxTime}-{taskSpec.baseWalltime})"
             if siteMaxTime not in [None, 0] and tmpSiteSpec.coreCount not in [None, 0]:
                 siteMaxTime *= tmpSiteSpec.coreCount
-                tmpSiteStr += "*{0}".format(tmpSiteSpec.coreCount)
+                tmpSiteStr += f"*{tmpSiteSpec.coreCount}"
             if taskSpec.useHS06():
                 if siteMaxTime not in [None, 0]:
                     siteMaxTime *= tmpSiteSpec.corepower
-                    tmpSiteStr += "*{0}".format(tmpSiteSpec.corepower)
+                    tmpSiteStr += f"*{tmpSiteSpec.corepower}"
                 siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
                 siteMaxTime = int(siteMaxTime)
-                tmpSiteStr += "*{0}%".format(taskSpec.cpuEfficiency)
+                tmpSiteStr += f"*{taskSpec.cpuEfficiency}%"
             if origSiteMaxTime != 0:
                 toSkip = False
                 if minWalltime_dyn and tmpSiteSpec.mintime and tmpSiteSpec.mintime > 0:
@@ -1024,41 +1011,41 @@ class AtlasProdJobBroker(JobBrokerBase):
                 or (not taskSpec.getCpuTime() and taskSpec.cpuTimeUnit)
             ):
                 minTimeForZeroWalltime = 24
-                str_minTimeForZeroWalltime = "{}hr*10HS06s".format(minTimeForZeroWalltime)
+                str_minTimeForZeroWalltime = f"{minTimeForZeroWalltime}hr*10HS06s"
                 minTimeForZeroWalltime *= 60 * 60 * 10
 
                 if tmpSiteSpec.coreCount not in [None, 0]:
                     minTimeForZeroWalltime *= tmpSiteSpec.coreCount
-                    str_minTimeForZeroWalltime += "*{}cores".format(tmpSiteSpec.coreCount)
+                    str_minTimeForZeroWalltime += f"*{tmpSiteSpec.coreCount}cores"
 
                 if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
-                    tmpMsg = "  skip site={0} due to site walltime {1} (site upper limit) insufficient ".format(tmpSiteName, tmpSiteStr)
+                    tmpMsg = f"  skip site={tmpSiteName} due to site walltime {tmpSiteStr} (site upper limit) insufficient "
                     if inputChunk.useScout():
-                        tmpMsg += "for scouts ({0} at least) ".format(str_minTimeForZeroWalltime)
+                        tmpMsg += f"for scouts ({str_minTimeForZeroWalltime} at least) "
                         tmpMsg += "criteria=-scoutwalltime"
                     else:
-                        tmpMsg += "for zero walltime ({0} at least) ".format(str_minTimeForZeroWalltime)
+                        tmpMsg += f"for zero walltime ({str_minTimeForZeroWalltime} at least) "
                         tmpMsg += "criteria=-zerowalltime"
                     tmpLog.info(tmpMsg)
                     continue
             # check min walltime at the site
             siteMinTime = tmpSiteSpec.mintime
             origSiteMinTime = siteMinTime
-            tmpSiteStr = "{0}".format(siteMinTime)
+            tmpSiteStr = f"{siteMinTime}"
             if taskSpec.useHS06():
                 oldSiteMinTime = siteMinTime
                 siteMinTime -= taskSpec.baseWalltime
-                tmpSiteStr = "({0}-{1})".format(oldSiteMinTime, taskSpec.baseWalltime)
+                tmpSiteStr = f"({oldSiteMinTime}-{taskSpec.baseWalltime})"
             if siteMinTime not in [None, 0] and tmpSiteSpec.coreCount not in [None, 0]:
                 siteMinTime *= tmpSiteSpec.coreCount
-                tmpSiteStr += "*{0}".format(tmpSiteSpec.coreCount)
+                tmpSiteStr += f"*{tmpSiteSpec.coreCount}"
             if taskSpec.useHS06():
                 if siteMinTime not in [None, 0]:
                     siteMinTime *= tmpSiteSpec.corepower
-                    tmpSiteStr += "*{0}".format(tmpSiteSpec.corepower)
+                    tmpSiteStr += f"*{tmpSiteSpec.corepower}"
                 siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                 siteMinTime = int(siteMinTime)
-                tmpSiteStr += "*{0}%".format(taskSpec.cpuEfficiency)
+                tmpSiteStr += f"*{taskSpec.cpuEfficiency}%"
             if origSiteMinTime != 0:
                 toSkip = False
                 if minWalltime_dyn and tmpSiteSpec.mintime and tmpSiteSpec.mintime > 0:
@@ -1071,7 +1058,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     if (minWalltime is None or minWalltime < siteMinTime) and (maxWalltime is None or maxWalltime < siteMinTime):
                         tmpMsg = f"  skip site {tmpSiteName} due to short job walltime {tmpSiteStr} " f"(site lower limit) greater than {strMinWalltime} "
                         if maxWalltime:
-                            tmpMsg += "and {} ".format(strMaxWalltime)
+                            tmpMsg += f"and {strMaxWalltime} "
                         toSkip = True
                 if toSkip:
                     tmpMsg += "criteria=-longwalltime"
@@ -1080,11 +1067,11 @@ class AtlasProdJobBroker(JobBrokerBase):
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         if not taskSpec.useHS06():
-            tmpLog.info("{0} candidates passed walltime check {1}({2})".format(len(scanSiteList), minWalltime, taskSpec.walltimeUnit))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed walltime check {minWalltime}({taskSpec.walltimeUnit})")
         else:
-            tmpStr = "{0} candidates passed walltime check {1}({2})".format(len(scanSiteList), strMinWalltime, taskSpec.cpuTimeUnit)
+            tmpStr = f"{len(scanSiteList)} candidates passed walltime check {strMinWalltime}({taskSpec.cpuTimeUnit})"
             if maxWalltime:
-                tmpStr += " and {}".format(strMaxWalltime)
+                tmpStr += f" and {strMaxWalltime}"
             if minWalltime_dyn:
                 tmpStr += f" for normal PQs, {strMinWalltime_dyn}"
                 if maxWalltime_dyn:
@@ -1116,9 +1103,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                         elif wn_connectivity == "http" and ipConnectivity == "http":
                             pass
                         else:
-                            tmpMsg = "  skip site={0} due to insufficient connectivity site={1} vs task={2} ".format(
-                                tmpSiteName, wn_connectivity, ipConnectivity
-                            )
+                            tmpMsg = f"  skip site={tmpSiteName} due to insufficient connectivity site={wn_connectivity} vs task={ipConnectivity} "
                             tmpMsg += "criteria=-network"
                             tmpLog.info(tmpMsg)
                             continue
@@ -1126,14 +1111,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                     if ipStack:
                         wn_ipstack = tmpSiteSpec.get_ipstack()
                         if ipStack != wn_ipstack:
-                            tmpMsg = "  skip site={0} due to IP stack mismatch site={1} vs task={2} ".format(tmpSiteName, wn_ipstack, ipStack)
+                            tmpMsg = f"  skip site={tmpSiteName} due to IP stack mismatch site={wn_ipstack} vs task={ipStack} "
                             tmpMsg += "criteria=-network"
                             tmpLog.info(tmpMsg)
                             continue
 
                     newScanSiteList.append(tmpSiteName)
                 scanSiteList = newScanSiteList
-                tmpLog.info("{0} candidates passed network check ({1})".format(len(scanSiteList), ipConnectivity))
+                tmpLog.info(f"{len(scanSiteList)} candidates passed network check ({ipConnectivity})")
                 self.add_summary_message(oldScanSiteList, scanSiteList, "network check")
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
@@ -1151,30 +1136,30 @@ class AtlasProdJobBroker(JobBrokerBase):
                 # event service
                 if taskSpec.useEventService() and not taskSpec.useJobCloning():
                     if tmpSiteSpec.getJobSeed() == "std":
-                        tmpMsg = "  skip site={0} since EventService is not allowed ".format(tmpSiteName)
+                        tmpMsg = f"  skip site={tmpSiteName} since EventService is not allowed "
                         tmpMsg += "criteria=-es"
                         tmpLog.info(tmpMsg)
                         continue
                     if tmpSiteSpec.getJobSeed() == "eshigh" and not esHigh:
-                        tmpMsg = "  skip site={0} since low prio EventService is not allowed ".format(tmpSiteName)
+                        tmpMsg = f"  skip site={tmpSiteName} since low prio EventService is not allowed "
                         tmpMsg += "criteria=-eshigh"
                         tmpLog.info(tmpMsg)
                         continue
                 else:
                     if tmpSiteSpec.getJobSeed() == "es":
-                        tmpMsg = "  skip site={0} since only EventService is allowed ".format(tmpSiteName)
+                        tmpMsg = f"  skip site={tmpSiteName} since only EventService is allowed "
                         tmpMsg += "criteria=-nones"
                         tmpLog.info(tmpMsg)
                         continue
                 # skip UCORE/SCORE
                 if taskSpec.useEventService() and tmpSiteSpec.sitename != tmpSiteSpec.get_unified_name() and tmpSiteSpec.coreCount == 1:
-                    tmpMsg = "  skip site={0} since EventService on UCORE/SCORE ".format(tmpSiteName)
+                    tmpMsg = f"  skip site={tmpSiteName} since EventService on UCORE/SCORE "
                     tmpMsg += "criteria=-es_ucore"
                     tmpLog.info(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed EventService check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed EventService check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "EventService check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -1215,7 +1200,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             newScanSiteList.append(tmpSiteName)
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-        tmpLog.info("{0} candidates passed transferring check".format(len(scanSiteList)))
+        tmpLog.info(f"{len(scanSiteList)} candidates passed transferring check")
         self.add_summary_message(oldScanSiteList, scanSiteList, "transferring check")
         if not scanSiteList:
             self.dump_summary(tmpLog)
@@ -1231,7 +1216,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             useT1Weight = False
         t1Weight = taskSpec.getT1Weight()
         if t1Weight == 0:
-            tmpLog.info("IO intensity {0}".format(taskSpec.ioIntensity))
+            tmpLog.info(f"IO intensity {taskSpec.ioIntensity}")
             # use T1 weight in cloudconfig if IO intensive
             if taskSpec.ioIntensity is not None and taskSpec.ioIntensity > 500:
                 t1Weight = self.siteMapper.getCloud(cloudName)["weight"]
@@ -1242,14 +1227,14 @@ class AtlasProdJobBroker(JobBrokerBase):
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 if tmpSiteName not in t1Sites + sitesShareSeT1:
-                    tmpLog.info("  skip site={0} due to negative T1 weight criteria=-t1weight".format(tmpSiteName))
+                    tmpLog.info(f"  skip site={tmpSiteName} due to negative T1 weight criteria=-t1weight")
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             t1Weight = 1
         t1Weight = max(t1Weight, t1WeightForHighPrio)
-        tmpLog.info("T1 weight {0}".format(t1Weight))
-        tmpLog.info("{0} candidates passed T1 weight check".format(len(scanSiteList)))
+        tmpLog.info(f"T1 weight {t1Weight}")
+        tmpLog.info(f"{len(scanSiteList)} candidates passed T1 weight check")
         self.add_summary_message(oldScanSiteList, scanSiteList, "T1 weight check")
         if not scanSiteList:
             self.dump_summary(tmpLog)
@@ -1267,17 +1252,17 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if full_chain:
                     # skip PQs not in the nucleus
                     if tmpSiteName not in t1Sites:
-                        tmpLog.info("  skip site={0} not in nucleus for full chain criteria=-full_chain".format(tmpSiteName))
+                        tmpLog.info(f"  skip site={tmpSiteName} not in nucleus for full chain criteria=-full_chain")
                         continue
                 else:
                     # skip PQs only for full-chain
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     if tmpSiteSpec.bare_nucleus_mode() == "only":
-                        tmpLog.info("  skip site={0} only for full chain criteria=-not_full_chain".format(tmpSiteName))
+                        tmpLog.info(f"  skip site={tmpSiteName} only for full chain criteria=-not_full_chain")
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{} candidates passed full chain ({}) check".format(len(scanSiteList), full_chain))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed full chain ({full_chain}) check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "full chain check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -1305,13 +1290,13 @@ class AtlasProdJobBroker(JobBrokerBase):
                     and (taskSpec.getNumJumboJobs() is None or not tmpSiteSpec.useJumboJobs())
                     and tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type) is None
                 ):
-                    tmpStr = "  skip site=%s due to no pilot criteria=-nopilot" % tmpSiteName
+                    tmpStr = f"  skip site={tmpSiteName} due to no pilot criteria=-nopilot"
                     newSkippedTmp[tmpSiteName] = tmpStr
                 newScanSiteList.append(tmpSiteName)
                 nPilotMap[tmpSiteName] = nPilot
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info("{0} candidates passed pilot activity check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed pilot activity check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "pilot check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -1331,7 +1316,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 else:
                     newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info("{0} candidates passed temporary problem check".format(len(scanSiteList)))
+            tmpLog.info(f"{len(scanSiteList)} candidates passed temporary problem check")
             self.add_summary_message(oldScanSiteList, scanSiteList, "temp problem check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
@@ -1361,7 +1346,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if not datasetSpec.isMaster() or (taskSpec.ioIntensity and taskSpec.ioIntensity > self.io_intensity_cutoff):
                     useCompleteOnly = True
                 # get available files per site/endpoint
-                tmpLog.debug("getting available files for {0}".format(datasetSpec.datasetName))
+                tmpLog.debug(f"getting available files for {datasetSpec.datasetName}")
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(
                     datasetSpec,
                     siteStorageEP,
@@ -1439,22 +1424,22 @@ class AtlasProdJobBroker(JobBrokerBase):
                 mbToMoveWT = int((totalSize - siteSizeMapWT[tmpSiteName]) / (1024 * 1024))
                 nFilesToMoveWT = maxNumFiles - len(siteFilesMapWT[tmpSiteName])
                 if min(mbToMove, mbToMoveWT) > moveSizeCutoffGB * 1024 or min(nFilesToMove, nFilesToMoveWT) > moveNumFilesCutoff:
-                    tmpMsg = "  skip site={0} ".format(tmpSiteName)
+                    tmpMsg = f"  skip site={tmpSiteName} "
                     if mbToMove > moveSizeCutoffGB * 1024:
-                        tmpMsg += "since size of missing input is too large ({0} GB > {1} GB) ".format(int(mbToMove / 1024), moveSizeCutoffGB)
+                        tmpMsg += f"since size of missing input is too large ({int(mbToMove / 1024)} GB > {moveSizeCutoffGB} GB) "
                     else:
-                        tmpMsg += "since the number of missing input files is too large ({0} > {1}) ".format(nFilesToMove, moveNumFilesCutoff)
-                    tmpMsg += "for IO intensive task ({0} > {1} kBPerS) ".format(taskSpec.ioIntensity, self.io_intensity_cutoff)
+                        tmpMsg += f"since the number of missing input files is too large ({nFilesToMove} > {moveNumFilesCutoff}) "
+                    tmpMsg += f"for IO intensive task ({taskSpec.ioIntensity} > {self.io_intensity_cutoff} kBPerS) "
                     tmpMsg += "criteria=-io"
                     msgListDT.append(tmpMsg)
                     continue
                 if mbToMove > moveSizeCutoffGB * 1024 or nFilesToMove > moveNumFilesCutoff:
-                    tmpMsg = "  skip site={0} ".format(tmpSiteName)
+                    tmpMsg = f"  skip site={tmpSiteName} "
                     if mbToMove > moveSizeCutoffGB * 1024:
-                        tmpMsg += "since size of missing disk input is too large ({0} GB > {1} GB) ".format(int(mbToMove / 1024), moveSizeCutoffGB)
+                        tmpMsg += f"since size of missing disk input is too large ({int(mbToMove / 1024)} GB > {moveSizeCutoffGB} GB) "
                     else:
-                        tmpMsg += "since the number of missing disk input files is too large ({0} > {1}) ".format(nFilesToMove, moveNumFilesCutoff)
-                    tmpMsg += "for IO intensive task ({0} > {1} kBPerS) ".format(taskSpec.ioIntensity, self.io_intensity_cutoff)
+                        tmpMsg += f"since the number of missing disk input files is too large ({nFilesToMove} > {moveNumFilesCutoff}) "
+                    tmpMsg += f"for IO intensive task ({taskSpec.ioIntensity} > {self.io_intensity_cutoff} kBPerS) "
                     tmpMsg += "criteria=-io"
                     msgList.append(tmpMsg)
                     newScanSiteListWT.append(tmpSiteName)
@@ -1474,7 +1459,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                         tmpLog.info(tmpMsg)
                 oldScanSiteList = copy.copy(scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-                tmpLog.info("{0} candidates passed IO check".format(len(scanSiteList)))
+                tmpLog.info(f"{len(scanSiteList)} candidates passed IO check")
                 self.add_summary_message(oldScanSiteList, scanSiteList, "IO check")
                 if scanSiteList == []:
                     self.dump_summary(tmpLog)
@@ -1492,7 +1477,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             else:
                 newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.info("{0} candidates passed temporary problem check".format(len(scanSiteList)))
+        tmpLog.info(f"{len(scanSiteList)} candidates passed temporary problem check")
         self.add_summary_message(oldScanSiteList, scanSiteList, "temporary problem check")
         if scanSiteList == []:
             self.dump_summary(tmpLog)
@@ -1520,13 +1505,13 @@ class AtlasProdJobBroker(JobBrokerBase):
             return retTmpError
         workerStat = self.taskBufferIF.ups_load_worker_stats()
         upsQueues = set(self.taskBufferIF.ups_get_queues())
-        tmpLog.info("calculate weight and check cap for {0} candidates".format(len(scanSiteList)))
-        cutoffName = "NQUEUELIMITSITE_{}".format(taskSpec.gshare)
+        tmpLog.info(f"calculate weight and check cap for {len(scanSiteList)} candidates")
+        cutoffName = f"NQUEUELIMITSITE_{taskSpec.gshare}"
         cutOffValue = self.taskBufferIF.getConfigValue(COMPONENT, cutoffName, APP, VO)
         if not cutOffValue:
             cutOffValue = 20
         else:
-            tmpLog.info("using {}={} as lower limit for nQueued".format(cutoffName, cutOffValue))
+            tmpLog.info(f"using {cutoffName}={cutOffValue} as lower limit for nQueued")
         weightMapPrimary = {}
         weightMapSecondary = {}
         weightMapJumbo = {}
@@ -1549,7 +1534,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 nRunningGS = AtlasBrokerUtils.getNumJobs(jobStatPrioMapGS, tmpSiteName, "running", None, wq_tag_global_share)
                 nRunningGSOnly = AtlasBrokerUtils.getNumJobs(jobStatPrioMapGSOnly, tmpSiteName, "running", None, wq_tag_global_share)
                 corrNumPilot = float(nRunningGS - nRunningGSOnly + 1) / float(nRunningGS + 1)
-                corrNumPilotStr = "*(nRunResourceQueue({0})+1)/(nRunGlobalShare({1})+1)".format(nRunningGS - nRunningGSOnly, nRunningGS)
+                corrNumPilotStr = f"*(nRunResourceQueue({nRunningGS - nRunningGSOnly})+1)/(nRunGlobalShare({nRunningGS})+1)"
             else:
                 corrNumPilot = 1
             nDefined = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, "defined", None, tmp_wq_tag) + self.getLiveCount(tmpSiteName)
@@ -1580,7 +1565,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 and tmpSiteName in upsQueues
                 and taskSpec.currentPriority <= self.max_prio_for_bootstrap
             ):
-                tmpLog.debug("using nWorkers={0} as nRunning at {1} since original nRunning={2} is low".format(nWorkers, tmpPseudoSiteName, nRunning))
+                tmpLog.debug(f"using nWorkers={nWorkers} as nRunning at {tmpPseudoSiteName} since original nRunning={nRunning} is low")
                 nRunning = nWorkers
             # take into account the number of standby jobs
             numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
@@ -1588,15 +1573,15 @@ class AtlasProdJobBroker(JobBrokerBase):
                 pass
             elif taskSpec.currentPriority > self.max_prio_for_bootstrap:
                 # don't use numSlots for high prio tasks
-                tmpLog.debug("ignored numSlots at {} due to prio={} > {}".format(tmpPseudoSiteName, taskSpec.currentPriority, self.max_prio_for_bootstrap))
+                tmpLog.debug(f"ignored numSlots at {tmpPseudoSiteName} due to prio={taskSpec.currentPriority} > {self.max_prio_for_bootstrap}")
             elif numStandby == 0:
                 # use the number of starting jobs as the number of standby jobs
                 nRunning = nStarting + nRunning
-                tmpLog.debug("using nStarting+nRunning at {} to set nRunning={} due to numSlot={}".format(tmpPseudoSiteName, nRunning, numStandby))
+                tmpLog.debug(f"using nStarting+nRunning at {tmpPseudoSiteName} to set nRunning={nRunning} due to numSlot={numStandby}")
             else:
                 # the number of standby jobs is defined
                 nRunning = max(int(numStandby / tmpSiteSpec.coreCount), nRunning)
-                tmpLog.debug("using numSlots={1}/coreCount at {0} to set nRunning={2}".format(tmpPseudoSiteName, numStandby, nRunning))
+                tmpLog.debug(f"using numSlots={numStandby}/coreCount at {tmpPseudoSiteName} to set nRunning={nRunning}")
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0, manyAssigned)
             manyAssigned = max(1.0, manyAssigned)
@@ -1655,33 +1640,31 @@ class AtlasProdJobBroker(JobBrokerBase):
                     skipRemoteData = True
                 else:
                     weight = weight * (totalSize + siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove / 100 + 1)
-                    weightStr += "fileSizeToMoveMB={0} nFilesToMove={1} ".format(mbToMove, nFilesToMove)
+                    weightStr += f"fileSizeToMoveMB={mbToMove} nFilesToMove={nFilesToMove} "
             # T1 weight
             if tmpSiteName in t1Sites + sitesShareSeT1:
                 weight *= t1Weight
-                weightStr += "t1W={0} ".format(t1Weight)
+                weightStr += f"t1W={t1Weight} "
             if useT1Weight:
-                weightStr += "nRunningAll={} ".format(nRunningAll)
+                weightStr += f"nRunningAll={nRunningAll} "
             # apply network metrics to weight
             if taskSpec.useWorldCloud() and nucleus:
                 tmpAtlasSiteName = None
                 try:
                     tmpAtlasSiteName = storageMapping[tmpSiteName]["default"]
                 except KeyError:
-                    tmpLog.debug("Panda site {0} was not in site mapping. Default network values will be given".format(tmpSiteName))
+                    tmpLog.debug(f"Panda site {tmpSiteName} was not in site mapping. Default network values will be given")
 
                 try:
                     closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
                 except KeyError:
-                    tmpLog.debug(
-                        "No {0} information found in network matrix from {1}({2}) to {3}".format(AGIS_CLOSENESS, tmpAtlasSiteName, tmpSiteName, nucleus)
-                    )
+                    tmpLog.debug(f"No {AGIS_CLOSENESS} information found in network matrix from {tmpAtlasSiteName}({tmpSiteName}) to {nucleus}")
                     closeness = MAX_CLOSENESS * 0.7
 
                 try:
                     nFilesInQueue = networkMap[tmpAtlasSiteName][queued_tag]
                 except KeyError:
-                    tmpLog.debug("No {0} information found in network matrix from {1} ({2}) to {3}".format(queued_tag, tmpAtlasSiteName, tmpSiteName, nucleus))
+                    tmpLog.debug(f"No {queued_tag} information found in network matrix from {tmpAtlasSiteName} ({tmpSiteName}) to {nucleus}")
                     nFilesInQueue = 0
 
                 mbps = None
@@ -1691,9 +1674,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     mbps = networkMap[tmpAtlasSiteName][FTS_1H]
                 except KeyError:
                     if mbps is None:
-                        tmpLog.debug(
-                            "No dynamic FTS mbps information found in network matrix from {0}({1}) to {2}".format(tmpAtlasSiteName, tmpSiteName, nucleus)
-                        )
+                        tmpLog.debug(f"No dynamic FTS mbps information found in network matrix from {tmpAtlasSiteName}({tmpSiteName}) to {nucleus}")
 
                 # network weight: value between 1 and 2, except when nucleus == satellite
                 if nucleus == tmpAtlasSiteName:  # 25 per cent weight boost for processing in nucleus itself
@@ -1712,9 +1693,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 # combine queue and throughput weights
                 weightNw = self.nwQueueImportance * weightNwQueue + self.nwThroughputImportance * weightNwThroughput
 
-                weightStr += "weightNw={0} ( closeness={1} nFilesQueued={2} throughputMBps={3} Network weight:{4} )".format(
-                    weightNw, closeness, nFilesInQueue, mbps, self.nwActive
-                )
+                weightStr += f"weightNw={weightNw} ( closeness={closeness} nFilesQueued={nFilesInQueue} throughputMBps={mbps} Network weight:{self.nwActive} )"
 
                 # If network measurements in active mode, apply the weight
                 if self.nwActive:
@@ -1771,43 +1750,37 @@ class AtlasProdJobBroker(JobBrokerBase):
                 forJumbo = True
             # OK message. Use jumbo as primary by default
             if not forJumbo:
-                okMsg = "  use site={0} with weight={1} {2} criteria=+use".format(tmpPseudoSiteName, weight, weightStr)
+                okMsg = f"  use site={tmpPseudoSiteName} with weight={weight} {weightStr} criteria=+use"
                 okAsPrimay = False
             else:
-                okMsg = "  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo".format(tmpPseudoSiteName, weight, weightStr)
+                okMsg = f"  use site={tmpPseudoSiteName} for jumbo jobs with weight={weight} {weightStr} criteria=+usejumbo"
                 okAsPrimay = True
             # checks
             if lockedByBrokerage:
-                ngMsg = "  skip site={0} due to locked by another brokerage ".format(tmpPseudoSiteName)
+                ngMsg = f"  skip site={tmpPseudoSiteName} due to locked by another brokerage "
                 ngMsg += "criteria=-lock"
             elif skipRemoteData:
-                ngMsg = "  skip site={0} due to non-local data ".format(tmpPseudoSiteName)
+                ngMsg = f"  skip site={tmpPseudoSiteName} due to non-local data "
                 ngMsg += "criteria=-non_local"
             elif not inputChunk.isExpress() and tmpSiteSpec.capability != "ucore" and siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningJobsCap:
                 if not useAssigned:
-                    ngMsg = "  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} ".format(
-                        tmpPseudoSiteName, weight, siteCandidateSpec.nQueuedJobs
-                    )
+                    ngMsg = f"  skip site={tmpPseudoSiteName} weight={weight} due to nDefined+nActivated+nStarting={siteCandidateSpec.nQueuedJobs} "
                     ngMsg += "(nAssigned ignored due to data locally available) "
                 else:
-                    ngMsg = "  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} ".format(
-                        tmpPseudoSiteName, weight, siteCandidateSpec.nQueuedJobs
-                    )
-                ngMsg += "greater than max({0},{1}*nRun) ".format(cutOffValue, cutOffFactor)
-                ngMsg += "{0} ".format(weightStr)
+                    ngMsg = f"  skip site={tmpPseudoSiteName} weight={weight} due to nDefined+nActivated+nAssigned+nStarting={siteCandidateSpec.nQueuedJobs} "
+                ngMsg += f"greater than max({cutOffValue},{cutOffFactor}*nRun) "
+                ngMsg += f"{weightStr} "
                 ngMsg += "criteria=-cap"
             elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() and weightNw < self.nw_threshold * self.nw_weight_multiplier:
-                ngMsg = "  skip site={0} due to low network weight for express task weightNw={1} threshold={2} ".format(
-                    tmpPseudoSiteName, weightNw, self.nw_threshold
-                )
-                ngMsg += "{0} ".format(weightStr)
+                ngMsg = f"  skip site={tmpPseudoSiteName} due to low network weight for express task weightNw={weightNw} threshold={self.nw_threshold} "
+                ngMsg += f"{weightStr} "
                 ngMsg += "criteria=-lowNetworkWeight"
             elif useCapRT and tmpRTqueue > max(cutOffValue, tmpRTrunning * RT_Cap) and not inputChunk.isExpress():
-                ngMsg = "  skip site={0} since ".format(tmpSiteName)
+                ngMsg = f"  skip site={tmpSiteName} since "
                 if useAssigned:
-                    ngMsg += "nDefined_rt+nActivated_rt+nAssigned_rt+nStarting_rt={0} ".format(tmpRTqueue)
+                    ngMsg += f"nDefined_rt+nActivated_rt+nAssigned_rt+nStarting_rt={tmpRTqueue} "
                 else:
-                    ngMsg += "nDefined_rt+nActivated_rt+nStarting_rt={0} ".format(tmpRTqueue)
+                    ngMsg += f"nDefined_rt+nActivated_rt+nStarting_rt={tmpRTqueue} "
                     ngMsg += "(nAssigned_rt ignored due to data locally available) "
                 ngMsg += "with gshare+resource_type is greater than "
                 ngMsg += "max({0},{1}*nRun_rt={1}*{2}) ".format(cutOffValue, RT_Cap, tmpRTrunning)
@@ -1818,9 +1791,9 @@ class AtlasProdJobBroker(JobBrokerBase):
                 and not inputChunk.isMerging
                 and not inputChunk.isExpress()
             ):
-                okMsg = "  use site={0} to bootstrap (no running or queued jobs) criteria=+use".format(tmpPseudoSiteName)
-                ngMsg = "  skip site={0} due to low weight ".format(tmpPseudoSiteName)
-                ngMsg += "weight={0} {1} ".format(weight, weightStr)
+                okMsg = f"  use site={tmpPseudoSiteName} to bootstrap (no running or queued jobs) criteria=+use"
+                ngMsg = f"  skip site={tmpPseudoSiteName} due to low weight "
+                ngMsg += f"weight={weight} {weightStr} "
                 ngMsg += "criteria=-loweigh"
                 okAsPrimay = True
                 # set weight to 0 for subsequent processing
@@ -1828,8 +1801,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                 siteCandidateSpec.weight = weight
             else:
                 if useT1Weight:
-                    ngMsg = "  skip site={0} due to low total ".format(tmpPseudoSiteName)
-                    ngMsg += "nRunningAll={} for negative T1 weight ".format(nRunningAll)
+                    ngMsg = f"  skip site={tmpPseudoSiteName} due to low total "
+                    ngMsg += f"nRunningAll={nRunningAll} for negative T1 weight "
                     ngMsg += "criteria=-t1weight"
                     if not largestNumRun or largestNumRun[-1] < nRunningAll:
                         largestNumRun = (tmpPseudoSiteName, nRunningAll)
@@ -1840,8 +1813,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                             weightMapSecondary[tmpWeight] += tmpCandidates
                         weightMapPrimary = {}
                 else:
-                    ngMsg = "  skip site={0} due to low weight ".format(tmpPseudoSiteName)
-                    ngMsg += "weight={} {} ".format(weight, weightStr)
+                    ngMsg = f"  skip site={tmpPseudoSiteName} due to low weight "
+                    ngMsg += f"weight={weight} {weightStr} "
                     ngMsg += "criteria=-loweigh"
                     okAsPrimay = True
             # add to jumbo or primary or secondary

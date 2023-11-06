@@ -43,7 +43,7 @@ def extractStreamName(valStr):
 def extractReplaceOutFileTemplate(valStr, streamName):
     outFileTempl = valStr.split("=")[-1]
     outFileTempl = outFileTempl.replace("'", "")
-    valStr = valStr.replace(outFileTempl, "${{{0}}}".format(streamName))
+    valStr = valStr.replace(outFileTempl, f"${{{streamName}}}")
     return outFileTempl, valStr
 
 

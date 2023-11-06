@@ -41,7 +41,7 @@ def getEffectiveNumEvents(startEvent, endEvent, nEvents):
 # get memory usage
 def getMemoryUsage():
     try:
-        t = open("/proc/{0}/status".format(os.getpid()))
+        t = open(f"/proc/{os.getpid()}/status")
         v = t.read()
         t.close()
         value = 0
@@ -61,7 +61,7 @@ def getMemoryUsage():
 
 # check process
 def checkProcess(pid):
-    return os.path.exists("/proc/{0}/status".format(pid))
+    return os.path.exists(f"/proc/{pid}/status")
 
 
 # offset for walltime

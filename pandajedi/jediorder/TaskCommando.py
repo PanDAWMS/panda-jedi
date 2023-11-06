@@ -24,7 +24,7 @@ class TaskCommando(JediKnight):
     def __init__(self, commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         JediKnight.__init__(self, commuChannel, taskBufferIF, ddmIF, logger)
 
     # main
@@ -46,9 +46,9 @@ class TaskCommando(JediKnight):
                         tmpList = self.taskBufferIF.getTasksToExecCommand_JEDI(vo, prodSourceLabel)
                         if tmpList is None:
                             # failed
-                            tmpLog.error("failed to get the task list for vo={0} label={1}".format(vo, prodSourceLabel))
+                            tmpLog.error(f"failed to get the task list for vo={vo} label={prodSourceLabel}")
                         else:
-                            tmpLog.debug("got {0} tasks".format(len(tmpList)))
+                            tmpLog.debug(f"got {len(tmpList)} tasks")
                             # put to a locked list
                             taskList = ListWithLock(tmpList)
                             # make thread pool
@@ -62,7 +62,7 @@ class TaskCommando(JediKnight):
                             threadPool.join()
                 tmpLog.debug("done")
             except Exception as e:
-                tmpLog.error("failed in {}.start() with {} {}".format(self.__class__.__name__, str(e), traceback.format_exc()))
+                tmpLog.error(f"failed in {self.__class__.__name__}.start() with {str(e)} {traceback.format_exc()}")
             # sleep if needed
             loopCycle = jedi_config.tcommando.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
@@ -95,19 +95,19 @@ class TaskCommandoThread(WorkerThread):
                 taskList = self.taskList.get(nTasks)
                 # no more datasets
                 if len(taskList) == 0:
-                    self.logger.debug("{0} terminating since no more items".format(self.__class__.__name__))
+                    self.logger.debug(f"{self.__class__.__name__} terminating since no more items")
                     return
                 # loop over all tasks
                 for jediTaskID, commandMap in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger, " < jediTaskID={0} >".format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger, f" < jediTaskID={jediTaskID} >")
                     commandStr = commandMap["command"]
                     commentStr = commandMap["comment"]
                     oldStatus = commandMap["oldStatus"]
-                    tmpLog.info("start for {0}".format(commandStr))
+                    tmpLog.info(f"start for {commandStr}")
                     tmpStat = Interaction.SC_SUCCEEDED
                     if commandStr in ["kill", "finish", "reassign"]:
-                        tmpMsg = "executing {0}".format(commandStr)
+                        tmpMsg = f"executing {commandStr}"
                         tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg, self.msgType)
                         # loop twice to see immediate result
@@ -120,7 +120,7 @@ class TaskCommandoThread(WorkerThread):
                             else:
                                 pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID, True)
                             if pandaIDs is None:
-                                tmpLog.error("failed to get PandaIDs for jediTaskID={0}".format(jediTaskID))
+                                tmpLog.error(f"failed to get PandaIDs for jediTaskID={jediTaskID}")
                                 tmpStat = Interaction.SC_FAILED
                             # kill jobs or update task
                             if tmpStat == Interaction.SC_SUCCEEDED:
@@ -146,7 +146,7 @@ class TaskCommandoThread(WorkerThread):
                                                 tmpTaskSpec.nucleus = tmpItems[1]
                                             else:
                                                 tmpTaskSpec.site = tmpItems[1]
-                                            tmpMsg = "set {0}={1}".format(tmpItems[0], tmpItems[1])
+                                            tmpMsg = f"set {tmpItems[0]}={tmpItems[1]}"
                                             tmpLog.sendMsg(tmpMsg, self.msgType)
                                             tmpLog.info(tmpMsg)
                                             # back to oldStatus if necessary
@@ -168,11 +168,11 @@ class TaskCommandoThread(WorkerThread):
                                         tmpTaskSpec.unsetFailGoalUnreached()
                                     if updateTaskStatus:
                                         tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]["done"]
-                                    tmpMsg = "set task_status={0}".format(tmpTaskSpec.status)
+                                    tmpMsg = f"set task_status={tmpTaskSpec.status}"
                                     tmpLog.sendMsg(tmpMsg, self.msgType)
                                     tmpLog.info(tmpMsg)
                                     tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec, {"jediTaskID": jediTaskID}, setOldModTime=True)
-                                    tmpLog.info("done with {0}".format(str(tmpRet)))
+                                    tmpLog.info(f"done with {str(tmpRet)}")
                                     break
                                 else:
                                     # kill only in the first loop
@@ -181,16 +181,16 @@ class TaskCommandoThread(WorkerThread):
                                     # wait or kill jobs
                                     if commentStr and "soft finish" in commentStr:
                                         queuedPandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
-                                        tmpMsg = "trying to kill {0} queued jobs for soft finish".format(len(queuedPandaIDs))
+                                        tmpMsg = f"trying to kill {len(queuedPandaIDs)} queued jobs for soft finish"
                                         tmpLog.info(tmpMsg)
                                         tmpRet = self.taskBufferIF.killJobs(queuedPandaIDs, commentStr, "52", True)
-                                        tmpMsg = "wating {0} jobs for soft finish".format(len(pandaIDs))
+                                        tmpMsg = f"wating {len(pandaIDs)} jobs for soft finish"
                                         tmpLog.info(tmpMsg)
                                         tmpRet = True
-                                        tmpLog.info("done with {0}".format(str(tmpRet)))
+                                        tmpLog.info(f"done with {str(tmpRet)}")
                                         break
                                     else:
-                                        tmpMsg = "trying to kill {0} jobs".format(len(pandaIDs))
+                                        tmpMsg = f"trying to kill {len(pandaIDs)} jobs"
                                         tmpLog.info(tmpMsg)
                                         tmpLog.sendMsg(tmpMsg, self.msgType)
                                         if commandStr in ["finish"]:
@@ -202,9 +202,9 @@ class TaskCommandoThread(WorkerThread):
                                         else:
                                             # normal kill
                                             tmpRet = self.taskBufferIF.killJobs(pandaIDs, commentStr, "50", True)
-                                        tmpLog.info("done with {0}".format(str(tmpRet)))
+                                        tmpLog.info(f"done with {str(tmpRet)}")
                     elif commandStr in ["retry", "incexec"]:
-                        tmpMsg = "executing {0}".format(commandStr)
+                        tmpMsg = f"executing {commandStr}"
                         tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg, self.msgType)
                         # change task params for incexec
@@ -235,14 +235,14 @@ class TaskCommandoThread(WorkerThread):
                                     # noBuild
                                     for tmpParam in taskParamMap["jobParameters"]:
                                         if tmpParam["type"] == "constant" and re.search("^-a [^ ]+$", tmpParam["value"]) is not None:
-                                            tmpParam["value"] = "-a {0}".format(taskParamMap["fixedSandbox"])
+                                            tmpParam["value"] = f"-a {taskParamMap['fixedSandbox']}"
                                     # build
                                     if "buildSpec" in taskParamMap:
                                         taskParamMap["buildSpec"]["archiveName"] = taskParamMap["fixedSandbox"]
                                     # merge
                                     if "mergeSpec" in taskParamMap:
                                         taskParamMap["mergeSpec"]["jobParameters"] = re.sub(
-                                            "-a [^ ]+", "-a {0}".format(taskParamMap["fixedSandbox"]), taskParamMap["mergeSpec"]["jobParameters"]
+                                            "-a [^ ]+", f"-a {taskParamMap['fixedSandbox']}", taskParamMap["mergeSpec"]["jobParameters"]
                                         )
                                 # encode new param
                                 strTaskParams = RefinerUtils.encodeJSON(taskParamMap)
@@ -251,7 +251,7 @@ class TaskCommandoThread(WorkerThread):
                                     tmpLog.error("failed to update task params")
                                     continue
                             except Exception as e:
-                                tmpLog.error("failed to change task params with {} {}".format(str(e), traceback.format_exc()))
+                                tmpLog.error(f"failed to change task params with {str(e)} {traceback.format_exc()}")
                                 continue
                         # retry child tasks
                         if "sole " in commentStr:
@@ -272,14 +272,14 @@ class TaskCommandoThread(WorkerThread):
                             jediTaskID, commandStr, retryChildTasks=retryChildTasks, discardEvents=discardEvents, release_unstaged=releaseUnstaged
                         )
                         if tmpRet is True:
-                            tmpMsg = "set task_status={0}".format(newTaskStatus)
+                            tmpMsg = f"set task_status={newTaskStatus}"
                             tmpLog.sendMsg(tmpMsg, self.msgType)
                             tmpLog.info(tmpMsg)
-                        tmpLog.info("done with {0}".format(tmpRet))
+                        tmpLog.info(f"done with {tmpRet}")
                     else:
                         tmpLog.error("unknown command")
             except Exception as e:
-                errStr = "{} failed in runImpl() with {} {} ".format(self.__class__.__name__, str(e), traceback.format_exc())
+                errStr = f"{self.__class__.__name__} failed in runImpl() with {str(e)} {traceback.format_exc()} "
                 logger.error(errStr)
 
 

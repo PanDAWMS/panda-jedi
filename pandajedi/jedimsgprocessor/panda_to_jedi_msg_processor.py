@@ -19,7 +19,7 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
         BaseMsgProcPlugin.initialize(self)
         self.ddmIF = DDMInterface()
         self.ddmIF.setupInterface()
-        self.pid = "{0}-{1}_{2}-pjmsg".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-pjmsg"
 
     def process(self, msg_obj, decoded_data=None):
         # logger
@@ -32,20 +32,20 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
             try:
                 msg_dict = json.loads(msg_obj.data)
             except Exception as e:
-                err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+                err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         else:
             msg_dict = decoded_data
         # run
         try:
-            tmp_log.debug("got message {0}".format(msg_dict))
+            tmp_log.debug(f"got message {msg_dict}")
             if msg_dict["msg_type"] == "generate_job":
                 # get task to generate jobs
                 jediTaskID = int(msg_dict["taskid"])
                 s, taskSpec = self.tbIF.getTaskWithID_JEDI(jediTaskID)
                 if not taskSpec:
-                    tmp_log.debug("unknown task {}".format(jediTaskID))
+                    tmp_log.debug(f"unknown task {jediTaskID}")
                 else:
                     # get WQ
                     vo = taskSpec.vo
@@ -66,9 +66,9 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
                         gen.start()
                         gen.join()
             else:
-                tmp_log.debug("unknown message type : {}".format(msg_dict["msg_type"]))
+                tmp_log.debug(f"unknown message type : {msg_dict['msg_type']}")
         except Exception as e:
-            err_str = "failed to run, skipped. {0} : {1}".format(e.__class__.__name__, e)
+            err_str = f"failed to run, skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # done

@@ -36,7 +36,7 @@ class dom_job:
             for file in files:
                 s.infiles[name].append(dom_parser.text(file))
         if primaryds and primaryds not in s.infiles.keys():
-            print("ERROR: primaryds=%s must be present in each job" % primaryds)
+            print(f"ERROR: primaryds={primaryds} must be present in each job")
             sys.exit(0)
         # output files (also, drop duplicates within this job)
         outfiles = set(defaultout)
@@ -93,11 +93,11 @@ class dom_job:
 
     def forward_opts(s):
         """passable string of forward options"""
-        return " ".join(["%s=%s" % (v[0], v[1]) for v in s.forward])
+        return " ".join([f"{v[0]}={v[1]}" for v in s.forward])
 
     def prepend_string(s):
         """a tag string prepended to output files"""
-        return "_".join(["%s%s" % (v[0], v[1]) for v in s.prepend])
+        return "_".join([f"{v[0]}{v[1]}" for v in s.prepend])
 
     def exec_string(s):
         """exec string for prun.
@@ -105,7 +105,7 @@ class dom_job:
         opt1=value1 opt2=value2 opt3=value3 run.sh
         This way, all options will be set inside run.sh
         """
-        return "%s %s" % (s.forward_opts(), s.command)
+        return f"{s.forward_opts()} {s.command}"
 
     def exec_string_enc(s):
         """exec string for prun.
@@ -113,7 +113,7 @@ class dom_job:
         opt1=value1 opt2=value2 opt3=value3 run.sh
         This way, all options will be set inside run.sh
         """
-        comStr = "%s %s" % (s.forward_opts(), s.command)
+        comStr = f"{s.forward_opts()} {s.command}"
         return quote(comStr)
 
     def get_outmap_str(s, outMap):
@@ -313,9 +313,9 @@ class dom_parser:
             else:
                 stream = "IN%d" % (i + 1,)
             if filter:
-                out.append("%s:0:%s:%s" % (stream, DS, s.files_in_DS(DS, regex=True)))
+                out.append(f"{stream}:0:{DS}:{s.files_in_DS(DS, regex=True)}")
             else:
-                out.append("%s:0:%s" % (stream, DS))
+                out.append(f"{stream}:0:{DS}")
         return ",".join(out)
 
     def writeInputToTxt(s):
@@ -329,7 +329,7 @@ class dom_parser:
                 stream = s.inds[DS]
             else:
                 stream = "IN%d" % (i + 1,)
-            out.append("%s:%s.files.dat" % (stream, stream))
+            out.append(f"{stream}:{stream}.files.dat")
         out.append("IN:IN.files.dat")
         return ",".join(out)
 
@@ -338,7 +338,7 @@ class dom_parser:
         that will be used in at least one job in this submission
         If regex==True, the list is converted to a regex string
         """
-        assert DS in s.input_datasets(), "ERROR: dataset %s was not requested in the xml file" % DS
+        assert DS in s.input_datasets(), f"ERROR: dataset {DS} was not requested in the xml file"
         files = []
         for j in s.jobs:
             if DS in j.infiles.keys():

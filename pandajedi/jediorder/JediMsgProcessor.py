@@ -18,7 +18,7 @@ def launcher(stop_event):
     try:
         config_file = jedi_config.msgprocessor.configFile
     except Exception as e:
-        tmp_log.error("failed to read config json file; should not happen... {0}: {1}".format(e.__class__.__name__, e))
+        tmp_log.error(f"failed to read config json file; should not happen... {e.__class__.__name__}: {e}")
         raise e
     # start
     agent = MsgProcAgent(config_file)

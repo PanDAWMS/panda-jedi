@@ -22,14 +22,14 @@ class GenPostProcessor(PostProcessorBase):
                     # only output and log datasets
                     if datasetSpec.type not in ["log", "output"]:
                         continue
-                    tmpLog.info("freezing datasetID={}:Name={}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    tmpLog.info(f"freezing datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                     ddmIF.freezeDataset(datasetSpec.datasetName, ignoreUnknown=True)
         except Exception as e:
-            tmpLog.warning("failed to freeze datasets with {}".format(str(e)))
+            tmpLog.warning(f"failed to freeze datasets with {str(e)}")
             return self.SC_FAILED
         try:
             self.doBasicPostProcess(taskSpec, tmpLog)
         except Exception as e:
-            tmpLog.error("doBasicPostProcess failed with {}".format(str(e)))
+            tmpLog.error(f"doBasicPostProcess failed with {str(e)}")
             return self.SC_FATAL
         return self.SC_SUCCEEDED

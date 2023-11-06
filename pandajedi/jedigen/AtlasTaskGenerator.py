@@ -21,8 +21,8 @@ class AtlasTaskGenerator(TaskGeneratorBase):
     # main to generate task
     def doGenerate(self, taskSpec, taskParamMap, **varMap):
         # make logger
-        tmpLog = MsgWrapper(logger, "<jediTaskID={0}>".format(taskSpec.jediTaskID))
-        tmpLog.info("start taskType={0}".format(taskSpec.taskType))
+        tmpLog = MsgWrapper(logger, f"<jediTaskID={taskSpec.jediTaskID}>")
+        tmpLog.info(f"start taskType={taskSpec.taskType}")
         tmpLog.info(str(varMap))
         # returns
         retFatal = self.SC_FATAL
@@ -48,7 +48,7 @@ class AtlasTaskGenerator(TaskGeneratorBase):
                             # dataset needs specify container
                             datasetSpec = datasetValMap["datasetSpec"]
                             if datasetSpec.containerName in ["", None]:
-                                errStr = "cannot make parent tasks due to undefined container for datasetID={0}:{1}".format(datasetSpec.datasetID, datasetName)
+                                errStr = f"cannot make parent tasks due to undefined container for datasetID={datasetSpec.datasetID}:{datasetName}"
                                 taskSpec.setErrDiag(errStr)
                                 tmpLog.error(errStr)
                                 return retFatal
@@ -64,22 +64,22 @@ class AtlasTaskGenerator(TaskGeneratorBase):
                             newTaskParamMap["taskPriority"] = taskSpec.taskPriority
                             newTaskParamMap["taskType"] = taskSpec.taskType
                             newTaskParamMap["prodSourceLabel"] = taskSpec.prodSourceLabel
-                            logDatasetName = "panda.jedi{0}.log.{1}".format(taskSpec.taskType, uuid.uuid4())
+                            logDatasetName = f"panda.jedi{taskSpec.taskType}.log.{uuid.uuid4()}"
                             newTaskParamMap["log"] = {
                                 "dataset": logDatasetName,
                                 "type": "template",
                                 "param_type": "log",
                                 "token": "ATLASDATADISK",
-                                "value": "{0}.${{SN}}.log.tgz".format(logDatasetName),
+                                "value": f"{logDatasetName}.${{SN}}.log.tgz",
                             }
                             # make new datasetname
                             outDatasetName = datasetName
                             # remove /
                             outDatasetName = re.sub("/$", "", outDatasetName)
                             # remove extension
-                            outDatasetName = re.sub("\.{0}\d+$".format(taskSpec.taskType), "", outDatasetName)
+                            outDatasetName = re.sub(f"\\.{taskSpec.taskType}\\d+$", "", outDatasetName)
                             # add extension
-                            outDatasetName = outDatasetName + ".{0}{1}".format(taskSpec.taskType, taskSpec.jediTaskID)
+                            outDatasetName = outDatasetName + f".{taskSpec.taskType}{taskSpec.jediTaskID}"
                             newTaskParamMap["output"] = {"dataset": outDatasetName}
                             if datasetSpec.containerName not in ["", None]:
                                 newTaskParamMap["output"]["container"] = datasetSpec.containerName
@@ -96,7 +96,7 @@ class AtlasTaskGenerator(TaskGeneratorBase):
                             taskSpec.jediTaskID, taskSpec.vo, taskSpec.prodSourceLabel, jsonStr, newJsonStrList
                         )
                         if sTmp:
-                            tmpLog.info("inserted/updated tasks in DB : new jediTaskIDs={0}".format(str(newJediTaskIDs)))
+                            tmpLog.info(f"inserted/updated tasks in DB : new jediTaskIDs={str(newJediTaskIDs)}")
                         else:
                             tmpLog.error("failed to insert/update tasks in DB")
                             return retFatal
@@ -105,5 +105,5 @@ class AtlasTaskGenerator(TaskGeneratorBase):
             return retOK
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            tmpLog.error("doGenerate failed with {0}:{1}".format(errtype.__name__, errvalue))
+            tmpLog.error(f"doGenerate failed with {errtype.__name__}:{errvalue}")
             return retFatal

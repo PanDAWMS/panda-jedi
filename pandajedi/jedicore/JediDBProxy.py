@@ -125,7 +125,7 @@ class DBProxy(OraDBProxy.DBProxy):
             errStr = methodName
         else:
             errStr = ""
-        errStr += ": %s %s" % (errtype.__name__, errvalue)
+        errStr += f": {errtype.__name__} {errvalue}"
         errStr.strip()
         tmp_diag = errStr
         errStr += "\n"
@@ -185,9 +185,9 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.getDatasetsToFeedContents_JEDI */"
         methodName = self.getMethodName(comment)
         if task_id is not None:
-            methodName += " <vo={0} label={1} taskid={2}>".format(vo, prodSourceLabel, task_id)
+            methodName += f" <vo={vo} label={prodSourceLabel} taskid={task_id}>"
         else:
-            methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+            methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -208,7 +208,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 checkInterval = 0
             varMap[":checkTimeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
             varMap[":lockTimeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
-            sql = "SELECT {0} ".format(JediDatasetSpec.columnNames("tabD"))
+            sql = f"SELECT {JediDatasetSpec.columnNames('tabD')} "
             if task_id is None:
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -227,26 +227,26 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sql = sql[:-1]
             sql += ") "
             sql += " AND ((tabT.status=:ts_defined AND tabD.status IN ("
             for tmpStat in JediDatasetSpec.statusToUpdateContents():
                 mapKey = ":dsStatus_" + tmpStat
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpStat
             sql = sql[:-1]
             sql += ")) OR (tabT.status IN (:ts_running,:ts_scouting,:ts_ready,:ts_defined) "
             sql += "AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<=:checkTimeLimit)) "
             sql += "AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL "
             sql += "AND NOT EXISTS "
-            sql += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sql += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
+            sql += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
             sql += "AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
             sql = sql[:-1]
             sql += ") AND status=:dsStatus_pending) "
             # begin transaction
@@ -273,8 +273,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 taskDatasetMap[datasetSpec.jediTaskID].append(datasetSpec.datasetID)
             jediTaskIDs = sorted(returnMap.keys())
             # get seq_number
-            sqlSEQ = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlSEQ += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlSEQ = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlSEQ += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlSEQ += "WHERE jediTaskID=:jediTaskID AND datasetName=:datasetName "
             for jediTaskID in jediTaskIDs:
                 varMap = {}
@@ -296,7 +296,7 @@ class DBProxy(OraDBProxy.DBProxy):
             returnList = []
             for jediTaskID in jediTaskIDs:
                 returnList.append((jediTaskID, returnMap[jediTaskID]))
-            tmpLog.debug("got {0} datasets for {1} tasks".format(nDS, len(jediTaskIDs)))
+            tmpLog.debug(f"got {nDS} datasets for {len(jediTaskIDs)} tasks")
             return returnList
         except Exception:
             # roll back
@@ -354,17 +354,17 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.insertFilesForDataset_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID, datasetSpec.datasetID)
+        methodName += f" <jediTaskID={datasetSpec.jediTaskID} datasetID={datasetSpec.datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start nEventsPerFile={0} nEventsPerJob={1} maxAttempt={2} maxFailure={3}".format(nEventsPerFile, nEventsPerJob, maxAttempt, maxFailure))
-        tmpLog.debug("firstEventNumber={0} nMaxFiles={1} nMaxEvents={2}".format(firstEventNumber, nMaxFiles, nMaxEvents))
-        tmpLog.debug("useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}".format(useFilesWithNewAttemptNr, nFilesPerJob, nEventsPerRange))
-        tmpLog.debug("useScout={0} nChunksForScout={1} userRealEventNumber={2}".format(useScout, nChunksForScout, useRealNumEvents))
-        tmpLog.debug("includePatt={0} excludePatt={1}".format(str(includePatt), str(excludePatt)))
-        tmpLog.debug("xmlConfig={0} noWaitParent={1} parent_tid={2}".format(type(xmlConfig), noWaitParent, parent_tid))
-        tmpLog.debug("len(fileMap)={0} pid={1}".format(len(fileMap), pid))
-        tmpLog.debug("datasetState={0} dataset.state={1}".format(datasetState, datasetSpec.state))
-        tmpLog.debug("respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}".format(respectLB, tgtNumEventsPerJob, skipFilesUsedBy, ramCount))
+        tmpLog.debug(f"start nEventsPerFile={nEventsPerFile} nEventsPerJob={nEventsPerJob} maxAttempt={maxAttempt} maxFailure={maxFailure}")
+        tmpLog.debug(f"firstEventNumber={firstEventNumber} nMaxFiles={nMaxFiles} nMaxEvents={nMaxEvents}")
+        tmpLog.debug(f"useFilesWithNewAttemptNr={useFilesWithNewAttemptNr} nFilesPerJob={nFilesPerJob} nEventsPerRange={nEventsPerRange}")
+        tmpLog.debug(f"useScout={useScout} nChunksForScout={nChunksForScout} userRealEventNumber={useRealNumEvents}")
+        tmpLog.debug(f"includePatt={str(includePatt)} excludePatt={str(excludePatt)}")
+        tmpLog.debug(f"xmlConfig={type(xmlConfig)} noWaitParent={noWaitParent} parent_tid={parent_tid}")
+        tmpLog.debug(f"len(fileMap)={len(fileMap)} pid={pid}")
+        tmpLog.debug(f"datasetState={datasetState} dataset.state={datasetSpec.state}")
+        tmpLog.debug(f"respectLB={respectLB} tgtNumEventsPerJob={tgtNumEventsPerJob} skipFilesUsedBy={skipFilesUsedBy} ramCount={ramCount}")
         tmpLog.debug(f"skipShortInput={skipShortInput} skipShortOutput={skip_short_output} inputPreStaging={inputPreStaging} order_by={order_by}")
         # return value for failure
         diagMap = {"errMsg": "", "nChunksForScout": nChunksForScout, "nActivatedPending": 0, "isRunningTask": False}
@@ -379,7 +379,7 @@ class DBProxy(OraDBProxy.DBProxy):
             isMutableDataset = True
         else:
             isMutableDataset = False
-        tmpLog.debug("isMutableDataset={} respectSplitRule={}".format(isMutableDataset, taskSpec.respectSplitRule()))
+        tmpLog.debug(f"isMutableDataset={isMutableDataset} respectSplitRule={taskSpec.respectSplitRule()}")
         # event level splitting
         if nEventsPerJob is not None and nFilesPerJob is None:
             isEventSplit = True
@@ -418,7 +418,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if fileVal["lfn"] in producedFileList:
                         newFileMap[guid] = fileVal
                     else:
-                        tmpLog.debug("{0} skipped since was not properly produced by the parent according to JEDI table".format(fileVal["lfn"]))
+                        tmpLog.debug(f"{fileVal['lfn']} skipped since was not properly produced by the parent according to JEDI table")
                 fileMap = newFileMap
             # get files used by another task
             usedFilesToSkip = set()
@@ -442,7 +442,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.cur.execute(sqlSFU + comment, varMap)
                         tmpSFU = self.cur.fetchall()
                         for tmpLFN, tmpStartEvent, tmpEndEvent in tmpSFU:
-                            tmpID = "{0}.{1}.{2}".format(tmpLFN, tmpStartEvent, tmpEndEvent)
+                            tmpID = f"{tmpLFN}.{tmpStartEvent}.{tmpEndEvent}"
                             usedFilesToSkip.add(tmpID)
                         # commit
                         if not self._commit():
@@ -489,7 +489,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     xmlConfig = ParseJobXML.dom_parser(xmlStr=xmlConfig)
                 except Exception:
                     errtype, errvalue = sys.exc_info()[:2]
-                    tmpErrStr = "failed to load XML config with {0}:{1}".format(errtype.__name__, errvalue)
+                    tmpErrStr = f"failed to load XML config with {errtype.__name__}:{errvalue}"
                     raise RuntimeError(tmpErrStr)
                 newFileMap = {}
                 for guid, fileVal in fileMap.items():
@@ -524,7 +524,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     for tmpLFN in tmpJobXML.files_in_DS(datasetSpec.datasetName):
                         # check if the file is available
                         if tmpLFN not in filelValMap:
-                            diagMap["errMsg"] = "{0} is not found in {1}".format(tmpLFN, datasetSpec.datasetName)
+                            diagMap["errMsg"] = f"{tmpLFN} is not found in {datasetSpec.datasetName}"
                             tmpLog.error(diagMap["errMsg"])
                             return failedRet
                         lfnList.append(tmpLFN)
@@ -538,7 +538,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 offsetVal = datasetSpec.getOffset()
             if offsetVal > 0:
                 lfnList = lfnList[offsetVal:]
-            tmpLog.debug("offset={0}".format(offsetVal))
+            tmpLog.debug(f"offset={offsetVal}")
             # randomize
             if datasetSpec.isRandom():
                 random.shuffle(lfnList)
@@ -592,10 +592,10 @@ class DBProxy(OraDBProxy.DBProxy):
                     else:
                         fileSpec.nEvents = int(tmpNumEvents // nEventsPerJob) * nEventsPerJob
                         if fileSpec.nEvents == 0:
-                            tmpLog.debug("skip {0} due to nEvents {1} < nEventsPerJob {2}".format(fileSpec.lfn, tmpNumEvents, nEventsPerJob))
+                            tmpLog.debug(f"skip {fileSpec.lfn} due to nEvents {tmpNumEvents} < nEventsPerJob {nEventsPerJob}")
                             continue
                         else:
-                            tmpLog.debug("set nEvents to {0} from {1} for {2} to skip short input".format(fileSpec.nEvents, tmpNumEvents, fileSpec.lfn))
+                            tmpLog.debug(f"set nEvents to {fileSpec.nEvents} from {tmpNumEvents} for {fileSpec.lfn} to skip short input")
                 elif nEventsPerFile is not None:
                     fileSpec.nEvents = nEventsPerFile
                 elif "events" in fileVal and fileVal["events"] not in ["None", None]:
@@ -680,11 +680,11 @@ class DBProxy(OraDBProxy.DBProxy):
                 # append
                 for fileSpec in tmpFileSpecList:
                     # check if to skip
-                    tmpID = "{0}.{1}.{2}".format(fileSpec.lfn, fileSpec.startEvent, fileSpec.endEvent)
+                    tmpID = f"{fileSpec.lfn}.{fileSpec.startEvent}.{fileSpec.endEvent}"
                     if tmpID in usedFilesToSkip:
                         continue
                     # append
-                    uniqueFileKey = "{0}.{1}.{2}.{3}".format(fileSpec.lfn, fileSpec.startEvent, fileSpec.endEvent, fileSpec.boundaryID)
+                    uniqueFileKey = f"{fileSpec.lfn}.{fileSpec.startEvent}.{fileSpec.endEvent}.{fileSpec.boundaryID}"
                     uniqueFileKeyList.append(uniqueFileKey)
                     fileSpecMap[uniqueFileKey] = fileSpec
                 # check if number of events is enough
@@ -695,23 +695,21 @@ class DBProxy(OraDBProxy.DBProxy):
                 # too long list
                 if len(uniqueFileKeyList) > maxFileRecords:
                     if len(fileMap) > maxFileRecords and nMaxFiles is None:
-                        diagMap["errMsg"] = "Input dataset contains too many files >{0}. Split the dataset or set nFiles properly".format(maxFileRecords)
+                        diagMap["errMsg"] = f"Input dataset contains too many files >{maxFileRecords}. Split the dataset or set nFiles properly"
                     elif nEventsPerJob is not None:
                         diagMap[
                             "errMsg"
-                        ] = "SUM(nEventsInEachFile/nEventsPerJob) >{0}. Split the dataset, set nFiles properly, or increase nEventsPerJob".format(
-                            maxFileRecords
-                        )
+                        ] = f"SUM(nEventsInEachFile/nEventsPerJob) >{maxFileRecords}. Split the dataset, set nFiles properly, or increase nEventsPerJob"
                     else:
-                        diagMap["errMsg"] = "Too many file record >{0}".format(maxFileRecords)
+                        diagMap["errMsg"] = f"Too many file record >{maxFileRecords}"
                     tmpLog.error(diagMap["errMsg"])
                     return failedRet
             missingFileList = []
-            tmpLog.debug("{0} files missing".format(len(missingFileList)))
+            tmpLog.debug(f"{len(missingFileList)} files missing")
             # sql to check if task is locked
-            sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
+            sqlTL = f"SELECT status,lockedBy FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT "
             # sql to check dataset status
-            sqlDs = "SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed,nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDs = f"SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed,nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
             sqlCh = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents,lumiBlockNr,attemptNr,maxAttempt,failedAttempt,maxFailure FROM {0}.JEDI_Dataset_Contents ".format(
@@ -719,38 +717,38 @@ class DBProxy(OraDBProxy.DBProxy):
             )
             sqlCh += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to count existing files
-            sqlCo = "SELECT count(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCo = f"SELECT count(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCo += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql for insert
-            sqlIn = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlIn = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlIn += JediFileSpec.bindValuesExpression(useSeq=False)
             # sql to get fileID
-            sqlFID = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM ".format(jedi_config.db.schemaJEDI)
+            sqlFID = f"SELECT {jedi_config.db.schemaJEDI}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM "
             sqlFID += "(SELECT level FROM dual CONNECT BY level<=:nIDs) "
             # sql to update file status
-            sqlFU = "UPDATE {0}.JEDI_Dataset_Contents SET status=:status ".format(jedi_config.db.schemaJEDI)
+            sqlFU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents SET status=:status "
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # sql to get master status
-            sqlMS = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMS = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlMS += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update dataset
-            sqlDU = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
             sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents," "nFilesMissing=:nFilesMissing "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update dataset including nFilesUsed
-            sqlDUx = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDUx = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDUx += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
             sqlDUx += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents," "nFilesUsed=:nFilesUsed,nFilesMissing=:nFilesMissing "
             sqlDUx += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to propagate number of input events to DEFT
-            sqlCE = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlCE = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
             sqlCE += "SET total_input_events=LEAST(9999999999,("
-            sqlCE += "SELECT SUM(nEvents) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCE += f"SELECT SUM(nEvents) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCE += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlCE += "{0},".format(mapKey)
+                sqlCE += f"{mapKey},"
             sqlCE = sqlCE[:-1]
             sqlCE += ") AND masterID IS NULL)) "
             sqlCE += "WHERE taskID=:jediTaskID "
@@ -785,7 +783,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 errType, errValue = sys.exc_info()[:2]
                 if self.isNoWaitException(errValue):
                     # resource busy and acquire with NOWAIT specified
-                    tmpLog.debug("skip locked jediTaskID={0}".format(datasetSpec.jediTaskID))
+                    tmpLog.debug(f"skip locked jediTaskID={datasetSpec.jediTaskID}")
                     if not self._commit():
                         raise RuntimeError("Commit error")
                     return retVal
@@ -798,7 +796,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 taskStatus, taskLockedBy = resTask
                 if taskLockedBy != pid:
                     # task is locked
-                    tmpLog.debug("task is locked by {0}".format(taskLockedBy))
+                    tmpLog.debug(f"task is locked by {taskLockedBy}")
                 elif not (
                     taskStatus in JediTaskSpec.statusToUpdateContents()
                     or (
@@ -808,9 +806,9 @@ class DBProxy(OraDBProxy.DBProxy):
                     )
                 ):
                     # task status is irrelevant
-                    tmpLog.debug("task.status={} taskSpec.oldStatus={} is not for contents update".format(taskStatus, taskSpec.oldStatus))
+                    tmpLog.debug(f"task.status={taskStatus} taskSpec.oldStatus={taskSpec.oldStatus} is not for contents update")
                 else:
-                    tmpLog.debug("task.status={} task.oldStatus={}".format(taskStatus, taskSpec.oldStatus))
+                    tmpLog.debug(f"task.status={taskStatus} task.oldStatus={taskSpec.oldStatus}")
                     # running task
                     if taskStatus in ["running", "assigning", "ready", "scouting", "pending"]:
                         diagMap["isRunningTask"] = True
@@ -821,16 +819,16 @@ class DBProxy(OraDBProxy.DBProxy):
                         nChunks = nChunksForScout
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
-                        strSizePendingFileChunk = "{0}".format(sizePendingFileChunk)
+                        strSizePendingFileChunk = f"{sizePendingFileChunk}"
                         # number of files per job is specified
                         if nFilesPerJob not in [None, 0]:
                             sizePendingFileChunk *= nFilesPerJob
-                            strSizePendingFileChunk = "{0}*".format(nFilesPerJob) + strSizePendingFileChunk
+                            strSizePendingFileChunk = f"{nFilesPerJob}*" + strSizePendingFileChunk
                         strSizePendingFileChunk += " files required for scout"
                         # number of events for scout
                         if isEventSplit:
                             sizePendingEventChunk = nChunksForScout * nEventsPerJob
-                            strSizePendingEventChunk = "{0}*{1} events required for scout".format(nEventsPerJob, nChunksForScout)
+                            strSizePendingEventChunk = f"{nEventsPerJob}*{nChunksForScout} events required for scout"
                     else:
                         # the number of chunks in one bunch
                         if taskSpec.nChunksToWait() is not None:
@@ -842,16 +840,16 @@ class DBProxy(OraDBProxy.DBProxy):
                         nChunks = nChunkInBunch
                         # number of files to be activated
                         sizePendingFileChunk = nChunkInBunch
-                        strSizePendingFileChunk = "{0}".format(sizePendingFileChunk)
+                        strSizePendingFileChunk = f"{sizePendingFileChunk}"
                         # number of files per job is specified
                         if nFilesPerJob not in [None, 0]:
                             sizePendingFileChunk *= nFilesPerJob
-                            strSizePendingFileChunk = "{0}*".format(nFilesPerJob) + strSizePendingFileChunk
+                            strSizePendingFileChunk = f"{nFilesPerJob}*" + strSizePendingFileChunk
                         strSizePendingFileChunk += " files required"
                         # number of events to be activated
                         if isEventSplit:
                             sizePendingEventChunk = nChunkInBunch * nEventsPerJob
-                            strSizePendingEventChunk = "{0}*{1} events required".format(nEventsPerJob, nChunkInBunch)
+                            strSizePendingEventChunk = f"{nEventsPerJob}*{nChunkInBunch} events required"
                     # check dataset status
                     varMap = {}
                     varMap[":jediTaskID"] = datasetSpec.jediTaskID
@@ -861,7 +859,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if resDs is None:
                         tmpLog.debug("dataset not found in Datasets table")
                     elif resDs[2] != datasetSpec.state:
-                        tmpLog.debug("dataset.state changed from {0} to {1} in DB".format(datasetSpec.state, resDs[2]))
+                        tmpLog.debug(f"dataset.state changed from {datasetSpec.state} to {resDs[2]} in DB")
                     elif not (
                         resDs[0] in JediDatasetSpec.statusToUpdateContents()
                         or (
@@ -870,7 +868,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             or (taskStatus in ["running", "defined", "ready", "scouting", "assigning", "pending"] and datasetSpec.isSeqNumber())
                         )
                     ):
-                        tmpLog.debug("ds.status={0} is not for contents update".format(resDs[0]))
+                        tmpLog.debug(f"ds.status={resDs[0]} is not for contents update")
                         oldDsStatus = resDs[0]
                         nFilesUnprocessed = resDs[1]
                         # count existing files
@@ -884,7 +882,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             retVal = True, missingFileList, numUniqueLfn, diagMap
                     else:
                         oldDsStatus, nFilesUnprocessed, dsStateInDB, nFilesToUseDS, nFilesUsedInDS = resDs
-                        tmpLog.debug("ds.state={0} in DB".format(dsStateInDB))
+                        tmpLog.debug(f"ds.state={dsStateInDB} in DB")
                         if not nFilesUsedInDS:
                             nFilesUsedInDS = 0
                         # get existing file list
@@ -893,7 +891,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":datasetID"] = datasetSpec.datasetID
                         self.cur.execute(sqlCh + comment, varMap)
                         tmpRes = self.cur.fetchall()
-                        tmpLog.debug("{} file records in DB".format(len(tmpRes)))
+                        tmpLog.debug(f"{len(tmpRes)} file records in DB")
                         existingFiles = {}
                         statusMap = {}
                         for (
@@ -912,7 +910,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         ) in tmpRes:
                             statusMap.setdefault(status, 0)
                             statusMap[status] += 1
-                            uniqueFileKey = "{0}.{1}.{2}.{3}".format(lfn, startEvent, endEvent, boundaryID)
+                            uniqueFileKey = f"{lfn}.{startEvent}.{endEvent}.{boundaryID}"
                             existingFiles[uniqueFileKey] = {"fileID": fileID, "status": status}
                             if startEvent is not None and endEvent is not None:
                                 existingFiles[uniqueFileKey]["nevents"] = endEvent - startEvent + 1
@@ -957,7 +955,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     nEventsExist += existingFiles[uniqueFileKey]["nevents"]
                         tmStr = "inDB nReady={} nPending={} nUsed={} nUsedInDB={} nLost={} nStaging={} nFailed={}"
                         tmpLog.debug(tmStr.format(nReady, nPending, nUsed, nFilesUsedInDS, nLost, nStaging, nFailed))
-                        tmpLog.debug("inDB {}".format(str(statusMap)))
+                        tmpLog.debug(f"inDB {str(statusMap)}")
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -1016,7 +1014,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     pass
                             fileSpecsForInsert.append(fileSpec)
                         # get fileID
-                        tmpLog.debug("get fileIDs for {0} inputs".format(nInsert))
+                        tmpLog.debug(f"get fileIDs for {nInsert} inputs")
                         newFileIDs = []
                         if nInsert > 0:
                             varMap = {}
@@ -1039,7 +1037,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap = fileSpec.valuesMap()
                             varMaps.append(varMap)
                         # bulk insert
-                        tmpLog.debug("bulk insert {0} files".format(len(varMaps)))
+                        tmpLog.debug(f"bulk insert {len(varMaps)} files")
                         self.cur.executemany(sqlIn + comment, varMaps)
                         # keep original pendingFID
                         orig_pendingFID = set(pendingFID)
@@ -1049,8 +1047,8 @@ class DBProxy(OraDBProxy.DBProxy):
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset or datasetSpec.state == "mutable"):
                             tmpDatasetSpecMap = {}
                             # read files
-                            sqlFR = "SELECT {0} ".format(JediFileSpec.columnNames())
-                            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+                            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+                            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
                             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
                             sqlFR += "ORDER BY lfn, startEvent "
                             varMap = {}
@@ -1198,19 +1196,17 @@ class DBProxy(OraDBProxy.DBProxy):
                                     if nEventsToUseEventSplit >= sizePendingEventChunk and nFilesToUseEventSplit > 0:
                                         toActivateFID = pendingFID[: (int(nPending / nFilesToUseEventSplit) * nFilesToUseEventSplit)]
                                     else:
-                                        diagMap["errMsg"] = "{0} events ({1} files) available, {2}".format(
-                                            nEventsToUseEventSplit, nPending, strSizePendingEventChunk
-                                        )
+                                        diagMap["errMsg"] = f"{nEventsToUseEventSplit} events ({nPending} files) available, {strSizePendingEventChunk}"
                                 else:
                                     # enough files are pending
                                     if nPending >= sizePendingFileChunk and sizePendingFileChunk > 0:
                                         toActivateFID = pendingFID[: (int(nPending / sizePendingFileChunk) * sizePendingFileChunk)]
                                     else:
-                                        diagMap["errMsg"] = "{0} files available, {1}".format(nPending, strSizePendingFileChunk)
+                                        diagMap["errMsg"] = f"{nPending} files available, {strSizePendingFileChunk}"
                         else:
                             nReady += nInsert
                             toActivateFID = orig_pendingFID
-                        tmpLog.debug("length of pendingFID {} -> {}".format(len(orig_pendingFID), len(toActivateFID)))
+                        tmpLog.debug(f"length of pendingFID {len(orig_pendingFID)} -> {len(toActivateFID)}")
                         for tmpFileID in toActivateFID:
                             if tmpFileID in orig_pendingFID:
                                 varMap = {}
@@ -1239,7 +1235,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 elif fileVarMap["status"] != "ready":
                                     lostInPending = True
                                 varMap["status"] = "lost"
-                                tmpLog.debug("{} was lost from {}".format(uniqueFileKey, str(uniqueFileKeySet)))
+                                tmpLog.debug(f"{uniqueFileKey} was lost from {str(uniqueFileKeySet)}")
                             else:
                                 continue
                             if varMap["status"] == "ready":
@@ -1270,8 +1266,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             self.cur.execute(sqlMS + comment, varMap)
                             resMS = self.cur.fetchone()
                             (masterStatus,) = resMS
-                        tmpLog.debug("masterStatus={0}".format(masterStatus))
-                        tmpLog.debug("nFilesToUseDS={0}".format(nFilesToUseDS))
+                        tmpLog.debug(f"masterStatus={masterStatus}")
+                        tmpLog.debug(f"nFilesToUseDS={nFilesToUseDS}")
                         if nFilesToUseDS is None:
                             nFilesToUseDS = 0
                         # updata dataset
@@ -1337,11 +1333,11 @@ class DBProxy(OraDBProxy.DBProxy):
                         if missingFileList != [] or (isMutableDataset and nActivatedPending == 0 and nFilesUnprocessed in [0, None]):
                             if datasetSpec.isMaster() or masterStatus is None:
                                 # don't change status when some files are missing or no pending inputs are activated
-                                tmpLog.debug("using datasetSpec.status={0}".format(datasetSpec.status))
+                                tmpLog.debug(f"using datasetSpec.status={datasetSpec.status}")
                                 varMap[":status"] = datasetSpec.status
                             else:
                                 # use master status
-                                tmpLog.debug("using masterStatus={0}".format(masterStatus))
+                                tmpLog.debug(f"using masterStatus={masterStatus}")
                                 varMap[":status"] = masterStatus
                         else:
                             varMap[":status"] = "ready"
@@ -1352,7 +1348,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 numReqFileRecords = numReqFileRecords * nEventsPerFile // nEventsPerJob
                         except Exception:
                             pass
-                        tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
+                        tmpLog.debug(f"the number of requested file records : {numReqFileRecords}")
                         if isMutableDataset and numReqFileRecords is not None and varMap[":nFilesTobeUsed"] >= numReqFileRecords:
                             varMap[":state"] = "open"
                         elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster() and nPending == nActivatedPending:
@@ -1414,9 +1410,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def getFilesInDatasetWithID_JEDI(self, jediTaskID, datasetID, nFiles, status):
         comment = " /* JediDBProxy.getFilesInDataset_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start nFiles={0} status={1}".format(nFiles, status))
+        tmpLog.debug(f"start nFiles={nFiles} status={status}")
         # return value for failure
         failedRet = False, 0
         if jediTaskID is None and datasetID is None:
@@ -1425,8 +1421,8 @@ class DBProxy(OraDBProxy.DBProxy):
         try:
             # sql
             varMap = {}
-            sql = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
-            sql += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT * FROM (SELECT {JediFileSpec.columnNames()} "
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             useAND = False
             if jediTaskID is not None:
                 sql += "jediTaskID=:jediTaskID "
@@ -1446,7 +1442,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 useAND = True
             sql += " ORDER BY fileID) "
             if nFiles is not None:
-                sql += "WHERE rownum <= %s" % nFiles
+                sql += f"WHERE rownum <= {nFiles}"
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 100000
@@ -1462,7 +1458,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 fileSpec = JediFileSpec()
                 fileSpec.pack(tmpRes)
                 fileSpecList.append(fileSpec)
-            tmpLog.debug("got {0} files".format(len(fileSpecList)))
+            tmpLog.debug(f"got {len(fileSpecList)} files")
             return True, fileSpecList
         except Exception:
             # roll back
@@ -1483,7 +1479,7 @@ class DBProxy(OraDBProxy.DBProxy):
             datasetSpec.creationTime = timeNow
             datasetSpec.modificationTime = timeNow
             # sql
-            sql = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+            sql = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
             sql += JediDatasetSpec.bindValuesExpression()
             sql += " RETURNING datasetID INTO :newDatasetID"
             varMap = datasetSpec.valuesMap(useSeq=True)
@@ -1509,7 +1505,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateDataset_JEDI(self, datasetSpec, criteria, lockTask):
         comment = " /* JediDBProxy.updateDataset_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <datasetID={0}>".format(datasetSpec.datasetID)
+        methodName += f" <datasetID={datasetSpec.datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -1521,7 +1517,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # check criteria
         for tmpKey in criteria.keys():
             if not hasattr(datasetSpec, tmpKey):
-                tmpLog.error("unknown attribute {0} is used in criteria".format(tmpKey))
+                tmpLog.error(f"unknown attribute {tmpKey} is used in criteria")
                 return failedRet
         try:
             # set attributes
@@ -1530,21 +1526,21 @@ class DBProxy(OraDBProxy.DBProxy):
             # values for UPDATE
             varMap = datasetSpec.valuesMap(useSeq=False, onlyChanged=True)
             # sql for update
-            sql = "UPDATE {0}.JEDI_Datasets SET {1} WHERE ".format(jedi_config.db.schemaJEDI, datasetSpec.bindUpdateChangesExpression())
+            sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET {datasetSpec.bindUpdateChangesExpression()} WHERE "
             useAND = False
             for tmpKey, tmpVal in criteria.items():
-                crKey = ":cr_%s" % tmpKey
+                crKey = f":cr_{tmpKey}"
                 if useAND:
                     sql += " AND"
                 else:
                     useAND = True
-                sql += " %s=%s" % (tmpKey, crKey)
+                sql += f" {tmpKey}={crKey}"
                 varMap[crKey] = tmpVal
 
             # sql for loc
             varMapLock = {}
             varMapLock[":jediTaskID"] = datasetSpec.jediTaskID
-            sqlLock = "SELECT 1 FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE".format(jedi_config.db.schemaJEDI)
+            sqlLock = f"SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE"
             # begin transaction
             self.conn.begin()
             # lock task
@@ -1558,7 +1554,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("updated {0} rows".format(nRows))
+            tmpLog.debug(f"updated {nRows} rows")
             return True, nRows
         except Exception:
             # roll back
@@ -1571,21 +1567,21 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateDatasetAttributes_JEDI(self, jediTaskID, datasetID, attributes):
         comment = " /* JediDBProxy.updateDatasetAttributes_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
         failedRet = False
         try:
             # sql for update
-            sql = "UPDATE {0}.JEDI_Datasets SET ".format(jedi_config.db.schemaJEDI)
+            sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET "
             # values for UPDATE
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             varMap[":datasetID"] = datasetID
             for tmpKey, tmpVal in attributes.items():
-                crKey = ":{0}".format(tmpKey)
-                sql += "{0}={1},".format(tmpKey, crKey)
+                crKey = f":{tmpKey}"
+                sql += f"{tmpKey}={crKey},"
                 varMap[crKey] = tmpVal
             sql = sql[:-1]
             sql += " "
@@ -1600,7 +1596,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("updated {0} rows".format(nRows))
+            tmpLog.debug(f"updated {nRows} rows")
             return True, nRows
         except Exception:
             # roll back
@@ -1613,7 +1609,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getDatasetAttributes_JEDI(self, jediTaskID, datasetID, attributes):
         comment = " /* JediDBProxy.getDatasetAttributes_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -1622,9 +1618,9 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql for get attributes
             sql = "SELECT "
             for tmpKey in attributes:
-                sql += "{0},".format(tmpKey)
+                sql += f"{tmpKey},"
             sql = sql[:-1] + " "
-            sql += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # values for UPDATE
             varMap = {}
@@ -1643,7 +1639,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if res is not None:
                 for tmpIdx, tmpKey in enumerate(attributes):
                     retMap[tmpKey] = res[tmpIdx]
-            tmpLog.debug("got {0}".format(str(retMap)))
+            tmpLog.debug(f"got {str(retMap)}")
             return retMap
         except Exception:
             # roll back
@@ -1656,7 +1652,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getDatasetAttributesWithMap_JEDI(self, jediTaskID, criteria, attributes):
         comment = " /* JediDBProxy.getDatasetAttributesWithMap_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} criteria={1}>".format(jediTaskID, str(criteria))
+        methodName += f" <jediTaskID={jediTaskID} criteria={str(criteria)}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -1667,13 +1663,13 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql for get attributes
             sql = "SELECT "
             for tmpKey in attributes:
-                sql += "{0},".format(tmpKey)
+                sql += f"{tmpKey},"
             sql = sql[:-1] + " "
-            sql += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sql += "WHERE jediTaskID=:jediTaskID "
             for crKey, crVal in criteria.items():
                 sql += "AND {0}=:{0} ".format(crKey)
-                varMap[":{0}".format(crKey)] = crVal
+                varMap[f":{crKey}"] = crVal
             # begin transaction
             self.conn.begin()
             # select
@@ -1687,7 +1683,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if res is not None:
                 for tmpIdx, tmpKey in enumerate(attributes):
                     retMap[tmpKey] = res[tmpIdx]
-            tmpLog.debug("got {0}".format(str(retMap)))
+            tmpLog.debug(f"got {str(retMap)}")
             return retMap
         except Exception:
             # roll back
@@ -1700,15 +1696,15 @@ class DBProxy(OraDBProxy.DBProxy):
     def getDatasetWithID_JEDI(self, jediTaskID, datasetID):
         comment = " /* JediDBProxy.getDatasetWithID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
         failedRet = False, None
         try:
             # sql
-            sql = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sql += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT {JediDatasetSpec.columnNames()} "
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             varMap[":datasetID"] = datasetID
@@ -1738,7 +1734,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getDatasetsWithJediTaskID_JEDI(self, jediTaskID, datasetTypes=None):
         comment = " /* JediDBProxy.getDatasetsWithJediTaskID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetTypes={1}>".format(jediTaskID, datasetTypes)
+        methodName += f" <jediTaskID={jediTaskID} datasetTypes={datasetTypes}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -1747,14 +1743,14 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sql = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sql += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT {JediDatasetSpec.columnNames()} "
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
             if datasetTypes is not None:
                 sql += "AND type IN ("
                 for tmpType in datasetTypes:
                     mapKey = ":type_" + tmpType
                     varMap[mapKey] = tmpType
-                    sql += "{0},".format(mapKey)
+                    sql += f"{mapKey},"
                 sql = sql[:-1]
                 sql += ") "
             # begin transaction
@@ -1772,7 +1768,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(tmpRes)
                 datasetSpecList.append(datasetSpec)
-            tmpLog.debug("done with {0} datasets".format(len(datasetSpecList)))
+            tmpLog.debug(f"done with {len(datasetSpecList)} datasets")
             return True, datasetSpecList
         except Exception:
             # roll back
@@ -1793,7 +1789,7 @@ class DBProxy(OraDBProxy.DBProxy):
             taskSpec.creationDate = timeNow
             taskSpec.modificationTime = timeNow
             # sql
-            sql = "INSERT INTO {0}.JEDI_Tasks ({1}) ".format(jedi_config.db.schemaJEDI, JediTaskSpec.columnNames())
+            sql = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Tasks ({JediTaskSpec.columnNames()}) "
             sql += JediTaskSpec.bindValuesExpression()
             varMap = taskSpec.valuesMap()
             # begin transaction
@@ -1816,25 +1812,25 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateTaskStatusByContFeeder_JEDI(self, jediTaskID, taskSpec=None, getTaskStatus=False, pid=None, setFrozenTime=True, useWorldCloud=False):
         comment = " /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to check status
-            sqlS = "SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime,nucleus FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlS = f"SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime,nucleus FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
             # sql to get number of unassigned datasets
-            sqlD = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlD += "WHERE jediTaskID=:jediTaskID AND destination IS NULL AND type IN (:type1,:type2) "
             # sql to update task
-            sqlU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,"
             sqlU += "lockedBy=NULL,lockedTime=NULL,frozenTime=:frozenTime"
             if taskSpec is not None:
                 sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog,splitRule=:splitRule"
             sqlU += " WHERE jediTaskID=:jediTaskID "
             # sql to unlock task
-            sqlL = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlL += "SET lockedBy=NULL,lockedTime=NULL "
             sqlL += "WHERE jediTaskID=:jediTaskID AND status=:status "
             if pid is not None:
@@ -1854,10 +1850,10 @@ class DBProxy(OraDBProxy.DBProxy):
                 taskStatus, lockedBy, cloudName, prodSourceLabel, frozenTime, nucleus = res
                 if lockedBy != pid:
                     # task is locked
-                    tmpLog.debug("task is locked by {0}".format(lockedBy))
+                    tmpLog.debug(f"task is locked by {lockedBy}")
                 elif taskStatus not in JediTaskSpec.statusToUpdateContents():
                     # task status is irrelevant
-                    tmpLog.debug("task.status={0} is not for contents update".format(taskStatus))
+                    tmpLog.debug(f"task.status={taskStatus} is not for contents update")
                     # unlock
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -1915,7 +1911,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # task status logging
                     self.record_task_status_change(jediTaskID)
                     self.push_task_status_message(taskSpec, jediTaskID, taskStatus)
-                    tmpLog.debug("set to {0}".format(taskStatus))
+                    tmpLog.debug(f"set to {taskStatus}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -1937,7 +1933,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateTask_JEDI(self, taskSpec, criteria, oldStatus=None, updateDEFT=True, insertUnknown=None, setFrozenTime=True, setOldModTime=False):
         comment = " /* JediDBProxy.updateTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(taskSpec.jediTaskID)
+        methodName += f" <jediTaskID={taskSpec.jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -1949,7 +1945,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # check criteria
         for tmpKey in criteria.keys():
             if not hasattr(taskSpec, tmpKey):
-                tmpLog.error("unknown attribute {0} is used in criteria".format(tmpKey))
+                tmpLog.error(f"unknown attribute {tmpKey} is used in criteria")
                 return failedRet
         try:
             # set attributes
@@ -1960,18 +1956,18 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 taskSpec.modificationTime = timeNow
             # sql to get old status
-            sqlS = "SELECT status,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlS = f"SELECT status,frozenTime FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sql = "WHERE "
             varMap = {}
             for tmpKey, tmpVal in criteria.items():
-                crKey = ":cr_{0}".format(tmpKey)
-                sql += "{0}={1} AND ".format(tmpKey, crKey)
+                crKey = f":cr_{tmpKey}"
+                sql += f"{tmpKey}={crKey} AND "
                 varMap[crKey] = tmpVal
             if oldStatus is not None:
                 sql += "status IN ("
                 for tmpStat in oldStatus:
-                    crKey = ":old_{0}".format(tmpStat)
-                    sql += "{0},".format(crKey)
+                    crKey = f":old_{tmpStat}"
+                    sql += f"{crKey},"
                     varMap[crKey] = tmpStat
                 sql = sql[:-1]
                 sql += ") AND "
@@ -1996,7 +1992,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if frozenTime is not None:
                     taskSpec.frozenTime = None
             # update task
-            sqlU = "UPDATE {0}.JEDI_Tasks SET {1} ".format(jedi_config.db.schemaJEDI, taskSpec.bindUpdateChangesExpression())
+            sqlU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET {taskSpec.bindUpdateChangesExpression()} "
             for tmpKey, tmpVal in taskSpec.valuesMap(useSeq=False, onlyChanged=True).items():
                 varMap[tmpKey] = tmpVal
             tmpLog.debug(sqlU + sql + comment + str(varMap))
@@ -2006,10 +2002,10 @@ class DBProxy(OraDBProxy.DBProxy):
             # insert unknown datasets
             if nRows > 0 and insertUnknown is not None:
                 # sql to check
-                sqlUC = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                sqlUC = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                 sqlUC += "WHERE jediTaskID=:jediTaskID AND type=:type AND datasetName=:datasetName "
                 # sql to insert dataset
-                sqlUI = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+                sqlUI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
                 sqlUI += JediDatasetSpec.bindValuesExpression()
                 # loop over all datasets
                 for tmpUnknownDataset in insertUnknown:
@@ -2049,7 +2045,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         tmpLog.debug("failed to count # of finished jobs when updating DEFT table")
                     else:
                         (nDone,) = res
-                        sqlD = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlD = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
                         sqlD += "SET status=:status,total_done_jobs=:nDone,timeStamp=CURRENT_DATE "
                         sqlD += "WHERE taskID=:jediTaskID "
                         varMap = {}
@@ -2065,7 +2061,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         deftStatus = "submitting"
                     else:
                         deftStatus = taskSpec.status
-                    sqlD = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                    sqlD = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
                     sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
                     if taskSpec.status == "scouting":
                         sqlD += ",start_time=CURRENT_DATE"
@@ -2079,7 +2075,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if taskSpec.status == "running":
                         varMap = {}
                         varMap[":jediTaskID"] = taskSpec.jediTaskID
-                        sqlDS = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlDS = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
                         sqlDS += "SET start_time=timeStamp "
                         sqlDS += "WHERE taskID=:jediTaskID AND start_time IS NULL "
                         tmpLog.debug(sqlDS + comment + str(varMap))
@@ -2094,7 +2090,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("updated {0} rows".format(nRows))
+            tmpLog.debug(f"updated {nRows} rows")
             return True, nRows
         except Exception:
             # roll back
@@ -2107,7 +2103,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateTaskLock_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.updateTaskLock_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -2116,7 +2112,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to update lock
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlS = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlS = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlS += "SET lockedTime=CURRENT_DATE "
             sqlS += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
@@ -2139,20 +2135,20 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTaskWithID_JEDI(self, jediTaskID, fullFlag, lockTask=False, pid=None, lockInterval=None, clearError=False):
         comment = " /* JediDBProxy.getTaskWithID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start lockTask={0}".format(lockTask))
+        tmpLog.debug(f"start lockTask={lockTask}")
         # return value for failure
         failedRet = False, None
         try:
             # sql
-            sql = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT {JediTaskSpec.columnNames()} "
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
             if lockInterval is not None:
                 sql += "AND (lockedTime IS NULL OR lockedTime<:timeLimit) "
             if lockTask:
                 sql += "AND lockedBy IS NULL FOR UPDATE NOWAIT"
-            sqlLock = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE".format(jedi_config.db.schemaJEDI)
+            sqlLock = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE"
             if clearError:
                 sqlLock += ",errorDialog=NULL"
             sqlLock += " WHERE jediTaskID=:jediTaskID "
@@ -2172,7 +2168,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     jobParamsTemplate = None
                     if fullFlag:
                         # sql to read template
-                        sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template ".format(jedi_config.db.schemaJEDI)
+                        sqlJobP = f"SELECT jobParamsTemplate FROM {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template "
                         sqlJobP += "WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlJobP + comment, varMap)
                         for (clobJobP,) in self.cur:
@@ -2218,21 +2214,21 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTaskDatasetsWithID_JEDI(self, jediTaskID, pid, lockTask=True):
         comment = " /* JediDBProxy.getTaskDatasetsWithID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start pid={0}".format(pid))
+        tmpLog.debug(f"start pid={pid}")
         # return value for failure
         failedRet = False, None
         try:
             # sql
-            sql = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT {JediTaskSpec.columnNames()} "
+            sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
             if lockTask:
                 sql += "AND lockedBy IS NULL FOR UPDATE NOWAIT"
-            sqlLK = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
             sqlLK += "WHERE jediTaskID=:jediTaskID "
-            sqlDS = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlDS = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -2301,7 +2297,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # check criteria
         for tmpKey in criteria.keys():
             if tmpKey not in JediTaskSpec.attributes:
-                tmpLog.error("unknown attribute {0} is used in criteria".format(tmpKey))
+                tmpLog.error(f"unknown attribute {tmpKey} is used in criteria")
                 return failedRet
         varMap = {}
         try:
@@ -2316,14 +2312,14 @@ class DBProxy(OraDBProxy.DBProxy):
                 else:
                     isFirst = False
                 if tmpVal in ["NULL", "NOT NULL"]:
-                    sql += "{0} IS {1} ".format(tmpKey, tmpVal)
+                    sql += f"{tmpKey} IS {tmpVal} "
                 elif tmpVal is None:
-                    sql += "{0} IS NULL ".format(tmpKey)
+                    sql += f"{tmpKey} IS NULL "
                 else:
-                    crKey = ":cr_{0}".format(tmpKey)
-                    sql += "{0}={1} ".format(tmpKey, crKey)
+                    crKey = f":cr_{tmpKey}"
+                    sql += f"{tmpKey}={crKey} "
                     varMap[crKey] = tmpVal
-            sql += "AND rownum<={0}".format(nTasks)
+            sql += f"AND rownum<={nTasks}"
             # begin transaction
             self.conn.begin()
             # select
@@ -2339,7 +2335,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} tasks".format(len(retTaskIDs)))
+            tmpLog.debug(f"got {len(retTaskIDs)} tasks")
             return retTaskIDs
         except Exception:
             # roll back
@@ -2352,7 +2348,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
         comment = " /* JediDBProxy.getTasksToBeFinished_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} pid={2}>".format(vo, prodSourceLabel, pid)
+        methodName += f" <vo={vo} label={prodSourceLabel} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -2377,7 +2373,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[tmpKey] = tmpTaskID
                 taskids_params_key_str = ",".join(taskids_params_key_list)
                 or_taskids_sql = f"OR tabT.jediTaskID IN ({taskids_params_key_str})"
-            sqlRT += "AND (tabT.jediTaskID>=tabA.min_jediTaskID {0}) ".format(or_taskids_sql)
+            sqlRT += f"AND (tabT.jediTaskID>=tabA.min_jediTaskID {or_taskids_sql}) "
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
             if vo not in [None, "any"]:
                 varMap[":vo"] = vo
@@ -2386,17 +2382,17 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
-            sqlRT += "AND rownum<{0} ".format(nTasks)
-            sqlNW = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRT += f"AND rownum<{nTasks} "
+            sqlNW = f"SELECT jediTaskID FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlNW += "WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT"
-            sqlLK = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
             sqlLK += "WHERE jediTaskID=:jediTaskID AND (lockedBy IS NULL OR lockedTime<:timeLimit) AND status=:status "
-            sqlTS = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlTS += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTS = f"SELECT {JediTaskSpec.columnNames()} "
+            sqlTS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTS += "WHERE jediTaskID=:jediTaskID "
-            sqlDS = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
-            sqlSC = "UPDATE {0}.JEDI_Tasks SET status=:newStatus,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlDS = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
+            sqlSC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET status=:newStatus,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE "
             sqlSC += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # begin transaction
             self.conn.begin()
@@ -2425,7 +2421,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":jediTaskID"] = jediTaskID
                     self.cur.execute(sqlNW + comment, varMap)
                 except Exception:
-                    tmpLog.debug("skip locked jediTaskID={0}".format(jediTaskID))
+                    tmpLog.debug(f"skip locked jediTaskID={jediTaskID}")
                     # commit
                     if not self._commit():
                         raise RuntimeError("Commit error")
@@ -2441,7 +2437,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":updateTime"] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlSC + comment, varMap)
                     nRows = self.cur.rowcount
-                    tmpLog.debug("changed status to {0} for jediTaskID={1} with {2}".format(varMap[":newStatus"], jediTaskID, nRows))
+                    tmpLog.debug(f"changed status to {varMap[':newStatus']} for jediTaskID={jediTaskID} with {nRows}")
                     if nRows > 0:
                         self.setSuperStatus_JEDI(jediTaskID, "running")
                         self.record_task_status_change(jediTaskID)
@@ -2479,7 +2475,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # commit
                 if not self._commit():
                     raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} tasks".format(len(retTasks)))
+            tmpLog.debug(f"got {len(retTasks)} tasks")
             return retTasks
         except Exception:
             # roll back
@@ -2492,9 +2488,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def getJobStatisticsWithWorkQueue_JEDI(self, vo, prodSourceLabel, minPriority=None, cloud=None):
         comment = " /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2}>".format(vo, prodSourceLabel, cloud)
+        methodName += f" <vo={vo} label={prodSourceLabel} cloud={cloud}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start minPriority={0}".format(minPriority))
+        tmpLog.debug(f"start minPriority={minPriority}")
         sql0 = "SELECT computingSite,cloud,jobStatus,workQueue_ID,COUNT(*) FROM %s "
         sql0 += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
         if cloud is not None:
@@ -2507,10 +2503,10 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlMV = sql0
         sqlMV = re.sub("COUNT\(\*\)", "SUM(num_of_jobs)", sqlMV)
         sqlMV = re.sub("SELECT ", "SELECT /*+ RESULT_CACHE */ ", sqlMV)
-        tables = ["{0}.jobsActive4".format(jedi_config.db.schemaPANDA), "{0}.jobsDefined4".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.jobsActive4", f"{jedi_config.db.schemaPANDA}.jobsDefined4"]
         if minPriority is not None:
             # read the number of running jobs with prio<=MIN
-            tables.append("{0}.jobsActive4".format(jedi_config.db.schemaPANDA))
+            tables.append(f"{jedi_config.db.schemaPANDA}.jobsActive4")
             sqlMVforRun = re.sub("currentPriority>=", "currentPriority<=", sqlMV)
         varMap = {}
         varMap[":vo"] = vo
@@ -2528,8 +2524,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 # select
                 self.cur.arraysize = 10000
                 useRunning = None
-                if table == "{0}.jobsActive4".format(jedi_config.db.schemaPANDA):
-                    mvTableName = "{0}.MV_JOBSACTIVE4_STATS".format(jedi_config.db.schemaPANDA)
+                if table == f"{jedi_config.db.schemaPANDA}.jobsActive4":
+                    mvTableName = f"{jedi_config.db.schemaPANDA}.MV_JOBSACTIVE4_STATS"
                     # first count non-running and then running if minPriority is specified
                     if minPriority is not None:
                         if iActive == 0:
@@ -2585,7 +2581,7 @@ class DBProxy(OraDBProxy.DBProxy):
         """
         comment = " /* DBProxy.getJobStatisticsByGlobalShare */"
         methodName = self.getMethodName(comment)
-        methodName += " < vo={0} >".format(vo)
+        methodName += f" < vo={vo} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
@@ -2599,18 +2595,16 @@ class DBProxy(OraDBProxy.DBProxy):
                """
 
         if exclude_rwq:
-            sql_jt += """
+            sql_jt += f"""
                AND workqueue_id NOT IN
-               (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
-               """.format(
-                jedi_config.db.schemaPANDA
-            )
+               (SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource')
+               """
 
         sql_jt += """
                GROUP BY computingSite, jobStatus, gshare
                """
 
-        tables = ["{0}.JOBS_SHARE_STATS".format(jedi_config.db.schemaPANDA), "{0}.JOBSDEFINED_SHARE_STATS".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS", f"{jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS"]
 
         return_map = {}
         try:
@@ -2645,7 +2639,7 @@ class DBProxy(OraDBProxy.DBProxy):
         """
         comment = " /* DBProxy.getJobStatisticsByResourceType */"
         methodName = self.getMethodName(comment)
-        methodName += " < workqueue={0} >".format(workqueue)
+        methodName += f" < workqueue={workqueue} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
@@ -2657,7 +2651,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
-            sql_jt += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
+            sql_jt += f"AND workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource') "
             var_map[":gshare"] = workqueue.queue_name
         else:
             sql_jt += "AND workqueue_id=:workqueue_id "
@@ -2665,7 +2659,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
         sql_jt += "GROUP BY jobstatus, resource_type "
 
-        tables = ["{0}.JOBS_SHARE_STATS".format(jedi_config.db.schemaPANDA), "{0}.JOBSDEFINED_SHARE_STATS".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS", f"{jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS"]
 
         return_map = {}
         try:
@@ -2694,7 +2688,7 @@ class DBProxy(OraDBProxy.DBProxy):
         """
         comment = " /* DBProxy.getJobStatisticsByResourceTypeSite */"
         methodName = self.getMethodName(comment)
-        methodName += " < workqueue={0} >".format(workqueue)
+        methodName += f" < workqueue={workqueue} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
@@ -2706,7 +2700,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
-            sql_jt += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
+            sql_jt += f"AND workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource') "
             var_map[":gshare"] = workqueue.queue_name
         else:
             sql_jt += "AND workqueue_id=:workqueue_id "
@@ -2714,7 +2708,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
         sql_jt += "GROUP BY jobstatus, resource_type, computingSite "
 
-        tables = ["{0}.JOBS_SHARE_STATS".format(jedi_config.db.schemaPANDA), "{0}.JOBSDEFINED_SHARE_STATS".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS", f"{jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS"]
 
         return_map = {}
         try:
@@ -2756,11 +2750,11 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.getOutputFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start with simul={0} instantiateTmpl={1} instantiatedSites={2}".format(simul, instantiateTmpl, instantiatedSites))
-        tmpLog.debug("isUnMerging={0} isPrePro={1} xmlConfigJob={2}".format(isUnMerging, isPrePro, type(xmlConfigJob)))
-        tmpLog.debug("middleName={0} registerDatasets={1} idPool={2}".format(middleName, registerDatasets, len(fileIDPool)))
+        tmpLog.debug(f"start with simul={simul} instantiateTmpl={instantiateTmpl} instantiatedSites={instantiatedSites}")
+        tmpLog.debug(f"isUnMerging={isUnMerging} isPrePro={isPrePro} xmlConfigJob={type(xmlConfigJob)}")
+        tmpLog.debug(f"middleName={middleName} registerDatasets={registerDatasets} idPool={len(fileIDPool)}")
         tmpLog.debug(f"n_files_per_chunk={n_files_per_chunk}")
         try:
             if instantiatedSites is None:
@@ -2775,36 +2769,36 @@ class DBProxy(OraDBProxy.DBProxy):
             maxSerialNr = None
             # sql to get dataset
             sqlD = "SELECT "
-            sqlD += "datasetID,datasetName,vo,masterID,status,type FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD += f"datasetID,datasetName,vo,masterID,status,type FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             if provenanceID is not None:
                 sqlD += "AND (provenanceID IS NULL OR provenanceID=:provenanceID) "
             # sql to read template
             sqlR = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName "
-            sqlR += "FROM {0}.JEDI_Output_Template ".format(jedi_config.db.schemaJEDI)
+            sqlR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Output_Template "
             sqlR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE"
             # sql to insert files
-            sqlI = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlI += JediFileSpec.bindValuesExpression()
             sqlI += " RETURNING fileID INTO :newFileID"
             # sql to insert files without fileID
-            sqlII = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlII = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlII += JediFileSpec.bindValuesExpression(useSeq=False)
             # sql to increment SN
-            sqlU = "UPDATE {0}.JEDI_Output_Template SET serialNr=serialNr+:diff ".format(jedi_config.db.schemaJEDI)
+            sqlU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Output_Template SET serialNr=serialNr+:diff "
             sqlU += "WHERE jediTaskID=:jediTaskID AND outTempID=:outTempID "
             # sql to instantiate template dataset
-            sqlT1 = "SELECT {0} FROM {1}.JEDI_Datasets ".format(JediDatasetSpec.columnNames(), jedi_config.db.schemaJEDI)
+            sqlT1 = f"SELECT {JediDatasetSpec.columnNames()} FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlT1 += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-            sqlT2 = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+            sqlT2 = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
             sqlT2 += JediDatasetSpec.bindValuesExpression()
             sqlT2 += "RETURNING datasetID INTO :newDatasetID "
             # sql to change concrete dataset name
-            sqlCN = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCN = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCN += "SET site=:site,datasetName=:datasetName,destination=:destination "
             sqlCN += " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to set masterID to concrete datasets
-            sqlMC = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlMC += "SET masterID=:masterID "
             sqlMC += " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # current current date
@@ -2853,7 +2847,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             # instantiate new datasets in each submission for premerged
                             if datasetID in siteDsMap and instantiatedSite in siteDsMap[datasetID]:
                                 fileDatasetID = siteDsMap[datasetID][instantiatedSite]
-                                tmpLog.debug("found concrete premerged datasetID={0}".format(fileDatasetID))
+                                tmpLog.debug(f"found concrete premerged datasetID={fileDatasetID}")
                             else:
                                 doInstantiate = True
                         else:
@@ -2880,7 +2874,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 # collect ID of dataset to be registered
                                 if resDT[-1] == "defined":
                                     datasetToRegister.append(fileDatasetID)
-                                tmpLog.debug("found concrete datasetID={0}".format(fileDatasetID))
+                                tmpLog.debug(f"found concrete datasetID={fileDatasetID}")
                             else:
                                 doInstantiate = True
                         if doInstantiate:
@@ -2905,7 +2899,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             if instantiatedSite is not None:
                                 # set concreate name
                                 cDatasetSpec.site = instantiatedSite
-                                cDatasetSpec.datasetName = re.sub("/*$", ".{0}".format(fileDatasetID), datasetName)
+                                cDatasetSpec.datasetName = re.sub("/*$", f".{fileDatasetID}", datasetName)
                                 # set destination
                                 if cDatasetSpec.destination in [None, ""]:
                                     cDatasetSpec.destination = cDatasetSpec.site
@@ -2916,7 +2910,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":site"] = cDatasetSpec.site
                                 varMap[":destination"] = cDatasetSpec.destination
                                 self.cur.execute(sqlCN + comment, varMap)
-                            tmpLog.debug("instantiated {0} datasetID={1}".format(cDatasetSpec.datasetName, fileDatasetID))
+                            tmpLog.debug(f"instantiated {cDatasetSpec.datasetName} datasetID={fileDatasetID}")
                             if masterID is not None:
                                 mstr_RelationMap[fileDatasetID] = (masterID, instantiatedSite)
                             # collect ID of dataset to be registered
@@ -3015,11 +3009,11 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMapsForSN.append(varMap)
             # bulk increment
             if len(varMapsForSN) > 0 and not simul:
-                tmpLog.debug("bulk increment {0} SNs".format(len(varMapsForSN)))
+                tmpLog.debug(f"bulk increment {len(varMapsForSN)} SNs")
                 self.cur.executemany(sqlU + comment, varMapsForSN)
             # bulk insert
             if len(varMapsForInsert) > 0 and not simul:
-                tmpLog.debug("bulk insert {0} files".format(len(varMapsForInsert)))
+                tmpLog.debug(f"bulk insert {len(varMapsForInsert)} files")
                 self.cur.executemany(sqlII + comment, varMapsForInsert)
             # set masterID to concrete datasets
             for fileDatasetID, (masterID, instantiatedSite) in mstr_RelationMap.items():
@@ -3034,7 +3028,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done indexFileID={0}".format(indexFileID))
+            tmpLog.debug(f"done indexFileID={indexFileID}")
             return outMap, maxSerialNr, datasetToRegister, siteDsMap, parallelOutMap
         except Exception:
             # roll back
@@ -3056,12 +3050,12 @@ class DBProxy(OraDBProxy.DBProxy):
             for template in templates:
                 # make sql
                 varMap = {}
-                sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,".format(jedi_config.db.schemaJEDI)
-                sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,".format(jedi_config.db.schemaJEDI)
+                sqlH = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Output_Template (outTempID,"
+                sqlL = f"VALUES({jedi_config.db.schemaJEDI}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,"
                 for tmpAttr, tmpVal in template.items():
                     tmpKey = ":" + tmpAttr
-                    sqlH += "{0},".format(tmpAttr)
-                    sqlL += "{0},".format(tmpKey)
+                    sqlH += f"{tmpAttr},"
+                    sqlL += f"{tmpKey},"
                     varMap[tmpKey] = tmpVal
                 sqlH = sqlH[:-1] + ") "
                 sqlL = sqlL[:-1] + ") "
@@ -3107,26 +3101,26 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName = self.getMethodName(comment)
         timeNow = datetime.datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
         if simTasks is not None:
-            methodName += " <jediTasks={0}>".format(str(simTasks))
+            methodName += f" <jediTasks={str(simTasks)}>"
         elif target_tasks:
-            methodName += " <jediTasks={0}>".format(str(target_tasks))
+            methodName += f" <jediTasks={str(target_tasks)}>"
         elif workQueue is None:
-            methodName += " <vo={0} queue={1} cloud={2} pid={3} {4}>".format(vo, None, cloudName, pid, timeNow)
+            methodName += f" <vo={vo} queue={None} cloud={cloudName} pid={pid} {timeNow}>"
         else:
-            methodName += " <vo={0} queue={1} cloud={2} pid={3} {4}>".format(vo, workQueue.queue_name, cloudName, pid, timeNow)
+            methodName += f" <vo={vo} queue={workQueue.queue_name} cloud={cloudName} pid={pid} {timeNow}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start label={0} nTasks={1} nFiles={2} minPriority={3}".format(prodSourceLabel, nTasks, nFiles, minPriority))
-        tmpLog.debug("maxNumJobs={0} typicalNumFilesMap={1}".format(maxNumJobs, str(typicalNumFilesMap)))
-        tmpLog.debug("simTasks={0} mergeUnThrottled={1}".format(str(simTasks), str(mergeUnThrottled)))
-        tmpLog.debug("numNewTaskWithJumbo={0}".format(numNewTaskWithJumbo))
+        tmpLog.debug(f"start label={prodSourceLabel} nTasks={nTasks} nFiles={nFiles} minPriority={minPriority}")
+        tmpLog.debug(f"maxNumJobs={maxNumJobs} typicalNumFilesMap={str(typicalNumFilesMap)}")
+        tmpLog.debug(f"simTasks={str(simTasks)} mergeUnThrottled={str(mergeUnThrottled)}")
+        tmpLog.debug(f"numNewTaskWithJumbo={numNewTaskWithJumbo}")
 
         memStart = JediCoreUtils.getMemoryUsage()
-        tmpLog.debug("memUsage start {0} MB pid={1}".format(memStart, os.getpid()))
+        tmpLog.debug(f"memUsage start {memStart} MB pid={os.getpid()}")
         # return value for failure
         failedRet = None
         # set max number of jobs if undefined
         if maxNumJobs is None:
-            tmpLog.debug("set maxNumJobs={0} since undefined ".format(maxNumJobs))
+            tmpLog.debug(f"set maxNumJobs={maxNumJobs} since undefined ")
         superHighPrioTaskRatio = self.getConfigValue("dbproxy", "SUPER_HIGH_PRIO_TASK_RATIO", "jedi")
         if superHighPrioTaskRatio is None:
             superHighPrioTaskRatio = 30
@@ -3139,7 +3133,7 @@ class DBProxy(OraDBProxy.DBProxy):
         try:
             # attribute for GROUP BY
             if workQueue is not None:
-                attrNameForGroupBy = self.getConfigValue("jobgen", "GROUPBYATTR_{0}".format(workQueue.queue_name), "jedi")
+                attrNameForGroupBy = self.getConfigValue("jobgen", f"GROUPBYATTR_{workQueue.queue_name}", "jedi")
             else:
                 attrNameForGroupBy = None
             if attrNameForGroupBy is None or attrNameForGroupBy not in JediTaskSpec.attributes:
@@ -3166,15 +3160,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":timeLimit"] = timeLimit
                 varMap[":useJumboLack"] = JediTaskSpec.enum_useJumbo["lack"]
                 sql = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
-                sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
+                sql += f"tabT.{attrNameForGroupBy},nFiles,nEvents,nFilesWaiting,tabT.useJumbo "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND tabT.vo=:vo "
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
-                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                        jedi_config.db.schemaJEDI
-                    )
+                    sql += f"AND workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                     varMap[":wq_name"] = workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -3188,9 +3180,9 @@ class DBProxy(OraDBProxy.DBProxy):
                     sql += "AND tabT.cloud=:cloud "
                 sql += "AND tabT.status IN ("
                 for tmpStat in JediTaskSpec.statusForJobGenerator():
-                    tmpKey = ":tstat_{0}".format(tmpStat)
+                    tmpKey = f":tstat_{tmpStat}"
                     varMap[tmpKey] = tmpStat
-                    sql += "{0},".format(tmpKey)
+                    sql += f"{tmpKey},"
                 sql = sql[:-1]
                 sql += ") "
                 sql += "AND tabT.lockedBy IS NULL "
@@ -3201,12 +3193,12 @@ class DBProxy(OraDBProxy.DBProxy):
                 if mergeUnThrottled is True:
                     for tmpType in JediDatasetSpec.getMergeProcessTypes():
                         mapKey = ":type_" + tmpType
-                        sql += "{0},".format(mapKey)
+                        sql += f"{mapKey},"
                         varMap[mapKey] = tmpType
                 else:
                     for tmpType in JediDatasetSpec.getProcessTypes():
                         mapKey = ":type_" + tmpType
-                        sql += "{0},".format(mapKey)
+                        sql += f"{mapKey},"
                         varMap[mapKey] = tmpType
                 sql = sql[:-1]
                 sql += "))"
@@ -3214,7 +3206,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     sql += "OR (tabT.useJumbo IS NOT NULL AND nFilesWaiting IS NOT NULL AND nFilesToBeUsed>(nFilesUsed+nFilesWaiting) AND type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
                         mapKey = ":type_" + tmpType
-                        sql += "{0},".format(mapKey)
+                        sql += f"{mapKey},"
                         varMap[mapKey] = tmpType
                     sql = sql[:-1]
                     sql += "))"
@@ -3225,17 +3217,17 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":minPriority"] = minPriority
                     sql += "AND currentPriority>=:minPriority "
                 sql += "AND NOT EXISTS "
-                sql += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-                sql += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+                sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
+                sql += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
                 sql += "AND type IN ("
                 if mergeUnThrottled is True:
                     for tmpType in JediDatasetSpec.getMergeProcessTypes():
                         mapKey = ":type_" + tmpType
-                        sql += "{0},".format(mapKey)
+                        sql += f"{mapKey},"
                 else:
                     for tmpType in JediDatasetSpec.getProcessTypes():
                         mapKey = ":type_" + tmpType
-                        sql += "{0},".format(mapKey)
+                        sql += f"{mapKey},"
                 sql = sql[:-1]
                 sql += ") AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5,:dsOKStatus6)) "
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
@@ -3243,34 +3235,34 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = {}
                 if not fullSimulation:
                     sql = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
-                    sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
+                    sql += f"tabT.{attrNameForGroupBy},nFiles,nEvents,nFilesWaiting,tabT.useJumbo "
                 else:
                     sql = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,"
-                    sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
-                sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI, jedi_config.db.schemaJEDI)
+                    sql += f"tabT.{attrNameForGroupBy},nFiles,nEvents,nFilesWaiting,tabT.useJumbo "
+                sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks tabT,{jedi_config.db.schemaJEDI}.JEDI_Datasets tabD "
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
                 if simTasks:
                     tasks_to_loop = simTasks
                 else:
                     tasks_to_loop = target_tasks
                 for tmpTaskIdx, tmpTaskID in enumerate(tasks_to_loop):
-                    tmpKey = ":jediTaskID{0}".format(tmpTaskIdx)
+                    tmpKey = f":jediTaskID{tmpTaskIdx}"
                     varMap[tmpKey] = tmpTaskID
-                    sql += "{0},".format(tmpKey)
+                    sql += f"{tmpKey},"
                 sql = sql[:-1]
                 sql += ") AND type IN ("
                 for tmpType in JediDatasetSpec.getProcessTypes():
                     mapKey = ":type_" + tmpType
-                    sql += "{0},".format(mapKey)
+                    sql += f"{mapKey},"
                     varMap[mapKey] = tmpType
                 sql = sql[:-1]
                 sql += ") AND masterID IS NULL "
                 if simDatasets is not None:
                     sql += "AND tabD.datasetID IN ("
                     for tmpDsIdx, tmpDatasetID in enumerate(simDatasets):
-                        tmpKey = ":datasetID{0}".format(tmpDsIdx)
+                        tmpKey = f":datasetID{tmpDsIdx}"
                         varMap[tmpKey] = tmpDatasetID
-                        sql += "{0},".format(tmpKey)
+                        sql += f"{tmpKey},"
                     sql = sql[:-1]
                     sql += ") "
                 if not fullSimulation:
@@ -3408,21 +3400,21 @@ class DBProxy(OraDBProxy.DBProxy):
                                 else:
                                     break
             # sql to read task
-            sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRT = f"SELECT {JediTaskSpec.columnNames()} "
+            sqlRT += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB "
             if not ignore_lock:
                 sqlRT += "AND lockedBy IS NULL "
             if simTasks is None:
                 sqlRT += "FOR UPDATE NOWAIT "
             # sql to read locked task
-            sqlRL = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRL += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRL = f"SELECT {JediTaskSpec.columnNames()} "
+            sqlRL += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlRL += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy=:newLockedBy "
             if simTasks is None:
                 sqlRL += "FOR UPDATE NOWAIT "
             # sql to lock task
-            sqlLock = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
+            sqlLock = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks  "
             sqlLock += "SET lockedBy=:newLockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL AND modificationTime<:timeLimit "
             # sql to put the task in pending
@@ -3430,16 +3422,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 jedi_config.db.schemaJEDI
             )
             # sql to read template
-            sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlJobP = f"SELECT jobParamsTemplate FROM {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID "
             # sql to read datasets
-            sqlRD = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlRD += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if simTasks is None:
                 sqlRD += "FOR UPDATE NOWAIT "
             # sql to read files
-            sqlFR = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"SELECT * FROM (SELECT {JediFileSpec.columnNames()} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
@@ -3453,8 +3445,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 "jediTaskID=:jediTaskID AND datasetID=:datasetID ", "jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ", sqlFR
             )
             # For the cases where the ram count is not set
-            sqlFR_RCNull = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR_RCNull += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR_RCNull = f"SELECT * FROM (SELECT {JediFileSpec.columnNames()} "
+            sqlFR_RCNull += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR_RCNull += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if not fullSimulation:
                 sqlFR_RCNull += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
@@ -3469,8 +3461,8 @@ class DBProxy(OraDBProxy.DBProxy):
             )
 
             # sql to read files without ramcount
-            sqlFRNR = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFRNR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFRNR = f"SELECT * FROM (SELECT {JediFileSpec.columnNames()} "
+            sqlFRNR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFRNR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if not fullSimulation:
                 sqlFRNR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
@@ -3483,10 +3475,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 "jediTaskID=:jediTaskID AND datasetID=:datasetID ", "jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ", sqlFRNR
             )
             # sql to read memory requirements of files in dataset
-            sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents
-                       WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID """.format(
-                jedi_config.db.schemaJEDI
-            )
+            sqlRM = f"""SELECT ramCount FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents
+                       WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID """
             if not fullSimulation:
                 sqlRM += """AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt)
                             AND (maxFailure IS NULL OR failedAttempt<maxFailure) """
@@ -3501,32 +3491,32 @@ class DBProxy(OraDBProxy.DBProxy):
             )
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
-            sqlDU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesUsed=:nFilesUsed "
 
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
             # sql to read DN
-            sqlDN = "SELECT dn FROM {0}.users WHERE name=:name ".format(jedi_config.db.schemaMETA)
+            sqlDN = f"SELECT dn FROM {jedi_config.db.schemaMETA}.users WHERE name=:name "
             # sql to count the number of files for avalanche
-            sqlAV = "SELECT SUM(nFiles-nFilesToBeUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV = f"SELECT SUM(nFiles-nFilesToBeUsed) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlAV += "{0},".format(mapKey)
+                sqlAV += f"{mapKey},"
             sqlAV = sqlAV[:-1]
             sqlAV += ") AND masterID IS NULL "
             # sql to check datasets with empty requirements
-            sqlCER = "SELECT status,attemptNr,maxAttempt,failedAttempt,maxFailure FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCER = f"SELECT status,attemptNr,maxAttempt,failedAttempt,maxFailure FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCER += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-            sqlCDD = "SELECT nFilesUsed,nFilesToBeUsed,nFilesFinished,nFilesFailed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCDD = f"SELECT nFilesUsed,nFilesToBeUsed,nFilesFinished,nFilesFailed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCDD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update datasets with empty requirements
-            sqlUER = "UPDATE {0}.JEDI_Datasets SET status=:status ".format(jedi_config.db.schemaJEDI)
+            sqlUER = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status "
             sqlUER += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update datasets with empty requirements
-            sqlUFU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
+            sqlUFU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesUsed=:nFilesUsed "
             sqlUFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-            sqlUFB = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed ".format(jedi_config.db.schemaJEDI)
+            sqlUFB = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed "
             sqlUFB += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to get number of events
             sqlGNE = ("SELECT COUNT(*),datasetID FROM {0}.JEDI_Events " "WHERE jediTaskID=:jediTaskID AND status=:eventStatus " "GROUP BY datasetID ").format(
@@ -3550,7 +3540,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 ") GROUP BY datasetID"
             ).format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
             # sql to set frozenTime
-            sqlFZT = "UPDATE {0}.JEDI_Tasks SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlFZT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID "
             # sql to check files
             selCKF = f"SELECT nFilesToBeUsed-nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # loop over all tasks
@@ -3583,20 +3573,16 @@ class DBProxy(OraDBProxy.DBProxy):
                             dsWithfakeCoJumbo.add(datasetID)
                     if not containMerging and len(dsWithfakeCoJumbo) == 0:
                         tmpLog.debug(
-                            "skipping no pmerge or jumbo jediTaskID={0} {1}/{2}/{3} prio={4}".format(
-                                jediTaskID, tmpIdxTask, len(jediTaskIDList), iTasks, taskPrioMap[jediTaskID]
-                            )
+                            f"skipping no pmerge or jumbo jediTaskID={jediTaskID} {tmpIdxTask}/{len(jediTaskIDList)}/{iTasks} prio={taskPrioMap[jediTaskID]}"
                         )
 
                         continue
                 tmpLog.debug(
-                    "getting jediTaskID={0} {1}/{2}/{3} prio={4} by={5}".format(
-                        jediTaskID, tmpIdxTask, len(jediTaskIDList), iTasks, taskPrioMap[jediTaskID], taskUserMap[jediTaskID]
-                    )
+                    f"getting jediTaskID={jediTaskID} {tmpIdxTask}/{len(jediTaskIDList)}/{iTasks} prio={taskPrioMap[jediTaskID]} by={taskUserMap[jediTaskID]}"
                 )
                 # locked by another
                 if jediTaskID in lockedByAnother:
-                    tmpLog.debug("skip locked by another jediTaskID={0}".format(jediTaskID))
+                    tmpLog.debug(f"skip locked by another jediTaskID={jediTaskID}")
                     continue
                 # begin transaction
                 self.conn.begin()
@@ -3618,7 +3604,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # locked by another
                     if resRT is None:
                         toSkip = True
-                        tmpLog.debug("skip locked jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip locked jediTaskID={jediTaskID}")
                         lockedByAnother.append(jediTaskID)
                         if not self._commit():
                             raise RuntimeError("Commit error")
@@ -3649,7 +3635,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # skip fake co-jumbo for scouting
                     if not containMerging and len(dsWithfakeCoJumbo) > 0 and origTaskSpec.useScout() and not origTaskSpec.isPostScout():
                         toSkip = True
-                        tmpLog.debug("skip scouting jumbo jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip scouting jumbo jediTaskID={jediTaskID}")
                         if not self._commit():
                             raise RuntimeError("Commit error")
                         continue
@@ -3664,7 +3650,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.cur.execute(sqlLock + comment, varMap)
                         nRow = self.cur.rowcount
                         if nRow != 1:
-                            tmpLog.debug("failed to lock jediTaskID={0}".format(jediTaskID))
+                            tmpLog.debug(f"failed to lock jediTaskID={jediTaskID}")
                             lockedByAnother.append(jediTaskID)
                             toSkip = True
                             if not self._commit():
@@ -3678,7 +3664,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
-                        tmpLog.debug("skip locked with NOWAIT jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip locked with NOWAIT jediTaskID={jediTaskID}")
                         if not self._commit():
                             raise RuntimeError("Commit error")
                         continue
@@ -3715,14 +3701,14 @@ class DBProxy(OraDBProxy.DBProxy):
                         if resDN is None:
                             # no user info
                             toSkip = True
-                            tmpLog.error("skipped since failed to get DN for {0} jediTaskID={1}".format(origTaskSpec.userName, jediTaskID))
+                            tmpLog.error(f"skipped since failed to get DN for {origTaskSpec.userName} jediTaskID={jediTaskID}")
                         else:
                             origTaskSpec.origUserName = origTaskSpec.userName
                             (origTaskSpec.userName,) = resDN
                             if origTaskSpec.userName in ["", None]:
                                 # DN is empty
                                 toSkip = True
-                                tmpLog.error("skipped since DN is empty for {0} jediTaskID={1}".format(origTaskSpec.userName, jediTaskID))
+                                tmpLog.error(f"skipped since DN is empty for {origTaskSpec.userName} jediTaskID={jediTaskID}")
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr("userName")
@@ -3733,7 +3719,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # number of jobs
                         numMaxHpoJobs = origTaskSpec.get_max_num_jobs()
                         if numMaxHpoJobs is not None:
-                            sqlNTJ = "SELECT total_req_jobs FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                            sqlNTJ = f"SELECT total_req_jobs FROM {jedi_config.db.schemaDEFT}.T_TASK "
                             sqlNTJ += "WHERE taskid=:taskid "
                             varMap = {}
                             varMap[":taskID"] = jediTaskID
@@ -3745,9 +3731,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":status"] = origTaskSpec.status
                                 varMap[":err"] = "skipped max number of HPO jobs reached"
                                 self.cur.execute(sqlPDG + comment, varMap)
-                                tmpLog.debug(
-                                    ("jediTaskID={0} to finish due to maxNumHpoJobs={1} " "numHpoJobs={2}").format(jediTaskID, numMaxHpoJobs, tmpNumHpoJobs)
-                                )
+                                tmpLog.debug(f"jediTaskID={jediTaskID} to finish due to maxNumHpoJobs={numMaxHpoJobs} numHpoJobs={tmpNumHpoJobs}")
                                 if not self._commit():
                                     raise RuntimeError("Commit error")
                                 # send finish command
@@ -3800,9 +3784,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":frozenTime"] = None
                                 self.cur.execute(sqlFZT + comment, varMap)
                             tmpLog.debug(
-                                ("HPO jediTaskID={0} skipped due to nSamplesToEvaluate={1} " "nReadyWorkers={2}").format(
-                                    jediTaskID, totalNumEventsHPO, totalNumWorkersHPO
-                                )
+                                f"HPO jediTaskID={jediTaskID} skipped due to nSamplesToEvaluate={totalNumEventsHPO} nReadyWorkers={totalNumWorkersHPO}"
                             )
                             if not self._commit():
                                 raise RuntimeError("Commit error")
@@ -3853,11 +3835,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         if 0 in memReqs and None in memReqs:
                             memReqs.remove(None)
 
-                        tmpLog.debug(
-                            "memory requirements for files in jediTaskID=%s datasetID=%s type=%s are: %s" % (jediTaskID, datasetID, datasetType, memReqs)
-                        )
+                        tmpLog.debug(f"memory requirements for files in jediTaskID={jediTaskID} datasetID={datasetID} type={datasetType} are: {memReqs}")
                         if not memReqs:
-                            tmpLog.debug("skip jediTaskID={0} datasetID={1} since memory requirements are empty".format(jediTaskID, primaryDatasetID))
+                            tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={primaryDatasetID} since memory requirements are empty")
                             varMap = dict()
                             varMap[":jediTaskID"] = jediTaskID
                             varMap[":datasetID"] = primaryDatasetID
@@ -3898,7 +3878,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             tmpMsg = "jediTaskID={} datasetID={} to check due to empty memory requirements :" " nDone={} nActive={} nReady={} ".format(
                                 jediTaskID, primaryDatasetID, nDone, nActive, nReady
                             )
-                            tmpMsg += "nRunning={} nFinished={} nFailed={} nUnknown={} nLost={} ".format(nRunning, nFinished, nFailed, nUnknown, nLost)
+                            tmpMsg += f"nRunning={nRunning} nFinished={nFinished} nFailed={nFailed} nUnknown={nUnknown} nLost={nLost} "
                             tmpMsg += "ds.nFilesUsed={} nFilesToBeUsed={} ds.nFilesFinished={} " "ds.nFilesFailed={}".format(
                                 cdd_nFilesUsed, cdd_nFilesToBeUsed, cdd_nFilesFinished, cdd_nFilesFailed
                             )
@@ -3929,9 +3909,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":datasetID"] = primaryDatasetID
                                 varMap[":status"] = "finished"
                                 self.cur.execute(sqlUER + comment, varMap)
-                                tmpLog.debug(
-                                    "jediTaskID={} datasetID={} set status=finished " "to fix empty memory requirements".format(jediTaskID, primaryDatasetID)
-                                )
+                                tmpLog.debug(f"jediTaskID={jediTaskID} datasetID={primaryDatasetID} set status=finished to fix empty memory requirements")
                             continue
                         else:
                             # make InputChunks by ram count
@@ -3949,7 +3927,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 # set jumbo flag only to the first chunk
                                 if datasetID in dsWithfakeCoJumbo:
                                     if origTaskSpec.useScout() and not origTaskSpec.isPostScout():
-                                        tmpLog.debug("skip jediTaskID={0} datasetID={1} due to jumbo for scouting".format(jediTaskID, primaryDatasetID))
+                                        tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={primaryDatasetID} due to jumbo for scouting")
                                         continue
                                     inputChunks[0].useJumbo = "fake"
                                 else:
@@ -3964,12 +3942,12 @@ class DBProxy(OraDBProxy.DBProxy):
                             else:
                                 # only process merging or jumbo if enough jobs are already generated
                                 if maxNumJobs is not None and maxNumJobs <= 0:
-                                    tmpLog.debug("skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs".format(jediTaskID, primaryDatasetID))
+                                    tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={primaryDatasetID} due to non-merge + enough jobs")
                                     continue
                         # read secondary dataset IDs
                         if not toSkip:
                             # sql to get seconday dataset list
-                            sqlDS = "SELECT datasetID FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+                            sqlDS = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
                             if not fullSimulation:
                                 sqlDS += "AND nFilesToBeUsed >= nFilesUsed AND type IN ("
                             else:
@@ -3980,13 +3958,13 @@ class DBProxy(OraDBProxy.DBProxy):
                                 for tmpType in JediDatasetSpec.getInputTypes():
                                     mapKey = ":type_" + tmpType
                                     varMap[mapKey] = tmpType
-                                    sqlDS += "{0},".format(mapKey)
+                                    sqlDS += f"{mapKey},"
                             else:
                                 # for merge process
                                 for tmpType in JediDatasetSpec.getMergeProcessTypes():
                                     mapKey = ":type_" + tmpType
                                     varMap[mapKey] = tmpType
-                                    sqlDS += "{0},".format(mapKey)
+                                    sqlDS += f"{mapKey},"
                             sqlDS = sqlDS[:-1]
                             if simTasks is None:
                                 sqlDS += ") AND status=:dsStatus "
@@ -4030,7 +4008,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     if self.isNoWaitException(errValue):
                                         # resource busy and acquire with NOWAIT specified
                                         toSkip = True
-                                        tmpLog.debug("skip locked jediTaskID={0} datasetID={1}".format(jediTaskID, datasetID))
+                                        tmpLog.debug(f"skip locked jediTaskID={jediTaskID} datasetID={datasetID}")
                                     else:
                                         # failed with something else
                                         raise errType(errValue)
@@ -4072,7 +4050,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             ):
                                 # typical usage
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
-                            tmpLog.debug("jediTaskID={0} typicalNumFilesPerJob={1}".format(jediTaskID, typicalNumFilesPerJob))
+                            tmpLog.debug(f"jediTaskID={jediTaskID} typicalNumFilesPerJob={typicalNumFilesPerJob}")
                             # max number of files based on typical usage
                             if maxNumJobs is not None and not inputChunks[0].isMerging and not inputChunks[0].useScout():
                                 maxNumFiles = min(nFiles, typicalNumFilesPerJob * maxNumJobs + 10)
@@ -4186,7 +4164,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                                 self.cur.execute(sqlFU + comment, varMap)
                                                 nFileRow = self.cur.rowcount
                                                 if nFileRow != 1 and not (useJumbo == JediTaskSpec.enum_useJumbo["lack"] and origTmpNumFiles == 0):
-                                                    tmpLog.debug("skip fileID={0} already used by another".format(tmpFileSpec.fileID))
+                                                    tmpLog.debug(f"skip fileID={tmpFileSpec.fileID} already used by another")
                                                     continue
                                             # add to InputChunk
                                             tmpDatasetSpec.addFile(tmpFileSpec)
@@ -4239,8 +4217,8 @@ class DBProxy(OraDBProxy.DBProxy):
                                         if enoughSecondary:
                                             break
                                         # duplicate files for reuse
-                                        tmpStr = "jediTaskID={0} try to increase files for datasetID={1} ".format(jediTaskID, tmpDatasetSpec.datasetID)
-                                        tmpStr += "since only {0}/{1} files were read ".format(iFiles_tmp, numFilesTobeReadInCycle)
+                                        tmpStr = f"jediTaskID={jediTaskID} try to increase files for datasetID={tmpDatasetSpec.datasetID} "
+                                        tmpStr += f"since only {iFiles_tmp}/{numFilesTobeReadInCycle} files were read "
                                         if tmpDatasetSpec.getEventRatio() is not None:
                                             tmpStr += "or {0} events is less than {1}*{2} ".format(
                                                 totEvtSecond, tmpDatasetSpec.getEventRatio(), sum(totalEvents[inputChunk.masterDataset.datasetID])
@@ -4248,10 +4226,10 @@ class DBProxy(OraDBProxy.DBProxy):
                                         tmpLog.debug(tmpStr)
                                         if not tmpDatasetSpec.isSeqNumber():
                                             nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
-                                            tmpLog.debug("jediTaskID={0} {1} files were duplicated".format(jediTaskID, nNewRec))
+                                            tmpLog.debug(f"jediTaskID={jediTaskID} {nNewRec} files were duplicated")
                                         else:
                                             nNewRec = self.increaseSeqNumber_JEDI(tmpDatasetSpec, numFilesTobeReadInCycle - iFiles_tmp)
-                                            tmpLog.debug("jediTaskID={0} {1} seq nums were added".format(jediTaskID, nNewRec))
+                                            tmpLog.debug(f"jediTaskID={jediTaskID} {nNewRec} seq nums were added")
                                         if nNewRec == 0:
                                             break
 
@@ -4261,7 +4239,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     if iFiles[datasetID] == 0:
                                         # no input files
                                         if not readMinFiles or not tmpDatasetSpec.isPseudo():
-                                            tmpLog.debug("jediTaskID={0} datasetID={1} has no files to be processed".format(jediTaskID, datasetID))
+                                            tmpLog.debug(f"jediTaskID={jediTaskID} datasetID={datasetID} has no files to be processed")
                                             # toSkip = True
                                             break
                                     elif (
@@ -4306,7 +4284,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 if maxNumJobs is not None and not inputChunk.isMerging:
                                     maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files)) / float(typicalNumFilesPerJob)))
                         else:
-                            tmpLog.debug("escape due to toSkip for jediTaskID={0} datasetID={1}".format(jediTaskID, primaryDatasetID))
+                            tmpLog.debug(f"escape due to toSkip for jediTaskID={jediTaskID} datasetID={primaryDatasetID}")
                             break
                         if iDsPerTask > nDsPerTask:
                             break
@@ -4316,9 +4294,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         try:
                             memLimit = 1 * 1024
                             memNow = JediCoreUtils.getMemoryUsage()
-                            tmpLog.debug("memUsage now {0} MB pid={1}".format(memNow, os.getpid()))
+                            tmpLog.debug(f"memUsage now {memNow} MB pid={os.getpid()}")
                             if memNow - memStart > memLimit:
-                                tmpLog.warning("memory limit exceeds {0}-{1} > {2} MB : jediTaskID={3}".format(memNow, memStart, memLimit, jediTaskID))
+                                tmpLog.warning(f"memory limit exceeds {memNow}-{memStart} > {memLimit} MB : jediTaskID={jediTaskID}")
                                 memoryExceed = True
                                 break
                         except Exception:
@@ -4330,7 +4308,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if not self._commit():
                         raise RuntimeError("Commit error")
                 else:
-                    tmpLog.debug("rollback for jediTaskID={0}".format(jediTaskID))
+                    tmpLog.debug(f"rollback for jediTaskID={jediTaskID}")
                     # roll back
                     self._rollback()
                 # enough tasks
@@ -4342,12 +4320,12 @@ class DBProxy(OraDBProxy.DBProxy):
                 # memory limit exceeds
                 if memoryExceed:
                     break
-            tmpLog.debug("returning {0} tasks".format(iTasks))
+            tmpLog.debug(f"returning {iTasks} tasks")
             # change map to list
             returnList = []
             for tmpJediTaskID, tmpTaskDsList in returnMap.items():
                 returnList.append((tmpJediTaskID, tmpTaskDsList))
-            tmpLog.debug("memUsage end {0} MB pid={1}".format(JediCoreUtils.getMemoryUsage(), os.getpid()))
+            tmpLog.debug(f"memUsage end {JediCoreUtils.getMemoryUsage()} MB pid={os.getpid()}")
             return returnList
         except Exception:
             # roll back
@@ -4360,12 +4338,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def insertJobParamsTemplate_JEDI(self, jediTaskID, templ):
         comment = " /* JediDBProxy.insertJobParamsTemplate_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # SQL
-            sql = "INSERT INTO {0}.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) ".format(jedi_config.db.schemaJEDI)
+            sql = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             varMap[":templ"] = templ
@@ -4389,17 +4367,17 @@ class DBProxy(OraDBProxy.DBProxy):
     def insertTaskParams_JEDI(self, vo, prodSourceLabel, userName, taskName, taskParams, parent_tid=None):
         comment = " /* JediDBProxy.insertTaskParams_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += "<userName={0} taskName={1}>".format(userName, taskName)
+        methodName += f"<userName={userName} taskName={taskName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to insert task parameters
-            sqlT = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlT = f"INSERT INTO {jedi_config.db.schemaDEFT}.T_TASK "
             sqlT += "(taskid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters,parent_tid) VALUES "
-            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
+            sqlT += f"({jedi_config.db.schemaDEFT}.PRODSYS2_TASK_ID_SEQ.nextval,"
             sqlT += ":status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param,"
             if parent_tid is None:
-                sqlT += "{0}.PRODSYS2_TASK_ID_SEQ.currval) ".format(jedi_config.db.schemaDEFT)
+                sqlT += f"{jedi_config.db.schemaDEFT}.PRODSYS2_TASK_ID_SEQ.currval) "
             else:
                 sqlT += ":parent_tid) "
             sqlT += "RETURNING taskid INTO :jediTaskID"
@@ -4423,7 +4401,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
 
-            tmpLog.debug("done new jediTaskID={0}".format(jediTaskID))
+            tmpLog.debug(f"done new jediTaskID={jediTaskID}")
             return True, jediTaskID
         except Exception:
             # roll back
@@ -4436,18 +4414,18 @@ class DBProxy(OraDBProxy.DBProxy):
     def insertUpdateTaskParams_JEDI(self, jediTaskID, vo, prodSourceLabel, updateTaskParams, insertTaskParamsList):
         comment = " /* JediDBProxy.insertUpdateTaskParams_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += "<jediTaskID={0}>".format(jediTaskID)
+        methodName += f"<jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to insert new task parameters
-            sqlIT = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlIT = f"INSERT INTO {jedi_config.db.schemaDEFT}.T_TASK "
             sqlIT += "(taskid,status,submit_time,vo,prodSourceLabel,jedi_task_parameters,parent_tid) VALUES "
-            sqlIT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
+            sqlIT += f"({jedi_config.db.schemaDEFT}.PRODSYS2_TASK_ID_SEQ.nextval,"
             sqlIT += ":status,CURRENT_DATE,:vo,:prodSourceLabel,:param,:parent_tid) "
             sqlIT += "RETURNING taskid INTO :jediTaskID"
             # sql to update parent task parameters
-            sqlUT = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
+            sqlUT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_TaskParams SET taskParams=:taskParams "
             sqlUT += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -4473,7 +4451,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done new jediTaskIDs={0}".format(str(newJediTaskIDs)))
+            tmpLog.debug(f"done new jediTaskIDs={str(newJediTaskIDs)}")
             return True, newJediTaskIDs
         except Exception:
             # roll back
@@ -4486,20 +4464,20 @@ class DBProxy(OraDBProxy.DBProxy):
     def resetUnusedFiles_JEDI(self, jediTaskID, inputChunk):
         comment = " /* JediDBProxy.resetUnusedFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             nFileRowMaster = 0
             # sql to rollback files
-            sql = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents SET status=:nStatus "
             sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus "
             if inputChunk.ramCount in (None, 0):
                 sql += "AND (ramCount IS NULL OR ramCount=:ramCount) "
             else:
                 sql += "AND ramCount=:ramCount "
             # sql to reset nFilesUsed
-            sqlD = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
             sqlD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # begin transaction
             self.conn.begin()
@@ -4513,7 +4491,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # update contents
                 self.cur.execute(sql + comment, varMap)
                 nFileRow = self.cur.rowcount
-                tmpLog.debug("reset {0} rows for datasetID={1}".format(nFileRow, datasetSpec.datasetID))
+                tmpLog.debug(f"reset {nFileRow} rows for datasetID={datasetSpec.datasetID}")
                 if nFileRow > 0:
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -4539,15 +4517,15 @@ class DBProxy(OraDBProxy.DBProxy):
     def setMissingFiles_JEDI(self, jediTaskID, datasetID, fileIDs):
         comment = " /* JediDBProxy.setMissingFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to set missing files
-            sqlF = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents SET status=:nStatus "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID and status<>:nStatus"
             # sql to set nFilesFailed
-            sqlD = "UPDATE {0}.JEDI_Datasets SET nFilesFailed=nFilesFailed+:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesFailed=nFilesFailed+:nFileRow "
             sqlD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # begin transaction
             self.conn.begin()
@@ -4572,7 +4550,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done set {0} missing files".format(nFileRow))
+            tmpLog.debug(f"done set {nFileRow} missing files")
             return True
         except Exception:
             # roll back
@@ -4585,7 +4563,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def rescuePickedFiles_JEDI(self, vo, prodSourceLabel, waitTime):
         comment = " /* JediDBProxy.rescuePickedFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -4599,22 +4577,22 @@ class DBProxy(OraDBProxy.DBProxy):
             if prodSourceLabel not in [None, "any"]:
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel "
             # sql to get picked datasets
-            sqlDP = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDP = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4,:type5) "
             # sql to rollback files
-            sqlF = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents SET status=:nStatus "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
             # sql to reset nFilesUsed
-            sqlDU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to unlock task
-            sqlTU = "UPDATE {0}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # sql to re-lock task
-            sqlRL = "UPDATE {0}.JEDI_Tasks SET lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlRL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedTime=CURRENT_DATE "
             sqlRL += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
             # sql to re-lock task with nowait
-            sqlNW = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlNW = f"SELECT jediTaskID FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlNW += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
             sqlNW += "FOR UPDATE NOWAIT "
             # begin transaction
@@ -4640,7 +4618,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # loop over all tasks
             nTasks = 0
             for jediTaskID, lockedBy in resTaskList:
-                tmpLog.debug("[jediTaskID={0}] rescue".format(jediTaskID))
+                tmpLog.debug(f"[jediTaskID={jediTaskID}] rescue")
                 self.conn.begin()
                 # re-lock the task with NOWAIT
                 varMap = {}
@@ -4653,7 +4631,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 except Exception:
                     errType, errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
-                        tmpLog.debug("[jediTaskID={0}] skip to rescue since locked by another".format(jediTaskID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID}] skip to rescue since locked by another")
                         toSkip = True
                     else:
                         # failed with something else
@@ -4667,7 +4645,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.cur.execute(sqlRL + comment, varMap)
                     nRow = self.cur.rowcount
                     if nRow == 0:
-                        tmpLog.debug("[jediTaskID={0}] skip to rescue since failed to re-lock".format(jediTaskID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID}] skip to rescue since failed to re-lock")
                     else:
                         # get input datasets
                         varMap = {}
@@ -4690,7 +4668,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":keepTrack"] = 1
                             self.cur.execute(sqlF + comment, varMap)
                             nFileRow = self.cur.rowcount
-                            tmpLog.debug("[jediTaskID={0}] reset {1} rows for datasetID={2}".format(jediTaskID, nFileRow, datasetID))
+                            tmpLog.debug(f"[jediTaskID={jediTaskID}] reset {nFileRow} rows for datasetID={datasetID}")
                             if nFileRow > 0:
                                 # reset nFilesUsed
                                 varMap = {}
@@ -4699,12 +4677,12 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":nFileRow"] = nFileRow
                                 self.cur.execute(sqlDU + comment, varMap)
                         # unlock task
-                        tmpLog.debug("[jediTaskID={0}] unlock".format(jediTaskID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID}] unlock")
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
                         self.cur.execute(sqlTU + comment, varMap)
                         nRows = self.cur.rowcount
-                        tmpLog.debug("[jediTaskID={0}] done with nRows={1}".format(jediTaskID, nRows))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID}] done with nRows={nRows}")
                         if nRows == 1:
                             nTasks += 1
                 # commit
@@ -4723,7 +4701,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def rescueUnLockedTasksWithPicked_JEDI(self, vo, prodSourceLabel, waitTime, pid):
         comment = " /* JediDBProxy.rescueUnLockedTasksWithPicked_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -4752,20 +4730,20 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRL += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getProcessTypes():
                 mapKey = ":type_" + tmpType
-                sqlRL += "{0},".format(mapKey)
+                sqlRL += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sqlRL = sqlRL[:-1]
             sqlRL += ") "
             # sql to check if there is picked file
-            sqlDP = "SELECT * FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlDP = f"SELECT * FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlDP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:fileStatus AND rownum<2 "
             # sql to set dummy lock to task
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET lockedBy=:lockedBy,lockedTime=:lockedTime,rescueTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL AND lockedTime IS NULL "
             sqlTU += "AND modificationTime<:timeLimit "
             # sql to lock task with nowait
-            sqlNW = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlNW = f"SELECT jediTaskID FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlNW += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL AND lockedTime IS NULL "
             sqlNW += "AND (rescueTime IS NULL OR rescueTime<:timeLimit) "
             sqlNW += "FOR UPDATE NOWAIT "
@@ -4783,7 +4761,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if jediTaskID not in taskDsMap:
                     taskDsMap[jediTaskID] = []
                 taskDsMap[jediTaskID].append(datasetID)
-            tmpLog.debug("got {0} tasks".format(len(taskDsMap)))
+            tmpLog.debug(f"got {len(taskDsMap)} tasks")
             # loop over all tasks
             ngTasks = set()
             for jediTaskID, datasetIDs in taskDsMap.items():
@@ -4797,12 +4775,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.cur.execute(sqlNW + comment, varMap)
                     resNW = self.cur.fetchone()
                     if resNW is None:
-                        tmpLog.debug("[jediTaskID={0} datasetID={1}] skip since checked by another".format(jediTaskID, datasetID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID} datasetID={datasetID}] skip since checked by another")
                         toSkip = True
                 except Exception:
                     errType, errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
-                        tmpLog.debug("[jediTaskID={0} datasetID={1}] skip since locked by another".format(jediTaskID, datasetID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID} datasetID={datasetID}] skip since locked by another")
                         toSkip = True
                     else:
                         # failed with something else
@@ -4811,7 +4789,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # loop over all datasets
                     allOK = True
                     for datasetID in datasetIDs:
-                        tmpLog.debug("[jediTaskID={0} datasetID={1}] to check".format(jediTaskID, datasetID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID} datasetID={datasetID}] to check")
                         # check if there is picked file
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
@@ -4836,16 +4814,16 @@ class DBProxy(OraDBProxy.DBProxy):
                     else:
                         varMap[":lockedBy"] = pid
                         varMap[":lockedTime"] = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
-                        tmpLog.debug("[jediTaskID={0} datasetID={1}] set dummy lock to trigger rescue".format(jediTaskID, datasetID))
+                        tmpLog.debug(f"[jediTaskID={jediTaskID} datasetID={datasetID}] set dummy lock to trigger rescue")
                         ngTasks.add(jediTaskID)
                     self.cur.execute(sqlTU + comment, varMap)
                     nRow = self.cur.rowcount
-                    tmpLog.debug("[jediTaskID={0}] done with {1}".format(jediTaskID, nRow))
+                    tmpLog.debug(f"[jediTaskID={jediTaskID}] done with {nRow}")
                 # commit
                 if not self._commit():
                     raise RuntimeError("Commit error")
             nTasks = len(ngTasks)
-            tmpLog.debug("done {0} stuck tasks".format(nTasks))
+            tmpLog.debug(f"done {nTasks} stuck tasks")
             return nTasks
         except Exception:
             # roll back
@@ -4858,12 +4836,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def unlockTasks_JEDI(self, vo, prodSourceLabel, waitTime, hostName, pgid):
         comment = " /* JediDBProxy.unlockTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} host={2} pgid={3}>".format(vo, prodSourceLabel, hostName, pgid)
+        methodName += f" <vo={vo} label={prodSourceLabel} host={hostName} pgid={pgid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to look for locked tasks
-            sqlTR = "SELECT jediTaskID,lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTR = f"SELECT jediTaskID,lockedBy,lockedTime FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTR += "WHERE lockedBy IS NOT NULL AND lockedTime<:timeLimit "
             if vo not in [None, "", "any"]:
                 sqlTR += "AND vo=:vo "
@@ -4872,18 +4850,18 @@ class DBProxy(OraDBProxy.DBProxy):
             if hostName is not None:
                 sqlTR += "AND lockedBy LIKE :patt "
             # sql to unlock
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
             timeNow = datetime.datetime.utcnow()
             # sql to get picked datasets
-            sqlDP = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDP = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4,:type5) "
             # sql to rollback files
-            sqlF = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents SET status=:nStatus "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
             # sql to reset nFilesUsed
-            sqlDU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # begin transaction
             self.conn.begin()
@@ -4897,7 +4875,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if prodSourceLabel not in [None, "", "any"]:
                 varMap[":prodSourceLabel"] = prodSourceLabel
             if hostName is not None:
-                varMap[":patt"] = "{0}-%".format(hostName)
+                varMap[":patt"] = f"{hostName}-%"
             self.cur.execute(sqlTR + comment, varMap)
             taskList = self.cur.fetchall()
             # unlock tasks
@@ -4908,7 +4886,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # hostname mismatch
                     if not lockedBy.startswith(hostName):
                         continue
-                    tmpMatch = re.search("^{0}-\d+_(\d+)-".format(hostName), lockedBy)
+                    tmpMatch = re.search(f"^{hostName}-\\d+_(\\d+)-", lockedBy)
                     # no PGID
                     if tmpMatch is None:
                         continue
@@ -4923,7 +4901,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.cur.execute(sqlTU + comment, varMap)
                 iTasks = self.cur.rowcount
                 if iTasks == 1:
-                    tmpLog.debug("unlocked jediTaskID={0} lockedBy={1} lockedTime={2}".format(jediTaskID, lockedBy, lockedTime))
+                    tmpLog.debug(f"unlocked jediTaskID={jediTaskID} lockedBy={lockedBy} lockedTime={lockedTime}")
                     # get input datasets
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -4945,7 +4923,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":keepTrack"] = 1
                         self.cur.execute(sqlF + comment, varMap)
                         nFileRow = self.cur.rowcount
-                        tmpLog.debug("unlocked jediTaskID={0} released {1} rows for datasetID={2}".format(jediTaskID, nFileRow, datasetID))
+                        tmpLog.debug(f"unlocked jediTaskID={jediTaskID} released {nFileRow} rows for datasetID={datasetID}")
                         if nFileRow > 0:
                             # reset nFilesUsed
                             varMap = {}
@@ -4957,7 +4935,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0} tasks".format(nTasks))
+            tmpLog.debug(f"done with {nTasks} tasks")
             return nTasks
         except Exception:
             # roll back
@@ -4970,12 +4948,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getMovingInputSize_JEDI(self, siteName):
         comment = " /* JediDBProxy.getMovingInputSize_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " site={0}".format(siteName)
+        methodName += f" site={siteName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get size
-            sql = "SELECT SUM(inputFileBytes)/1024/1024/1024 FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sql = f"SELECT SUM(inputFileBytes)/1024/1024/1024 FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sql += "WHERE computingSite=:computingSite "
             # begin transaction
             self.conn.begin()
@@ -5005,7 +4983,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTypicalNumInput_JEDI(self, vo, prodSourceLabel, workQueue):
         comment = " /* JediDBProxy.getTypicalNumInput_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " vo={0} label={1} queue={2}".format(vo, prodSourceLabel, workQueue.queue_name)
+        methodName += f" vo={vo} label={prodSourceLabel} queue={workQueue.queue_name}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
@@ -5014,7 +4992,7 @@ class DBProxy(OraDBProxy.DBProxy):
             var_map = {}
             var_map[":vo"] = vo
             var_map[":prodSourceLabel"] = prodSourceLabel
-            sql = "SELECT processingtype, nInputDataFiles FROM {0}.typical_num_input ".format(jedi_config.db.schemaPANDA)
+            sql = f"SELECT processingtype, nInputDataFiles FROM {jedi_config.db.schemaPANDA}.typical_num_input "
             sql += "WHERE vo=:vo AND agg_type=:agg_type AND agg_key=:agg_key AND prodSourceLabel=:prodSourceLabel "
 
             if workQueue.is_global_share:
@@ -5045,7 +5023,7 @@ class DBProxy(OraDBProxy.DBProxy):
             var_map[":vo"] = vo
             var_map[":app"] = "jedi"
             var_map[":component"] = "jobgen"
-            var_map[":patt"] = "TYPNFILES_{0}_%".format(prodSourceLabel)
+            var_map[":patt"] = f"TYPNFILES_{prodSourceLabel}_%"
             self.cur.execute(sqlC + comment, var_map)
             resC = self.cur.fetchall()
             for tmpKey, tmpVal in resC:
@@ -5076,7 +5054,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         retMap[confProcessingType] = int(confNumFiles)
             except Exception:
                 pass
-            tmpLog.debug("done -> {0}".format(retMap))
+            tmpLog.debug(f"done -> {retMap}")
 
             return retMap
         except Exception:
@@ -5090,7 +5068,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getHighestPrioJobStat_JEDI_OLD(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = " /* JediDBProxy.getHighestPrioJobStat_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <cloud={0} queue={1} resource_name={2}>".format(cloudName, workQueue.queue_name, resource_name)
+        methodName += f" <cloud={cloudName} queue={workQueue.queue_name} resource_name={resource_name}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         varMapO = {}
@@ -5124,7 +5102,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlC += sqlS
         sqlC += "AND currentPriority=:currentPriority"
 
-        tables = ["{0}.jobsActive4".format(jedi_config.db.schemaPANDA), "{0}.jobsDefined4".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.jobsActive4", f"{jedi_config.db.schemaPANDA}.jobsDefined4"]
 
         # make return map
         prioKey = "highestPrio"
@@ -5136,7 +5114,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.conn.begin()
                 varMap = copy.copy(varMapO)
                 # select
-                if table == "{0}.jobsActive4".format(jedi_config.db.schemaPANDA):
+                if table == f"{jedi_config.db.schemaPANDA}.jobsActive4":
                     varMap[":jobStatus1"] = "activated"
                     varMap[":jobStatus2"] = "dummy"
                 else:
@@ -5184,15 +5162,15 @@ class DBProxy(OraDBProxy.DBProxy):
     def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = " /* JediDBProxy.getHighestPrioJobStat_JEDI */"
         method_name = self.getMethodName(comment)
-        method_name += " <cloud={0} queue={1} resource_type={2}>".format(cloudName, workQueue.queue_name, resource_name)
+        method_name += f" <cloud={cloudName} queue={workQueue.queue_name} resource_type={resource_name}>"
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
         var_map = {}
         var_map[":cloud"] = cloudName
         var_map[":prodSourceLabel"] = prodSourceLabel
 
-        sql_sum = "SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
-        sql_max = "SELECT MAX(MAX_PRIORITY) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+        sql_sum = f"SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {jedi_config.db.schemaPANDA}.JOB_STATS_HP "
+        sql_max = f"SELECT MAX(MAX_PRIORITY) FROM {jedi_config.db.schemaPANDA}.JOB_STATS_HP "
 
         sql_where = "WHERE prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
 
@@ -5203,16 +5181,16 @@ class DBProxy(OraDBProxy.DBProxy):
         if workQueue.is_global_share:
             sql_where += "AND gshare=:wq_name "
             sql_where += "AND workqueue_id IN ("
-            sql_where += "SELECT UNIQUE workqueue_id FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+            sql_where += f"SELECT UNIQUE workqueue_id FROM {jedi_config.db.schemaPANDA}.JOB_STATS_HP "
             sql_where += "MINUS "
-            sql_where += "SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
+            sql_where += f"SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource') "
             var_map[":wq_name"] = workQueue.queue_name
         else:
             sql_where += "AND workQueue_ID=:wq_id "
             var_map[":wq_id"] = workQueue.queue_id
 
         sql_max += sql_where
-        sql_where += "AND MAX_PRIORITY=({0}) ".format(sql_max)
+        sql_where += f"AND MAX_PRIORITY=({sql_max}) "
         sql_where += "GROUP BY MAX_PRIORITY"
         sql_sum += sql_where
 
@@ -5252,13 +5230,13 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToRefine_JEDI(self, vo=None, prodSourceLabel=None):
         comment = " /* JediDBProxy.getTasksToRefine_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTaskIDs = []
         try:
             # sql to get jediTaskIDs to refine from the command table
-            sqlC = "SELECT taskid,parent_tid FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlC = f"SELECT taskid,parent_tid FROM {jedi_config.db.schemaDEFT}.T_TASK "
             sqlC += "WHERE status=:status "
             varMap = {}
             varMap[":status"] = "waiting"
@@ -5278,16 +5256,16 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} tasks".format(len(resList)))
+            tmpLog.debug(f"got {len(resList)} tasks")
             for jediTaskID, parent_tid in resList:
-                tmpLog.debug("start jediTaskID={0}".format(jediTaskID))
+                tmpLog.debug(f"start jediTaskID={jediTaskID}")
                 # start transaction
                 self.conn.begin()
                 # lock
                 varMap = {}
                 varMap[":taskid"] = jediTaskID
                 varMap[":status"] = "waiting"
-                sqlLock = "SELECT taskid FROM {0}.T_TASK WHERE taskid=:taskid AND status=:status ".format(jedi_config.db.schemaDEFT)
+                sqlLock = f"SELECT taskid FROM {jedi_config.db.schemaDEFT}.T_TASK WHERE taskid=:taskid AND status=:status "
                 sqlLock += "FOR UPDATE "
                 toSkip = False
                 try:
@@ -5298,7 +5276,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
-                        tmpLog.debug("skip locked jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip locked jediTaskID={jediTaskID}")
                     else:
                         # failed with something else
                         raise errType(errValue)
@@ -5307,7 +5285,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if resLock is None:
                         # already processed
                         toSkip = True
-                        tmpLog.debug("skip jediTaskID={0} already processed".format(jediTaskID))
+                        tmpLog.debug(f"skip jediTaskID={jediTaskID} already processed")
                 isOK = True
                 if not toSkip:
                     if isOK:
@@ -5320,7 +5298,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":status"] = "registered"
                         varMap[":userName"] = "tobeset"
                         varMap[":parent_tid"] = parent_tid
-                        sqlIT = "INSERT INTO {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlIT = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationTime,parent_tid,stateChangeTime"
                         if vo is not None:
                             sqlIT += ",vo"
@@ -5340,13 +5318,13 @@ class DBProxy(OraDBProxy.DBProxy):
                             self.cur.execute(sqlIT + comment, varMap)
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
-                            tmpLog.error("failed to insert jediTaskID={0} with {1} {2}".format(jediTaskID, errtype, errvalue))
+                            tmpLog.error(f"failed to insert jediTaskID={jediTaskID} with {errtype} {errvalue}")
                             isOK = False
                             try:
                                 # delete task and param until DEFT bug is fixed
-                                tmpLog.debug("trying to delete jediTaskID={0}".format(jediTaskID))
+                                tmpLog.debug(f"trying to delete jediTaskID={jediTaskID}")
                                 # check status
-                                sqlDelCK = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                                sqlDelCK = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                                 sqlDelCK += "WHERE jediTaskID=:jediTaskID "
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
@@ -5357,7 +5335,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 else:
                                     delStatus = None
                                 # get size of DEFT param
-                                sqlDelDZ = "SELECT LENGTH(jedi_task_parameters) FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                                sqlDelDZ = f"SELECT LENGTH(jedi_task_parameters) FROM {jedi_config.db.schemaDEFT}.T_TASK "
                                 sqlDelDZ += "WHERE taskid=:jediTaskID "
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
@@ -5368,7 +5346,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 else:
                                     delDeftSize = None
                                 # get size of JEDI param
-                                sqlDelJZ = "SELECT LENGTH(taskParams) FROM {0}.JEDI_TaskParams ".format(jedi_config.db.schemaJEDI)
+                                sqlDelJZ = f"SELECT LENGTH(taskParams) FROM {jedi_config.db.schemaJEDI}.JEDI_TaskParams "
                                 sqlDelJZ += "WHERE jediTaskID=:jediTaskID "
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
@@ -5378,27 +5356,23 @@ class DBProxy(OraDBProxy.DBProxy):
                                     (delJediSize,) = resDelJZ
                                 else:
                                     delJediSize = None
-                                tmpLog.debug(
-                                    "jediTaskID={0} has status={1} param size in DEFT {2} vs in JEDI {3}".format(
-                                        jediTaskID, delStatus, delDeftSize, delJediSize
-                                    )
-                                )
+                                tmpLog.debug(f"jediTaskID={jediTaskID} has status={delStatus} param size in DEFT {delDeftSize} vs in JEDI {delJediSize}")
                                 # delete
                                 if delStatus == "registered" and delDeftSize != delJediSize and delJediSize == 2000:
-                                    sqlDelJP = "DELETE FROM {0}.JEDI_TaskParams ".format(jedi_config.db.schemaJEDI)
+                                    sqlDelJP = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_TaskParams "
                                     sqlDelJP += "WHERE jediTaskID=:jediTaskID "
                                     varMap = {}
                                     varMap[":jediTaskID"] = jediTaskID
                                     self.cur.execute(sqlDelJP + comment, varMap)
                                     nRowP = self.cur.rowcount
-                                    tmpLog.debug("deleted param for jediTaskID={0} with {1}".format(jediTaskID, nRowP))
-                                    sqlDelJT = "DELETE FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                                    tmpLog.debug(f"deleted param for jediTaskID={jediTaskID} with {nRowP}")
+                                    sqlDelJT = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                                     sqlDelJT += "WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
                                     varMap = {}
                                     varMap[":jediTaskID"] = jediTaskID
                                     self.cur.execute(sqlDelJT + comment, varMap)
                                     nRowT = self.cur.rowcount
-                                    tmpLog.debug("deleted task for jediTaskID={0} with {1}".format(jediTaskID, nRowT))
+                                    tmpLog.debug(f"deleted task for jediTaskID={jediTaskID} with {nRowT}")
                                     if nRowP == 1 and nRowT == 1:
                                         # commit
                                         if not self._commit():
@@ -5407,12 +5381,12 @@ class DBProxy(OraDBProxy.DBProxy):
                                         continue
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
-                                tmpLog.error("failed to delete jediTaskID={0} with {1} {2}".format(jediTaskID, errtype, errvalue))
+                                tmpLog.error(f"failed to delete jediTaskID={jediTaskID} with {errtype} {errvalue}")
                     if isOK:
                         # check task parameters
                         varMap = {}
                         varMap[":taskid"] = jediTaskID
-                        sqlTC = "SELECT taskid FROM {0}.T_TASK WHERE taskid=:taskid ".format(jedi_config.db.schemaDEFT)
+                        sqlTC = f"SELECT taskid FROM {jedi_config.db.schemaDEFT}.T_TASK WHERE taskid=:taskid "
                         tmpLog.debug(sqlTC + comment + str(varMap))
                         self.cur.execute(sqlTC + comment, varMap)
                         resTC = self.cur.fetchone()
@@ -5423,11 +5397,11 @@ class DBProxy(OraDBProxy.DBProxy):
                         # copy task parameters
                         varMap = {}
                         varMap[":taskid"] = jediTaskID
-                        sqlPaste = "INSERT INTO {0}.JEDI_TaskParams (jediTaskID,taskParams) ".format(jedi_config.db.schemaJEDI)
+                        sqlPaste = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_TaskParams (jediTaskID,taskParams) "
                         sqlPaste += "VALUES(:taskid,:taskParams) "
-                        sqlSize = "SELECT LENGTH(jedi_task_parameters) FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlSize = f"SELECT LENGTH(jedi_task_parameters) FROM {jedi_config.db.schemaDEFT}.T_TASK "
                         sqlSize += "WHERE taskid=:taskid "
-                        sqlCopy = "SELECT jedi_task_parameters FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlCopy = f"SELECT jedi_task_parameters FROM {jedi_config.db.schemaDEFT}.T_TASK "
                         sqlCopy += "WHERE taskid=:taskid "
                         try:
                             # get size
@@ -5442,15 +5416,15 @@ class DBProxy(OraDBProxy.DBProxy):
                                 break
                             # check size
                             if len(retStr) != totalSize:
-                                raise RuntimeError("taskParams was truncated {0}/{1} bytes".format(len(retStr), totalSize))
+                                raise RuntimeError(f"taskParams was truncated {len(retStr)}/{totalSize} bytes")
                             varMap = {}
                             varMap[":taskid"] = jediTaskID
                             varMap[":taskParams"] = retStr
                             self.cur.execute(sqlPaste + comment, varMap)
-                            tmpLog.debug("inserted taskParams for jediTaskID={0} {1}/{2}".format(jediTaskID, len(retStr), totalSize))
+                            tmpLog.debug(f"inserted taskParams for jediTaskID={jediTaskID} {len(retStr)}/{totalSize}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
-                            tmpLog.error("failed to insert param for jediTaskID={0} with {1} {2}".format(jediTaskID, errtype, errvalue))
+                            tmpLog.error(f"failed to insert param for jediTaskID={jediTaskID} with {errtype} {errvalue}")
                             isOK = False
                     # update
                     if isOK:
@@ -5461,7 +5435,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":ndone"] = 0
                         varMap[":nreq"] = 0
                         varMap[":tevts"] = 0
-                        sqlUC = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlUC = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
                         sqlUC += "SET status=:status,timestamp=CURRENT_DATE,total_done_jobs=:ndone,total_req_jobs=:nreq,total_events=:tevts "
                         sqlUC += "WHERE taskid=:taskid "
                         tmpLog.debug(sqlUC + comment + str(varMap))
@@ -5499,7 +5473,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.cur.execute(sqlOrpS + comment, varMap)
             resList = self.cur.fetchall()
             # update modtime to avoid immediate reattempts
-            sqlOrpU = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlOrpU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationtime=CURRENT_DATE "
             sqlOrpU += "WHERE jediTaskID=:jediTaskID "
             for jediTaskID, splitRule, taskStatus, parent_tid in resList:
                 varMap = {}
@@ -5513,7 +5487,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("return {0} tasks".format(len(retTaskIDs)))
+            tmpLog.debug(f"return {len(retTaskIDs)} tasks")
             return retTaskIDs
         except Exception:
             # roll back
@@ -5526,12 +5500,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTaskParamsWithID_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getTaskParamsWithID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql
-            sql = "SELECT taskParams FROM {0}.JEDI_TaskParams WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT taskParams FROM {jedi_config.db.schemaJEDI}.JEDI_TaskParams WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             # begin transaction
@@ -5547,7 +5521,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("read {0}/{1} bytes".format(len(retStr), totalSize))
+            tmpLog.debug(f"read {len(retStr)}/{totalSize} bytes")
             return retStr
         except Exception:
             # roll back
@@ -5574,7 +5548,7 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.registerTaskInOneShot_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -5582,7 +5556,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # set attributes
             if taskSpec.status not in ["topreprocess"]:
                 taskSpec.status = "defined"
-            tmpLog.debug("taskStatus={0}".format(taskSpec.status))
+            tmpLog.debug(f"taskStatus={taskSpec.status}")
             taskSpec.modificationTime = timeNow
             taskSpec.resetChangedAttr("jediTaskID")
             # begin transaction
@@ -5590,7 +5564,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # check duplication
             duplicatedFlag = False
             if uniqueTaskName is True:
-                sqlDup = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                sqlDup = f"SELECT jediTaskID FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                 sqlDup += "WHERE userName=:userName AND taskName=:taskName AND jediTaskID<>:jediTaskID FOR UPDATE "
                 varMap = {}
                 varMap[":userName"] = taskSpec.userName
@@ -5601,11 +5575,11 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpErrStr = ""
                 for (tmpJediTaskID,) in resDupList:
                     duplicatedFlag = True
-                    tmpErrStr += "{0},".format(tmpJediTaskID)
+                    tmpErrStr += f"{tmpJediTaskID},"
                 if duplicatedFlag:
                     taskSpec.status = "toabort"
                     tmpErrStr = tmpErrStr[:-1]
-                    tmpErrStr = "{0} since there is duplicated task -> jediTaskID={1}".format(taskSpec.status, tmpErrStr)
+                    tmpErrStr = f"{taskSpec.status} since there is duplicated task -> jediTaskID={tmpErrStr}"
                     taskSpec.setErrDiag(tmpErrStr)
                     # reset task name
                     taskSpec.taskName = None
@@ -5614,11 +5588,11 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = taskSpec.valuesMap(useSeq=False, onlyChanged=True)
             varMap[":jediTaskID"] = jediTaskID
             varMap[":preStatus"] = oldTaskStatus
-            sql = "UPDATE {0}.JEDI_Tasks SET {1} WHERE ".format(jedi_config.db.schemaJEDI, taskSpec.bindUpdateChangesExpression())
+            sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET {taskSpec.bindUpdateChangesExpression()} WHERE "
             sql += "jediTaskID=:jediTaskID AND status=:preStatus "
             self.cur.execute(sql + comment, varMap)
             nRow = self.cur.rowcount
-            tmpLog.debug("update {0} row in task table".format(nRow))
+            tmpLog.debug(f"update {nRow} row in task table")
             if nRow != 1:
                 tmpLog.error("the task not found in task table or already registered")
             elif duplicatedFlag:
@@ -5626,7 +5600,7 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 # delete unknown datasets
                 tmpLog.debug("deleting unknown datasets")
-                sql = "DELETE FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                sql = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                 sql += "WHERE jediTaskID=:jediTaskID AND type=:type "
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
@@ -5634,11 +5608,11 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.cur.execute(sql + comment, varMap)
                 tmpLog.debug("inserting datasets")
                 # sql to insert datasets
-                sql = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+                sql = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
                 sql += JediDatasetSpec.bindValuesExpression()
                 sql += " RETURNING datasetID INTO :newDatasetID"
                 # sql to insert files
-                sqlI = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+                sqlI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
                 sqlI += JediFileSpec.bindValuesExpression()
                 # insert master dataset
                 masterID = -1
@@ -5731,16 +5705,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpLog.debug("inserting outTmpl")
                 for outputMapKey, outputTemplateList in outputTemplateMap.items():
                     if outputMapKey not in datasetIdMap:
-                        raise RuntimeError("datasetID is not defined for {0}".format(outputMapKey))
+                        raise RuntimeError(f"datasetID is not defined for {outputMapKey}")
                     for outputTemplate in outputTemplateList:
-                        sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,datasetID,".format(jedi_config.db.schemaJEDI)
-                        sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID,".format(jedi_config.db.schemaJEDI)
+                        sqlH = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Output_Template (outTempID,datasetID,"
+                        sqlL = f"VALUES({jedi_config.db.schemaJEDI}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID,"
                         varMap = {}
                         varMap[":datasetID"] = datasetIdMap[outputMapKey]
                         for tmpAttr, tmpVal in outputTemplate.items():
                             tmpKey = ":" + tmpAttr
-                            sqlH += "{0},".format(tmpAttr)
-                            sqlL += "{0},".format(tmpKey)
+                            sqlH += f"{tmpAttr},"
+                            sqlL += f"{tmpKey},"
                             varMap[tmpKey] = tmpVal
                         sqlH = sqlH[:-1] + ") "
                         sqlL = sqlL[:-1] + ") "
@@ -5749,7 +5723,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # check if jobParams is already there
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
-                sql = "SELECT jediTaskID FROM {0}.JEDI_JobParams_Template ".format(jedi_config.db.schemaJEDI)
+                sql = f"SELECT jediTaskID FROM {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template "
                 sql += "WHERE jediTaskID=:jediTaskID "
                 self.cur.execute(sql + comment, varMap)
                 resPar = self.cur.fetchone()
@@ -5759,14 +5733,14 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":templ"] = jobParamsTemplate
-                    sql = "INSERT INTO {0}.JEDI_JobParams_Template ".format(jedi_config.db.schemaJEDI)
+                    sql = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template "
                     sql += "(jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) "
                 else:
                     tmpLog.debug("replacing jobParamsTmpl")
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":templ"] = jobParamsTemplate
-                    sql = "UPDATE {0}.JEDI_JobParams_Template ".format(jedi_config.db.schemaJEDI)
+                    sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_JobParams_Template "
                     sql += "SET jobParamsTemplate=:templ WHERE jediTaskID=:jediTaskID"
                 self.cur.execute(sql + comment, varMap)
                 # update task parameters
@@ -5775,7 +5749,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":taskParams"] = taskParams
-                    sql = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
+                    sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_TaskParams SET taskParams=:taskParams "
                     sql += "WHERE jediTaskID=:jediTaskID "
                     self.cur.execute(sql + comment, varMap)
             # task status logging
@@ -5799,9 +5773,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateJobMetrics_JEDI(self, jediTaskID, pandaID, jobMetrics, tags):
         comment = " /* JediDBProxy.updateJobMetrics_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskid={0} PandaID={1}>".format(jediTaskID, pandaID)
+        methodName += f" <jediTaskid={jediTaskID} PandaID={pandaID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start tags={0}".format(",".join(tags)))
+        tmpLog.debug(f"start tags={','.join(tags)}")
         # set new jobMetrics
         tagStr = "scout=" + "|".join(tags)
         if jobMetrics is None:
@@ -5813,7 +5787,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # cap
         newSH = newSH[:500]
         # update live table
-        sqlL = "UPDATE {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlL = f"UPDATE {jedi_config.db.schemaPANDA}.jobsArchived4 "
         sqlL += "SET jobMetrics=:newStr WHERE PandaID=:PandaID "
         varMap = {}
         varMap[":PandaID"] = pandaID
@@ -5822,14 +5796,14 @@ class DBProxy(OraDBProxy.DBProxy):
         nRow = self.cur.rowcount
         if nRow != 1:
             # update archive table
-            sqlA = "UPDATE {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
+            sqlA = f"UPDATE {jedi_config.db.schemaPANDAARCH}.jobsArchived "
             sqlA += "SET jobMetrics=:newStr WHERE PandaID=:PandaID AND modificationTime>(CURRENT_DATE-30) "
             varMap = {}
             varMap[":PandaID"] = pandaID
             varMap[":newStr"] = newSH
             self.cur.execute(sqlA + comment, varMap)
             nRow = self.cur.rowcount
-        tmpLog.debug("done with {0}".format(nRow))
+        tmpLog.debug(f"done with {nRow}")
         return
 
     # get scout job data
@@ -5838,9 +5812,9 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.getScoutJobData_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start mergeScout={0}".format(mergeScout))
+        tmpLog.debug(f"start mergeScout={mergeScout}")
         returnMap = {}
         extraInfo = {}
 
@@ -5867,7 +5841,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlGPV += "prodSourceLabel, outDiskCount, outDiskUnit, mergeWalltime, mergeRamCount, ramUnit, baseRamCount, "
             sqlGPV += "workDiskCount, cpuTime, cpuEfficiency, baseWalltime, splitRule, cpuTimeUnit, "
             sqlGPV += "memory_leak_core, memory_leak_x2 "
-        sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+        sqlGPV += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
 
         # sql to get scout job data from JEDI
@@ -5879,12 +5853,12 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlSCF += "{0},".format(mapKey)
+                sqlSCF += f"{mapKey},"
         else:
             sqlSCF += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getMergeProcessTypes():
                 mapKey = ":type_" + tmpType
-                sqlSCF += "{0},".format(mapKey)
+                sqlSCF += f"{mapKey},"
         sqlSCF = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL "
         if setPandaID is not None:
@@ -5905,7 +5879,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlCSSR += "AND tabF.type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
             mapKey = ":type_" + tmpType
-            sqlCSSR += "{0},".format(mapKey)
+            sqlCSSR += f"{mapKey},"
         sqlCSSR = sqlCSSR[:-1]
         sqlCSSR += ") AND tabD.masterID IS NULL "
         sqlCSSR += ") tmp_sub "
@@ -5914,13 +5888,13 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlSCDN = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
         sqlSCDN += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
-        sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlSCDN += f"FROM {jedi_config.db.schemaPANDA}.jobsArchived4 "
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
         sqlSCDN += "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
         sqlSCDN += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
-        sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
+        sqlSCDN += f"FROM {jedi_config.db.schemaPANDAARCH}.jobsArchived "
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-30) "
 
@@ -5928,13 +5902,13 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlSCDE = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDE += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
         sqlSCDE += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
-        sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlSCDE += f"FROM {jedi_config.db.schemaPANDA}.jobsArchived4 "
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
         sqlSCDE += "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDE += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
         sqlSCDE += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
-        sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
+        sqlSCDE += f"FROM {jedi_config.db.schemaPANDAARCH}.jobsArchived "
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
 
@@ -5945,15 +5919,15 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
 
         # get core power
-        sqlCore = "SELECT /* use_json_type */ scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+        sqlCore = f"SELECT /* use_json_type */ scj.data.corepower FROM {jedi_config.db.schemaJEDI}.schedconfig_json scj "
         sqlCore += "WHERE panda_queue=:site "
 
         # get nJobs
-        sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlNumJobs = f"SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
             mapKey = ":type_" + tmpType
-            sqlNumJobs += "{0},".format(mapKey)
+            sqlNumJobs += f"{mapKey},"
         sqlNumJobs = sqlNumJobs[:-1]
         sqlNumJobs += ") AND masterID IS NULL "
 
@@ -6031,11 +6005,11 @@ class DBProxy(OraDBProxy.DBProxy):
         # get minimum ram count
         minRamCount = self.getConfigValue("dbproxy", "SCOUT_RAMCOUNT_MIN", "jedi")
         # get limit for short jobs
-        shortExecTime = self.getConfigValue("dbproxy", "SCOUT_SHORT_EXECTIME_{0}".format(prodSourceLabel), "jedi")
+        shortExecTime = self.getConfigValue("dbproxy", f"SCOUT_SHORT_EXECTIME_{prodSourceLabel}", "jedi")
         if shortExecTime is None:
             shortExecTime = 0
         # get limit for cpu-inefficient jobs
-        lowCpuEff = self.getConfigValue("dbproxy", "SCOUT_LOW_CPU_EFFICIENCY_{0}".format(prodSourceLabel), "jedi")
+        lowCpuEff = self.getConfigValue("dbproxy", f"SCOUT_LOW_CPU_EFFICIENCY_{prodSourceLabel}", "jedi")
         if lowCpuEff is None:
             lowCpuEff = 0
         # cap on diskIO
@@ -6554,7 +6528,7 @@ class DBProxy(OraDBProxy.DBProxy):
             for tmpPandaID, tmpTags in jobTagMap.items():
                 if "outDiskCount" in tmpTags:
                     # get total and the largest output fsize
-                    sqlBig = "SELECT SUM(fsize) FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type=:type GROUP BY dataset ".format(jedi_config.db.schemaPANDA)
+                    sqlBig = f"SELECT SUM(fsize) FROM {jedi_config.db.schemaPANDA}.filesTable4 WHERE PandaID=:PandaID AND type=:type GROUP BY dataset "
                     varMap = dict()
                     varMap[":PandaID"] = tmpPandaID
                     varMap[":type"] = "output"
@@ -6608,16 +6582,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
         # filtered dump
         if scoutSucceeded and not mergeScout and len(returnMap) > 0:
-            tmpMsg = "scouts got for jediTaskID={0} ".format(jediTaskID)
+            tmpMsg = f"scouts got for jediTaskID={jediTaskID} "
             tmpKeys = sorted(returnMap.keys())
             for tmpKey in tmpKeys:
-                tmpMsg += "{0}={1} ".format(tmpKey, returnMap[tmpKey])
+                tmpMsg += f"{tmpKey}={returnMap[tmpKey]} "
             for tmpPandaID, tmpTags in jobTagMap.items():
                 for tmpTag in tmpTags:
-                    tmpMsg += "{0}_by={1} ".format(tmpTag, tmpPandaID)
+                    tmpMsg += f"{tmpTag}_by={tmpPandaID} "
             tmpLog.info(tmpMsg[:-1])
         # return
-        tmpLog.debug("succeeded={0} data={1} extra={2} tag={3}".format(scoutSucceeded, str(returnMap), str(extraInfo), jobTagMap))
+        tmpLog.debug(f"succeeded={scoutSucceeded} data={str(returnMap)} extra={str(extraInfo)} tag={jobTagMap}")
         return scoutSucceeded, returnMap, extraInfo
 
     # set scout job data
@@ -6625,7 +6599,7 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.setScoutJobData_JEDI */"
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
-        methodName += " < jediTaskID={0} label={1}>".format(jediTaskID, taskSpec.prodSourceLabel)
+        methodName += f" < jediTaskID={jediTaskID} label={taskSpec.prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # get thresholds for exausted
@@ -6634,7 +6608,7 @@ class DBProxy(OraDBProxy.DBProxy):
             ramThr = 4
         ramThr *= 1024
         # send tasks to exhausted when task.successRate > rate >= thr
-        minNumOkScoutsForExhausted = self.getConfigValue("dbproxy", "SCOUT_MIN_OK_RATE_EXHAUSTED_{0}".format(taskSpec.prodSourceLabel), "jedi")
+        minNumOkScoutsForExhausted = self.getConfigValue("dbproxy", f"SCOUT_MIN_OK_RATE_EXHAUSTED_{taskSpec.prodSourceLabel}", "jedi")
         scoutSuccessRate = taskSpec.getScoutSuccessRate()
         if scoutSuccessRate and minNumOkScoutsForExhausted:
             if scoutSuccessRate > minNumOkScoutsForExhausted * 10:
@@ -6652,14 +6626,14 @@ class DBProxy(OraDBProxy.DBProxy):
         if scoutData != {}:
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlTSD = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
+            sqlTSD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET "
             for scoutKey, scoutVal in scoutData.items():
                 # skip new NG
                 if scoutKey in ["newNG"]:
                     continue
-                tmpScoutKey = ":{0}".format(scoutKey)
+                tmpScoutKey = f":{scoutKey}"
                 varMap[tmpScoutKey] = scoutVal
-                sqlTSD += "{0}={1},".format(scoutKey, tmpScoutKey)
+                sqlTSD += f"{scoutKey}={tmpScoutKey},"
             sqlTSD = sqlTSD[:-1]
             sqlTSD += " WHERE jediTaskID=:jediTaskID "
             tmpLog.debug(sqlTSD + comment + str(varMap))
@@ -6670,7 +6644,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
                 varMap[":splitRule"] = taskSpec.splitRule
-                sqlTSL = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
+                sqlTSL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET splitRule=:splitRule "
                 sqlTSL += " WHERE jediTaskID=:jediTaskID "
                 tmpLog.debug(sqlTSL + comment + str(varMap))
                 self.cur.execute(sqlTSL + comment, varMap)
@@ -6681,14 +6655,14 @@ class DBProxy(OraDBProxy.DBProxy):
             if mergeScoutData != {}:
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
-                sqlTSD = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
+                sqlTSD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET "
                 for mergeScoutKey, mergeScoutVal in mergeScoutData.items():
                     # only walltime and ramCount
                     if not mergeScoutKey.startswith("walltime") and not mergeScoutKey.startswith("ram"):
                         continue
-                    tmpScoutKey = ":{0}".format(mergeScoutKey)
+                    tmpScoutKey = f":{mergeScoutKey}"
                     varMap[tmpScoutKey] = mergeScoutVal
-                    sqlTSD += "merge{0}={1},".format(mergeScoutKey, tmpScoutKey)
+                    sqlTSD += f"merge{mergeScoutKey}={tmpScoutKey},"
                 sqlTSD = sqlTSD[:-1]
                 sqlTSD += " WHERE jediTaskID=:jediTaskID "
                 tmpLog.debug(sqlTSD + comment + str(varMap))
@@ -6719,21 +6693,19 @@ class DBProxy(OraDBProxy.DBProxy):
                     and extraInfo["oldRamCount"] is not None
                     and extraInfo["oldRamCount"] < ramThr < scoutData["ramCount"]
                 ):
-                    errMsg = "#KV #ATM action=set_exhausted reason=scout_ramCount {0} MB is larger than {1} MB ".format(scoutData["ramCount"], ramThr)
-                    errMsg += "while task_ramCount {0} MB is less than {1} MB".format(extraInfo["oldRamCount"], ramThr)
+                    errMsg = f"#KV #ATM action=set_exhausted reason=scout_ramCount {scoutData['ramCount']} MB is larger than {ramThr} MB "
+                    errMsg += f"while task_ramCount {extraInfo['oldRamCount']} MB is less than {ramThr} MB"
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = "exhausted"
 
             # check memory leak
             if taskSpec.status != "exhausted":
-                memory_leak_core_max = self.getConfigValue("dbproxy", "SCOUT_MEM_LEAK_PER_CORE_{0}".format(taskSpec.prodSourceLabel), "jedi")
+                memory_leak_core_max = self.getConfigValue("dbproxy", f"SCOUT_MEM_LEAK_PER_CORE_{taskSpec.prodSourceLabel}", "jedi")
                 memory_leak_core = scoutData.get("memory_leak_core")
                 memory_leak_x2 = scoutData.get("memory_leak_x2")  # TODO: decide what to do with it
                 if memory_leak_core and memory_leak_core_max and memory_leak_core > memory_leak_core_max:
-                    errMsg = "#ATM #KV action=set_exhausted since reason=scout_memory_leak {0} is larger than {1}".format(
-                        memory_leak_core, memory_leak_core_max
-                    )
+                    errMsg = f"#ATM #KV action=set_exhausted since reason=scout_memory_leak {memory_leak_core} is larger than {memory_leak_core_max}"
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     # taskSpec.status = 'exhausted'
@@ -6742,8 +6714,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sl_changed = False
             if taskSpec.status != "exhausted":
                 # get exectime threshold for exhausted
-                maxShortJobs = self.getConfigValue("dbproxy", "SCOUT_NUM_SHORT_{0}".format(taskSpec.prodSourceLabel), "jedi")
-                shortJobCutoff = self.getConfigValue("dbproxy", "SCOUT_THR_SHORT_{0}".format(taskSpec.prodSourceLabel), "jedi")
+                maxShortJobs = self.getConfigValue("dbproxy", f"SCOUT_NUM_SHORT_{taskSpec.prodSourceLabel}", "jedi")
+                shortJobCutoff = self.getConfigValue("dbproxy", f"SCOUT_THR_SHORT_{taskSpec.prodSourceLabel}", "jedi")
                 if maxShortJobs and shortJobCutoff:
                     # many short jobs w/o copy-to-scratch
                     manyShortJobs = extraInfo["nTotalForShort"] > 0 and extraInfo["nShortJobs"] / extraInfo["nTotalForShort"] >= maxShortJobs / 10
@@ -6757,7 +6729,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             )
                             toExhausted = False
                         # remove wrong rules
-                        if toExhausted and self.getConfigValue("dbproxy", "SCOUT_CHANGE_SR_{0}".format(taskSpec.prodSourceLabel), "jedi"):
+                        if toExhausted and self.getConfigValue("dbproxy", f"SCOUT_CHANGE_SR_{taskSpec.prodSourceLabel}", "jedi"):
                             updateSL = []
                             removeSL = []
                             if taskSpec.getNumFilesPerJob() is not None:
@@ -6774,15 +6746,15 @@ class DBProxy(OraDBProxy.DBProxy):
                                 sl_changed = True
                                 tmpMsg = "#KV #ATM action=change_split_rule reason=many_shorter_jobs"
                                 if removeSL:
-                                    tmpMsg += " removed {},".format(",".join(removeSL))
+                                    tmpMsg += f" removed {','.join(removeSL)},"
                                 if updateSL:
-                                    tmpMsg += " changed {},".format(",".join(updateSL))
+                                    tmpMsg += f" changed {','.join(updateSL)},"
                                 tmpMsg = tmpMsg[:-1]
                                 tmpLog.info(tmpMsg)
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
                                 varMap[":splitRule"] = taskSpec.splitRule
-                                sqlTSL = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
+                                sqlTSL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET splitRule=:splitRule "
                                 sqlTSL += " WHERE jediTaskID=:jediTaskID "
                                 tmpLog.debug(sqlTSL + comment + str(varMap))
                                 self.cur.execute(sqlTSL + comment, varMap)
@@ -6833,15 +6805,13 @@ class DBProxy(OraDBProxy.DBProxy):
                     pass
                 else:
                     # get inefficiency threshold for exhausted
-                    maxIneffJobs = self.getConfigValue("dbproxy", "SCOUT_NUM_CPU_INEFFICIENT_{0}".format(taskSpec.prodSourceLabel), "jedi")
-                    ineffJobCutoff = self.getConfigValue("dbproxy", "SCOUT_THR_CPU_INEFFICIENT_{0}".format(taskSpec.prodSourceLabel), "jedi")
+                    maxIneffJobs = self.getConfigValue("dbproxy", f"SCOUT_NUM_CPU_INEFFICIENT_{taskSpec.prodSourceLabel}", "jedi")
+                    ineffJobCutoff = self.getConfigValue("dbproxy", f"SCOUT_THR_CPU_INEFFICIENT_{taskSpec.prodSourceLabel}", "jedi")
                     tmp_skip = False
                     errMsg = "#ATM #KV action=set_exhausted since reason=low_efficiency "
                     if taskSpec.getMinCpuEfficiency() and extraInfo["minCpuEfficiency"] < taskSpec.getMinCpuEfficiency():
                         tmp_skip = True
-                        errMsg += "lowest CPU efficiency {} is less than getMinCpuEfficiency={}".format(
-                            extraInfo["minCpuEfficiency"], taskSpec.getMinCpuEfficiency()
-                        )
+                        errMsg += f"lowest CPU efficiency {extraInfo['minCpuEfficiency']} is less than getMinCpuEfficiency={taskSpec.getMinCpuEfficiency()}"
                     elif (
                         maxIneffJobs
                         and extraInfo["nTotalForIneff"] > 0
@@ -6871,7 +6841,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 try:
                     abuseOffset = 2
                     if extraInfo["maxCpuConsumptionTime"] > extraInfo["maxExecTime"].total_seconds() * extraInfo["defCoreCount"] * abuseOffset:
-                        errMsg = "#ATM #KV action=set_exhausted since reason=over_cpu_consumption {0} sec ".format(extraInfo["maxCpuConsumptionTime"])
+                        errMsg = f"#ATM #KV action=set_exhausted since reason=over_cpu_consumption {extraInfo['maxCpuConsumptionTime']} sec "
                         errMsg += "is larger than jobDuration*coreCount*safety ({0}*{1}*{2}). ".format(
                             extraInfo["maxExecTime"].total_seconds(), extraInfo["defCoreCount"], abuseOffset
                         )
@@ -6901,7 +6871,7 @@ class DBProxy(OraDBProxy.DBProxy):
         try:
             self.reset_resource_type_task(jediTaskID, useCommit)
         except Exception:
-            tmpLog.error("reset_resource_type_task excepted with: {0}".format(traceback.format_exc()))
+            tmpLog.error(f"reset_resource_type_task excepted with: {traceback.format_exc()}")
 
         return scoutSucceeded, mergeScoutSucceeded
 
@@ -6909,7 +6879,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def setScoutJobDataToTasks_JEDI(self, vo, prodSourceLabel, site_mapper):
         comment = " /* JediDBProxy.setScoutJobDataToTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retJediTaskIDs = []
@@ -6934,7 +6904,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlSCF += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # sql to update task status
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=:newStatus,modificationTime=CURRENT_DATE,"
             sqlTU += "errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
@@ -6952,7 +6922,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # get task
                 tmpStat, taskSpec = self.getTaskWithID_JEDI(jediTaskID, False)
                 if tmpStat:
-                    tmpLog.debug("set jediTaskID={0}".format(jediTaskID))
+                    tmpLog.debug(f"set jediTaskID={jediTaskID}")
                     self.setScoutJobData_JEDI(taskSpec, True, True, site_mapper)
                     # update exhausted task status
                     if taskSpec.status == "exhausted":
@@ -6975,12 +6945,10 @@ class DBProxy(OraDBProxy.DBProxy):
                         # commit
                         if not self._commit():
                             raise RuntimeError("Commit error")
-                        tmpLog.debug(
-                            "set status={0} to jediTaskID={1} with {2} since {3}".format(taskSpec.status, taskSpec.jediTaskID, nRow, taskSpec.errorDialog)
-                        )
+                        tmpLog.debug(f"set status={taskSpec.status} to jediTaskID={taskSpec.jediTaskID} with {nRow} since {taskSpec.errorDialog}")
                     nTasks += 1
             # return
-            tmpLog.debug("done with {0} tasks".format(nTasks))
+            tmpLog.debug(f"done with {nTasks} tasks")
             return True
         except Exception:
             # roll back
@@ -6993,7 +6961,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def prepareTasksToBeFinished_JEDI(self, vo, prodSourceLabel, nTasks=50, simTasks=None, pid="lock", noBroken=False, site_mapper=None):
         comment = " /* JediDBProxy.prepareTasksToBeFinished_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -7025,28 +6993,28 @@ class DBProxy(OraDBProxy.DBProxy):
                 if prodSourceLabel is not None:
                     sql += "AND prodSourceLabel=:prodSourceLabel "
                 sql += "AND tabT.lockedBy IS NULL AND NOT EXISTS "
-                sql += "(SELECT 1 FROM {0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+                sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets tabD "
                 sql += "WHERE tabD.jediTaskID=tabT.jediTaskID AND masterID IS NULL "
                 sql += "AND type IN ("
                 for tmpType in JediDatasetSpec.getProcessTypes():
                     mapKey = ":type_" + tmpType
-                    sql += "{0},".format(mapKey)
+                    sql += f"{mapKey},"
                     varMap[mapKey] = tmpType
                 sql = sql[:-1]
                 sql += ") AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ("
                 sql += "nFilesToBeUsed>nFilesFinished+nFilesFailed "
                 sql += "OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) "
                 sql += "OR (nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>nFilesFinished+nFilesFailed)) "
-                sql += ") AND rownum<={0}".format(nTasks)
+                sql += f") AND rownum<={nTasks}"
             else:
                 varMap = {}
                 sql = "SELECT tabT.jediTaskID,tabT.status "
-                sql += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
+                sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks tabT "
                 sql += "WHERE jediTaskID IN ("
                 for tmpTaskIdx, tmpTaskID in enumerate(simTasks):
-                    tmpKey = ":jediTaskID{0}".format(tmpTaskIdx)
+                    tmpKey = f":jediTaskID{tmpTaskIdx}"
                     varMap[tmpKey] = tmpTaskID
-                    sql += "{0},".format(tmpKey)
+                    sql += f"{tmpKey},"
                 sql = sql[:-1]
                 sql += ") "
             # begin transaction
@@ -7095,7 +7063,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlEA += "AND tabD.type IN ("
                 for tmpType in JediDatasetSpec.getInputTypes():
                     mapKey = ":type_" + tmpType
-                    sqlEA += "{0},".format(mapKey)
+                    sqlEA += f"{mapKey},"
                     varMap[mapKey] = tmpType
                 sqlEA = sqlEA[:-1]
                 sqlEA += ") "
@@ -7107,7 +7075,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.cur.execute(sqlEA + comment, varMap)
                 resList = self.cur.fetchall()
                 # update assessmentTime
-                sqlLK = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+                sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET assessmentTime=CURRENT_DATE "
                 sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) "
                 sqlLK += "AND (status=:scouting OR (status=:running AND walltimeUnit IS NULL)) "
                 # append to list
@@ -7128,7 +7096,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             else:
                                 msg_piece = "early avalanche"
                             jediTaskIDstatusMap[jediTaskID] = taskstatus
-                            tmpLog.debug("got jediTaskID={} {}/{} finished for {}".format(jediTaskID, totFinished, totJobs, msg_piece))
+                            tmpLog.debug(f"got jediTaskID={jediTaskID} {totFinished}/{totJobs} finished for {msg_piece}")
 
             # get tasks to force avalanche
             if simTasks is None:
@@ -7155,78 +7123,78 @@ class DBProxy(OraDBProxy.DBProxy):
                     if jediTaskID not in jediTaskIDstatusMap:
                         jediTaskIDstatusMap[jediTaskID] = taskstatus
                         toAvalancheTasks.add(jediTaskID)
-                        tmpLog.debug("got jediTaskID={0} to force avalanche".format(jediTaskID))
+                        tmpLog.debug(f"got jediTaskID={jediTaskID} to force avalanche")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             jediTaskIDList = list(jediTaskIDstatusMap.keys())
             random.shuffle(jediTaskIDList)
-            tmpLog.debug("got {0} tasks".format(len(jediTaskIDList)))
+            tmpLog.debug(f"got {len(jediTaskIDList)} tasks")
             # sql to read task
-            sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRT = f"SELECT {JediTaskSpec.columnNames()} "
+            sqlRT += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL FOR UPDATE NOWAIT "
             # sql to lock task
-            sqlLK = "UPDATE {0}.JEDI_Tasks SET lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
+            sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=:newLockedBy "
             sqlLK += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
             # sql to read dataset status
             sqlRD = "SELECT datasetID,status,nFiles,nFilesFinished,nFilesFailed,masterID,state "
-            sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND status=:status AND type IN (".format(jedi_config.db.schemaJEDI)
+            sqlRD += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND status=:status AND type IN ("
             for tmpType in JediDatasetSpec.getProcessTypes():
                 mapKey = ":type_" + tmpType
-                sqlRD += "{0},".format(mapKey)
+                sqlRD += f"{mapKey},"
             sqlRD = sqlRD[:-1]
             sqlRD += ") "
             # sql to check if there is mutable dataset
-            sqlMTC = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMTC = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlMTC += "WHERE jediTaskID=:jediTaskID AND state=:state AND masterID IS NULL AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlMTC += "{0},".format(mapKey)
+                sqlMTC += f"{mapKey},"
             sqlMTC = sqlMTC[:-1]
             sqlMTC += ") "
             # sql to update input dataset status
-            sqlDIU = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlDIU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
             sqlDIU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update output/log dataset status
-            sqlDOU = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlDOU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
             sqlDOU += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to update status of mutable dataset
-            sqlMUT = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlMUT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
             sqlMUT += "WHERE jediTaskID=:jediTaskID AND state=:state "
             # sql to get nFilesToBeUsed of dataset
             sqlFUD = "SELECT tabD.datasetID,COUNT(*) FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
             sqlFUD += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlFUD += "{0},".format(mapKey)
+                sqlFUD += f"{mapKey},"
             sqlFUD = sqlFUD[:-1]
             sqlFUD += ") AND tabD.jediTaskID=:jediTaskID AND tabD.masterID IS NULL "
             sqlFUD += "AND NOT tabC.status IN (:status1,:status2,:status3,:status4) "
             sqlFUD += "GROUP BY tabD.datasetID "
             # sql to update nFiles of dataset
-            sqlFUU = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlFUU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed,modificationTime=CURRENT_DATE "
             sqlFUU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL,"
             sqlTU += "errorDialog=:errorDialog,splitRule=:splitRule,stateChangeTime=CURRENT_DATE,oldStatus=:oldStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # sql to unlock task
-            sqlTUU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTUU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTUU += "SET lockedBy=NULL,lockedTime=NULL "
             sqlTUU += "WHERE jediTaskID=:jediTaskID AND status=:status "
             # sql to update split rule
-            sqlUSL = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUSL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlUSL += "SET splitRule=:splitRule WHERE jediTaskID=:jediTaskID "
             # sql to reset walltimeUnit
-            sqlRWU = "UPDATE {0}.JEDI_Tasks SET walltimeUnit=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlRWU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET walltimeUnit=NULL "
             sqlRWU += "WHERE jediTaskID=:jediTaskID AND status=:status AND walltimeUnit IS NOT NULL "
             # loop over all tasks
             iTasks = 1
             for jediTaskID in jediTaskIDList:
                 taskStatus = jediTaskIDstatusMap[jediTaskID]
-                tmpLog.debug("start {}/{} jediTaskID={} status={}".format(iTasks, len(jediTaskIDList), jediTaskID, taskStatus))
+                tmpLog.debug(f"start {iTasks}/{len(jediTaskIDList)} jediTaskID={jediTaskID} status={taskStatus}")
                 iTasks += 1
                 # begin transaction
                 self.conn.begin()
@@ -7243,7 +7211,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     resRT = self.cur.fetchone()
                     # locked by another
                     if resRT is None:
-                        tmpLog.debug("skip jediTaskID={0} since status has changed".format(jediTaskID))
+                        tmpLog.debug(f"skip jediTaskID={jediTaskID} since status has changed")
                         toSkip = True
                         if not self._commit():
                             raise RuntimeError("Commit error")
@@ -7261,7 +7229,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.cur.execute(sqlLK + comment, varMap)
                     nRow = self.cur.rowcount
                     if nRow != 1:
-                        tmpLog.debug("failed to lock jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"failed to lock jediTaskID={jediTaskID}")
                         toSkip = True
                         if not self._commit():
                             raise RuntimeError("Commit error")
@@ -7271,7 +7239,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
-                        tmpLog.debug("skip locked jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip locked jediTaskID={jediTaskID}")
                         if not self._commit():
                             raise RuntimeError("Commit error")
                         continue
@@ -7304,7 +7272,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         scoutSucceeded, mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec, False, use_exhausted, site_mapper)
                         if jediTaskID in set_scout_data_only:
                             toSkip = True
-                            tmpLog.debug("done set only scout data for jediTaskID={} in status={}".format(jediTaskID, taskSpec.status))
+                            tmpLog.debug(f"done set only scout data for jediTaskID={jediTaskID} in status={taskSpec.status}")
                         else:
                             # get nFiles to be used
                             varMap = {}
@@ -7324,7 +7292,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":jediTaskID"] = jediTaskID
                                 varMap[":datasetID"] = datasetID
                                 varMap[":nFilesToBeUsed"] = nReadyFiles
-                                tmpLog.debug("jediTaskID={} datasetID={} set nFilesToBeUsed={}".format(jediTaskID, datasetID, nReadyFiles))
+                                tmpLog.debug(f"jediTaskID={jediTaskID} datasetID={datasetID} set nFilesToBeUsed={nReadyFiles}")
                                 self.cur.execute(sqlFUU + comment, varMap)
                             # new task status
                             if scoutSucceeded or noBroken or jediTaskID in toAvalancheTasks:
@@ -7362,7 +7330,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 break
                             # check if there are unprocessed files
                             if masterID is None and nFiles and nFiles > nFilesFinished + nFilesFailed:
-                                tmpLog.debug("skip jediTaskID={} datasetID={} has unprocessed files".format(jediTaskID, datasetID))
+                                tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={datasetID} has unprocessed files")
                                 toSkip = True
                                 break
                             # set status for input datasets
@@ -7397,7 +7365,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 self.cur.execute(sqlMTC + comment, varMap)
                                 resMTC = self.cur.fetchone()
                                 (numMutable,) = resMTC
-                                tmpLog.debug("jediTaskID={0} has {1} mutable datasets".format(jediTaskID, numMutable))
+                                tmpLog.debug(f"jediTaskID={jediTaskID} has {numMutable} mutable datasets")
                                 if numMutable > 0:
                                     mutableFlag = True
                             if mutableFlag:
@@ -7410,7 +7378,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":status"] = "toupdate"
                                 self.cur.execute(sqlMUT + comment, varMap)
                                 nRow = self.cur.rowcount
-                                tmpLog.debug("jediTaskID={0} updated {1} mutable datasets".format(jediTaskID, nRow))
+                                tmpLog.debug(f"jediTaskID={jediTaskID} updated {nRow} mutable datasets")
                             else:
                                 # update input datasets
                                 for varMap in varMapList:
@@ -7436,7 +7404,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     newTaskStatus = "prepared"
                     else:
                         toSkip = True
-                        tmpLog.debug("skip jediTaskID={0} due to status={1}".format(jediTaskID, taskSpec.status))
+                        tmpLog.debug(f"skip jediTaskID={jediTaskID} due to status={taskSpec.status}")
                     # update tasks
                     if not toSkip:
                         varMap = {}
@@ -7446,9 +7414,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":errorDialog"] = errorDialog
                         varMap[":splitRule"] = taskSpec.splitRule
                         self.cur.execute(sqlTU + comment, varMap)
-                        tmpLog.debug(
-                            "done new status={} for jediTaskID={}{}".format(newTaskStatus, jediTaskID, " since {}".format(errorDialog) if errorDialog else "")
-                        )
+                        tmpLog.debug(f"done new status={newTaskStatus} for jediTaskID={jediTaskID}{f' since {errorDialog}' if errorDialog else ''}")
                         if newTaskStatus == "exhausted":
                             self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
                             self.setSuperStatus_JEDI(jediTaskID, newTaskStatus)
@@ -7462,7 +7428,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":status"] = taskSpec.status
                         self.cur.execute(sqlTUU + comment, varMap)
                         nRow = self.cur.rowcount
-                        tmpLog.debug("unlock jediTaskID={} in status={} with {}".format(jediTaskID, taskSpec.status, nRow))
+                        tmpLog.debug(f"unlock jediTaskID={jediTaskID} in status={taskSpec.status} with {nRow}")
                 # commit
                 if not self._commit():
                     raise RuntimeError("Commit error")
@@ -7479,7 +7445,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = " /* JediDBProxy.getTasksToAssign_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < vo={0} label={1} queue={2} resource_name={3} >".format(vo, prodSourceLabel, workQueue.queue_name, resource_name)
+        methodName += f" < vo={vo} label={prodSourceLabel} queue={workQueue.queue_name} resource_name={resource_name} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retJediTaskIDs = []
@@ -7501,24 +7467,22 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
             sqlSCF += "AND (cloud IS NULL OR "
             sqlSCF += "(cloud=:worldCloud AND (nucleus IS NULL OR EXISTS "
-            sqlSCF += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlSCF += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
+            sqlSCF += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
             sqlSCF += "AND type IN (:dsType1,:dsType2) AND destination IS NULL) "
             sqlSCF += "))) "
             varMap[":dsType1"] = "output"
             varMap[":dsType2"] = "log"
             if workQueue.is_global_share:
                 sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
-                sqlSCF += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                    jedi_config.db.schemaJEDI
-                )
+                sqlSCF += f"AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[":wq_name"] = workQueue.queue_name
                 varMap[":resource_name"] = resource_name
             else:
                 sqlSCF += "AND workQueue_ID=:wq_id "
                 varMap[":wq_id"] = workQueue.queue_id
             sqlSCF += "ORDER BY currentPriority DESC,jediTaskID FOR UPDATE"
-            sqlSPC = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE,errorDialog=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlSPC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationTime=CURRENT_DATE,errorDialog=NULL "
             sqlSPC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -7538,7 +7502,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0} tasks".format(len(retJediTaskIDs)))
+            tmpLog.debug(f"got {len(retJediTaskIDs)} tasks")
             return retJediTaskIDs
         except Exception:
             # roll back
@@ -7551,7 +7515,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToCheckAssignment_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = " /* JediDBProxy.getTasksToCheckAssignment_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} queue={2}>".format(vo, prodSourceLabel, workQueue.queue_name)
+        methodName += f" <vo={vo} label={prodSourceLabel} queue={workQueue.queue_name}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retJediTaskIDs = []
@@ -7572,17 +7536,15 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
             sqlSCF += "AND (cloud IS NULL OR "
             sqlSCF += "(cloud=:worldCloud AND EXISTS "
-            sqlSCF += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlSCF += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
+            sqlSCF += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
             sqlSCF += "AND type IN (:dsType1,:dsType2) AND destination IS NULL) "
             sqlSCF += ")) "
             varMap[":dsType1"] = "output"
             varMap[":dsType2"] = "log"
             if workQueue.is_global_share:
                 sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
-                sqlSCF += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                    jedi_config.db.schemaJEDI
-                )
+                sqlSCF += f"AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[":wq_name"] = workQueue.queue_name
                 varMap[":resource_name"] = resource_name
             else:
@@ -7601,7 +7563,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0} tasks".format(len(retJediTaskIDs)))
+            tmpLog.debug(f"got {len(retJediTaskIDs)} tasks")
             return retJediTaskIDs
         except Exception:
             # roll back
@@ -7623,7 +7585,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.conn.begin()
                     if isinstance(tmpVal, str):
                         # sql to set cloud
-                        sql = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
                         sql += "WHERE jediTaskID=:jediTaskID AND cloud IS NULL "
                         varMap = {}
@@ -7633,10 +7595,10 @@ class DBProxy(OraDBProxy.DBProxy):
                         # set cloud
                         self.cur.execute(sql + comment, varMap)
                         nRow = self.cur.rowcount
-                        tmpLog.debug("set cloud={0} for jediTaskID={1} with {2}".format(tmpVal, jediTaskID, nRow))
+                        tmpLog.debug(f"set cloud={tmpVal} for jediTaskID={jediTaskID} with {nRow}")
                     else:
                         # sql to set destinations for WORLD cloud
-                        sql = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                        sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                         sql += "SET storageToken=:token,destination=:destination "
                         sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
                         for tmpItem in tmpVal["datasets"]:
@@ -7646,9 +7608,9 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":token"] = tmpItem["token"]
                             varMap[":destination"] = tmpItem["destination"]
                             self.cur.execute(sql + comment, varMap)
-                            tmpLog.debug("set token={0} for jediTaskID={1} datasetID={2}".format(tmpItem["token"], jediTaskID, tmpItem["datasetID"]))
+                            tmpLog.debug(f"set token={tmpItem['token']} for jediTaskID={jediTaskID} datasetID={tmpItem['datasetID']}")
                         # sql to set ready
-                        sql = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sql = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         sql += "SET nucleus=:nucleus,status=:newStatus,oldStatus=NULL,stateChangeTime=CURRENT_DATE,modificationTime=CURRENT_DATE-1/24 "
                         sql += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
                         varMap = {}
@@ -7658,7 +7620,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":oldStatus"] = "assigning"
                         self.cur.execute(sql + comment, varMap)
                         nRow = self.cur.rowcount
-                        tmpLog.debug("set nucleus={0} for jediTaskID={1} with {2}".format(tmpVal["nucleus"], jediTaskID, nRow))
+                        tmpLog.debug(f"set nucleus={tmpVal['nucleus']} for jediTaskID={jediTaskID} with {nRow}")
                         newStatus = varMap[":newStatus"]
                     # update DEFT
                     if nRow > 0:
@@ -7666,7 +7628,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                         self.setSuperStatus_JEDI(jediTaskID, deftStatus)
                         # get parameters to enable jumbo
-                        sqlRT = "SELECT eventService,site,useJumbo,splitRule FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlRT = f"SELECT eventService,site,useJumbo,splitRule FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         sqlRT += "WHERE jediTaskID=:jediTaskID "
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
@@ -7701,7 +7663,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def calculateTaskRW_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.calculateTaskRW_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -7725,7 +7687,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 retVal = None
             else:
                 retVal = resRT[0]
-            tmpLog.debug("RW={0}".format(retVal))
+            tmpLog.debug(f"RW={retVal}")
             # return
             tmpLog.debug("done")
             return retVal
@@ -7741,9 +7703,9 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.calculateRWwithPrio_JEDI */"
         methodName = self.getMethodName(comment)
         if workQueue is None:
-            methodName += " <vo={0} label={1} queue={2} prio={3}>".format(vo, prodSourceLabel, None, priority)
+            methodName += f" <vo={vo} label={prodSourceLabel} queue={None} prio={priority}>"
         else:
-            methodName += " <vo={0} label={1} queue={2} prio={3}>".format(vo, prodSourceLabel, workQueue.queue_name, priority)
+            methodName += f" <vo={vo} label={prodSourceLabel} queue={workQueue.queue_name} prio={priority}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -7766,9 +7728,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if workQueue is not None:
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
-                    sql += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                        jedi_config.db.schemaJEDI
-                    )
+                    sql += f"AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                     varMap[":wq_name"] = workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -7778,7 +7738,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sql = sql[:-1]
             sql += ") "
@@ -7798,7 +7758,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # loop over all tasks
             retMap = {}
             sqlF = "SELECT fsize,startEvent,endEvent,nEvents "
-            sqlF += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rownum<=1"
             for jediTaskID, cloud, datasetID, nRem, walltime in resList:
                 # get effective size
@@ -7823,7 +7783,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     retMap[cloud] += tmpRW
             for cloudName, rwValue in retMap.items():
                 retMap[cloudName] = int(rwValue / 24 / 3600)
-            tmpLog.debug("RW={0}".format(str(retMap)))
+            tmpLog.debug(f"RW={str(retMap)}")
             # return
             tmpLog.debug("done")
             return retMap
@@ -7839,9 +7799,9 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.calculateWorldRWwithPrio_JEDI */"
         methodName = self.getMethodName(comment)
         if workQueue is None:
-            methodName += " <vo={0} label={1} queue={2} prio={3}>".format(vo, prodSourceLabel, None, priority)
+            methodName += f" <vo={vo} label={prodSourceLabel} queue={None} prio={priority}>"
         else:
-            methodName += " <vo={0} label={1} queue={2} prio={3}>".format(vo, prodSourceLabel, workQueue.queue_name, priority)
+            methodName += f" <vo={vo} label={prodSourceLabel} queue={workQueue.queue_name} prio={priority}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -7866,9 +7826,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if workQueue is not None:
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
-                    sql += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                        jedi_config.db.schemaJEDI
-                    )
+                    sql += f"AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                     varMap[":wq_name"] = workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -7878,7 +7836,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sql = sql[:-1]
             sql += ") "
@@ -7899,7 +7857,7 @@ class DBProxy(OraDBProxy.DBProxy):
             retMap = {}
             for nucleus, worldRW in resList:
                 retMap[nucleus] = worldRW
-            tmpLog.debug("RW={0}".format(str(retMap)))
+            tmpLog.debug(f"RW={str(retMap)}")
             # return
             tmpLog.debug("done")
             return retMap
@@ -7914,7 +7872,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def calculateTaskWorldRW_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.calculateTaskWorldRW_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -7943,7 +7901,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 retVal = None
             else:
                 retVal = resRT[0]
-            tmpLog.debug("RW={0}".format(retVal))
+            tmpLog.debug(f"RW={retVal}")
             # return
             tmpLog.debug("done")
             return retVal
@@ -7958,7 +7916,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToExecCommand_JEDI(self, vo, prodSourceLabel):
         comment = " /* JediDBProxy.getTasksToExecCommand_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTaskIDs = {}
@@ -7967,12 +7925,12 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get jediTaskIDs to exec a command from the command table
             varMap = {}
             varMap[":comm_owner"] = "DEFT"
-            sqlC = "SELECT comm_task,comm_cmd,comm_comment FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
+            sqlC = f"SELECT comm_task,comm_cmd,comm_comment FROM {jedi_config.db.schemaDEFT}.PRODSYS_COMM "
             sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd IN ("
             for commandStr, taskStatusMap in commandStatusMap.items():
-                tmpKey = ":comm_cmd_{0}".format(commandStr)
+                tmpKey = f":comm_cmd_{commandStr}"
                 varMap[tmpKey] = commandStr
-                sqlC += "{0},".format(tmpKey)
+                sqlC += f"{tmpKey},"
             sqlC = sqlC[:-1]
             sqlC += ") "
             if vo not in [None, "any"]:
@@ -7991,15 +7949,15 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} tasks".format(len(resList)))
+            tmpLog.debug(f"got {len(resList)} tasks")
             for jediTaskID, commandStr, comComment in resList:
-                tmpLog.debug("start jediTaskID={0} command={1}".format(jediTaskID, commandStr))
+                tmpLog.debug(f"start jediTaskID={jediTaskID} command={commandStr}")
                 # start transaction
                 self.conn.begin()
                 # lock
                 varMap = {}
                 varMap[":comm_task"] = jediTaskID
-                sqlLock = "SELECT comm_cmd FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+                sqlLock = f"SELECT comm_cmd FROM {jedi_config.db.schemaDEFT}.PRODSYS_COMM WHERE comm_task=:comm_task "
                 sqlLock += "FOR UPDATE "
                 toSkip = False
                 sync_action_only = False
@@ -8012,7 +7970,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
-                        tmpLog.debug("skip locked+nowauit jediTaskID={0}".format(jediTaskID))
+                        tmpLog.debug(f"skip locked+nowauit jediTaskID={jediTaskID}")
                     else:
                         # failed with something else
                         raise errType(errValue)
@@ -8023,12 +7981,12 @@ class DBProxy(OraDBProxy.DBProxy):
                         # check task status
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
-                        sqlTC = "SELECT status,oldStatus,wallTimeUnit FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlTC = f"SELECT status,oldStatus,wallTimeUnit FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         sqlTC += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
                         self.cur.execute(sqlTC + comment, varMap)
                         resTC = self.cur.fetchone()
                         if resTC is None or resTC[0] is None:
-                            tmpLog.error("jediTaskID={0} is not found in JEDI_Tasks".format(jediTaskID))
+                            tmpLog.error(f"jediTaskID={jediTaskID} is not found in JEDI_Tasks")
                             isOK = False
                         else:
                             taskStatus, taskOldStatus, wallTimeUnit = resTC
@@ -8036,42 +7994,38 @@ class DBProxy(OraDBProxy.DBProxy):
                             if commandStr == "retry":
                                 if taskStatus not in JediTaskSpec.statusToRetry():
                                     # task is in a status which rejects retry
-                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for retry".format(jediTaskID, commandStr, taskStatus))
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not for retry")
                                     isOK = False
                             elif commandStr == "incexec":
                                 if taskStatus not in JediTaskSpec.statusToIncexec():
                                     # task is in a status which rejects retry
-                                    tmpLog.error(
-                                        "jediTaskID={0} rejected command={1}. status={2} is not for incexec".format(jediTaskID, commandStr, taskStatus)
-                                    )
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not for incexec")
                                     isOK = False
                             elif commandStr == "pause":
                                 if taskStatus in JediTaskSpec.statusNotToPause():
                                     # task is in a status which rejects pause
-                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for pause".format(jediTaskID, commandStr, taskStatus))
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not for pause")
                                     isOK = False
                             elif commandStr == "resume":
                                 if taskStatus not in ["paused", "throttled", "staging"]:
                                     # task is in a status which rejects resume
-                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID, commandStr, taskStatus))
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not for resume")
                                     isOK = False
                             elif commandStr == "avalanche":
                                 if taskStatus not in ["scouting"]:
                                     # task is in a status which rejects avalanche
-                                    tmpLog.error(
-                                        "jediTaskID={0} rejected command={1}. status={2} is not for avalanche".format(jediTaskID, commandStr, taskStatus)
-                                    )
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not for avalanche")
                                     isOK = False
                             elif commandStr == "release":
                                 if taskStatus not in ["scouting", "pending", "running", "ready", "assigning", "defined"]:
                                     # task is in a status which rejects avalanche
-                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not applicable".format(jediTaskID, commandStr, taskStatus))
+                                    tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr}. status={taskStatus} is not applicable")
                                     isOK = False
                                 update_task = False
                                 sync_action_only = True
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
-                                tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID, commandStr, taskStatus))
+                                tmpLog.error(f"jediTaskID={jediTaskID} rejected command={commandStr} (due to status={taskStatus})")
                                 isOK = False
                             if isOK:
                                 # set new task status
@@ -8093,7 +8047,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 elif commandStr in commandStatusMap:
                                     newTaskStatus = commandStatusMap[commandStr]["doing"]
                                 else:
-                                    tmpLog.error("jediTaskID={0} new status is undefined for command={1}".format(jediTaskID, commandStr))
+                                    tmpLog.error(f"jediTaskID={jediTaskID} new status is undefined for command={commandStr}")
                                     isOK = False
                     if isOK:
                         # actions in transaction
@@ -8107,7 +8061,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         if newTaskStatus != "dummy":
                             varMap[":status"] = newTaskStatus
                         varMap[":errDiag"] = comComment
-                        sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                         if newTaskStatus != "dummy":
                             sqlTU += "SET status=:status,"
                         else:
@@ -8137,7 +8091,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         else:
                             nRow = 0
                         if nRow != 1:
-                            tmpLog.debug("skip updated jediTaskID={0}".format(jediTaskID))
+                            tmpLog.debug(f"skip updated jediTaskID={jediTaskID}")
                             toSkip = True
                         else:
                             # update T_TASK
@@ -8165,7 +8119,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":comm_cmd"] = commandStr + "ing"
                         else:
                             varMap[":comm_cmd"] = commandStr + " failed"
-                        sqlUC = "UPDATE {0}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+                        sqlUC = f"UPDATE {jedi_config.db.schemaDEFT}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task "
                         self.cur.execute(sqlUC + comment, varMap)
                         # append
                         if isOK:
@@ -8176,7 +8130,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     retTaskIDs[jediTaskID]["oldStatus"] = taskOldStatus
                             # update job table
                             if commandStr in ["pause", "resume"]:
-                                sqlJT = "UPDATE {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+                                sqlJT = f"UPDATE {jedi_config.db.schemaPANDA}.jobsActive4 "
                                 sqlJT += "SET jobStatus=:newJobStatus "
                                 sqlJT += "WHERE jediTaskID=:jediTaskID AND jobStatus=:oldJobStatus "
                                 varMap = {}
@@ -8217,7 +8171,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.cur.execute(sqlOrpS + comment, varMap)
                 resList = self.cur.fetchall()
                 # update modtime to avoid immediate reattempts
-                sqlOrpU = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+                sqlOrpU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationtime=CURRENT_DATE "
                 sqlOrpU += "WHERE jediTaskID=:jediTaskID "
                 for jediTaskID, comComment, oldStatus in resList:
                     varMap = {}
@@ -8231,7 +8185,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError("Commit error")
             # read clob
-            sqlCC = "SELECT comm_parameters FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+            sqlCC = f"SELECT comm_parameters FROM {jedi_config.db.schemaDEFT}.PRODSYS_COMM WHERE comm_task=:comm_task "
             for jediTaskID in retTaskIDs.keys():
                 if retTaskIDs[jediTaskID]["command"] in ["incexec"]:
                     # start transaction
@@ -8254,7 +8208,7 @@ class DBProxy(OraDBProxy.DBProxy):
             for jediTaskID, varMap in retTaskIDs.items():
                 retTaskList.append((jediTaskID, varMap))
             # return
-            tmpLog.debug("return {0} tasks".format(len(retTaskList)))
+            tmpLog.debug(f"return {len(retTaskList)} tasks")
             return retTaskList
         except Exception:
             # roll back
@@ -8267,24 +8221,24 @@ class DBProxy(OraDBProxy.DBProxy):
     def getPandaIDsWithTask_JEDI(self, jediTaskID, onlyActive):
         comment = " /* JediDBProxy.getPandaIDsWithTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} onlyActive={1}>".format(jediTaskID, onlyActive)
+        methodName += f" <jediTaskID={jediTaskID} onlyActive={onlyActive}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = set()
         try:
             # sql to get PandaIDs
             tables = [
-                "{0}.jobsDefined4".format(jedi_config.db.schemaPANDA),
-                "{0}.jobsWaiting4".format(jedi_config.db.schemaPANDA),
-                "{0}.jobsActive4".format(jedi_config.db.schemaPANDA),
+                f"{jedi_config.db.schemaPANDA}.jobsDefined4",
+                f"{jedi_config.db.schemaPANDA}.jobsWaiting4",
+                f"{jedi_config.db.schemaPANDA}.jobsActive4",
             ]
             if not onlyActive:
-                tables += ["{0}.jobsArchived4".format(jedi_config.db.schemaPANDA), "{0}.jobsArchived".format(jedi_config.db.schemaPANDAARCH)]
+                tables += [f"{jedi_config.db.schemaPANDA}.jobsArchived4", f"{jedi_config.db.schemaPANDAARCH}.jobsArchived"]
             sqlP = ""
             for tableName in tables:
                 if sqlP != "":
                     sqlP += "UNION ALL "
-                sqlP += "SELECT PandaID FROM {0} WHERE jediTaskID=:jediTaskID ".format(tableName)
+                sqlP += f"SELECT PandaID FROM {tableName} WHERE jediTaskID=:jediTaskID "
                 if tableName.startswith(jedi_config.db.schemaPANDAARCH):
                     sqlP += "AND modificationTime>(CURRENT_DATE-30) "
             varMap = {}
@@ -8300,7 +8254,7 @@ class DBProxy(OraDBProxy.DBProxy):
             for (pandaID,) in resList:
                 retPandaIDs.add(pandaID)
             # return
-            tmpLog.debug("return {0} PandaIDs".format(len(retPandaIDs)))
+            tmpLog.debug(f"return {len(retPandaIDs)} PandaIDs")
             return list(retPandaIDs)
         except Exception:
             # roll back
@@ -8313,22 +8267,22 @@ class DBProxy(OraDBProxy.DBProxy):
     def getQueuedPandaIDsWithTask_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getQueuedPandaIDsWithTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = []
         try:
             # sql to get PandaIDs
             tables = [
-                "{0}.jobsDefined4".format(jedi_config.db.schemaPANDA),
-                "{0}.jobsWaiting4".format(jedi_config.db.schemaPANDA),
-                "{0}.jobsActive4".format(jedi_config.db.schemaPANDA),
+                f"{jedi_config.db.schemaPANDA}.jobsDefined4",
+                f"{jedi_config.db.schemaPANDA}.jobsWaiting4",
+                f"{jedi_config.db.schemaPANDA}.jobsActive4",
             ]
             sqlP = ""
             for tableName in tables:
                 if sqlP != "":
                     sqlP += "UNION ALL "
-                sqlP += "SELECT PandaID FROM {0} WHERE jediTaskID=:jediTaskID ".format(tableName)
+                sqlP += f"SELECT PandaID FROM {tableName} WHERE jediTaskID=:jediTaskID "
                 sqlP += "AND jobStatus NOT IN (:st1,:st2,:st3) "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -8347,7 +8301,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if pandaID not in retPandaIDs:
                     retPandaIDs.append(pandaID)
             # return
-            tmpLog.debug("return {0} PandaIDs".format(len(retPandaIDs)))
+            tmpLog.debug(f"return {len(retPandaIDs)} PandaIDs")
             return retPandaIDs
         except Exception:
             # roll back
@@ -8360,16 +8314,16 @@ class DBProxy(OraDBProxy.DBProxy):
     def getIDsWithFileDataset_JEDI(self, datasetName, fileName, fileType):
         comment = " /* JediDBProxy.getIDsWithFileDataset_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <dataset={0} file={1} type={2}>".format(datasetName, fileName, fileType)
+        methodName += f" <dataset={datasetName} file={fileName} type={fileType}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = []
         try:
             # sql to get jediTaskID and datasetID
-            sqlT = "SELECT jediTaskID,datasetID FROM {0}.JEDI_Datasets WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlT = f"SELECT jediTaskID,datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE "
             sqlT += "datasetName=:datasetName and type=:type "
             # sql to get fileID
-            sqlF = "SELECT FileID FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"SELECT FileID FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlF += "jediTaskID=:jediTaskID AND datasetID=:datasetID and lfn=:lfn "
             # start transaction
             self.conn.begin()
@@ -8397,7 +8351,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("return {0}".format(str(retMap)))
+            tmpLog.debug(f"return {str(retMap)}")
             return True, retMap
         except Exception:
             # roll back
@@ -8429,16 +8383,16 @@ class DBProxy(OraDBProxy.DBProxy):
     def getPandaIDWithFileID_JEDI(self, jediTaskID, datasetID, fileID):
         comment = " /* JediDBProxy.getPandaIDWithFileID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1} fileID={2}>".format(jediTaskID, datasetID, fileID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID} fileID={fileID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = []
         try:
             # sql to get PandaID
-            sqlP = "SELECT PandaID FROM {0}.filesTable4 WHERE ".format(jedi_config.db.schemaPANDA)
+            sqlP = f"SELECT PandaID FROM {jedi_config.db.schemaPANDA}.filesTable4 WHERE "
             sqlP += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # get creation time of the task
-            sqlCT = "SELECT creationDate FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlCT = f"SELECT creationDate FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
             varMap = {}
@@ -8483,7 +8437,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("PandaID -> {0}".format(pandaID))
+            tmpLog.debug(f"PandaID -> {pandaID}")
             return True, pandaID
         except Exception:
             # roll back
@@ -8496,21 +8450,21 @@ class DBProxy(OraDBProxy.DBProxy):
     def getFilesWithPandaID_JEDI(self, pandaID):
         comment = " /* JediDBProxy.getFilesWithPandaID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <pandaID={0}>".format(pandaID)
+        methodName += f" <pandaID={pandaID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = []
         try:
             # sql to get fileID
-            sqlT = "SELECT jediTaskID,datasetID,fileID FROM {0}.filesTable4 WHERE ".format(jedi_config.db.schemaPANDA)
+            sqlT = f"SELECT jediTaskID,datasetID,fileID FROM {jedi_config.db.schemaPANDA}.filesTable4 WHERE "
             sqlT += "pandaID=:pandaID "
             sqlT += "UNION ALL "
-            sqlT += "SELECT jediTaskID,datasetID,fileID FROM {0}.filesTable_ARCH WHERE ".format(jedi_config.db.schemaPANDAARCH)
+            sqlT += f"SELECT jediTaskID,datasetID,fileID FROM {jedi_config.db.schemaPANDAARCH}.filesTable_ARCH WHERE "
             sqlT += "pandaID=:pandaID "
             sqlT += "AND modificationTime>CURRENT_DATE-180"
             # sql to read files
-            sqlFR = "SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID and fileID=:fileID "
             # start transaction
             self.conn.begin()
@@ -8540,7 +8494,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0} files".format(len(fileSpecList)))
+            tmpLog.debug(f"got {len(fileSpecList)} files")
             return True, fileSpecList
         except Exception:
             # roll back
@@ -8553,13 +8507,13 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateTaskParams_JEDI(self, jediTaskID, taskParams):
         comment = " /* JediDBProxy.updateTaskParams_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retPandaIDs = []
         try:
             # sql to update task params
-            sqlT = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
+            sqlT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_TaskParams SET taskParams=:taskParams "
             sqlT += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
@@ -8572,7 +8526,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("updated {0} rows".format(nRow))
+            tmpLog.debug(f"updated {nRow} rows")
             if nRow == 1:
                 return True
             else:
@@ -8588,7 +8542,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def reactivatePendingTasks_JEDI(self, vo, prodSourceLabel, timeLimit, timeoutLimit=None, minPriority=None):
         comment = " /* JediDBProxy.reactivatePendingTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2} min timeout={3}hours minPrio={4}>".format(vo, prodSourceLabel, timeLimit, timeoutLimit, minPriority)
+        methodName += f" <vo={vo} label={prodSourceLabel} limit={timeLimit} min timeout={timeoutLimit}hours minPrio={minPriority}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -8613,23 +8567,23 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":minPriority"] = minPriority
                 sqlTL += "AND currentPriority>=:minPriority "
             # sql to update tasks
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=oldStatus,oldStatus=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND oldStatus IS NOT NULL "
             # sql to timeout tasks
-            sqlTO = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
             sqlTO += "WHERE jediTaskID=:jediTaskID "
             # sql to keep pending
-            sqlTK = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTK += "SET modificationtime=CURRENT_DATE,frozenTime=CURRENT_DATE "
             sqlTK += "WHERE jediTaskID=:jediTaskID "
             # sql to check the number of finished files
-            sqlND = "SELECT SUM(nFilesFinished) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlND = f"SELECT SUM(nFilesFinished) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlND += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlND += "{0},".format(mapKey)
+                sqlND += f"{mapKey},"
             sqlND = sqlND[:-1]
             sqlND += ") AND masterID IS NULL "
             # start transaction
@@ -8672,18 +8626,18 @@ class DBProxy(OraDBProxy.DBProxy):
                             errorDialog = ""
                         else:
                             errorDialog += ". "
-                        errorDialog += "timeout while in pending since {0}".format(frozenTime.strftime("%Y/%m/%d %H:%M:%S"))
+                        errorDialog += f"timeout while in pending since {frozenTime.strftime('%Y/%m/%d %H:%M:%S')}"
                         varMap[":errorDialog"] = errorDialog[: JediTaskSpec._limitLength["errorDialog"]]
                         sql = sqlTO
                     else:
                         sql = sqlTU
                 self.cur.execute(sql + comment, varMap)
                 if timeoutFlag:
-                    tmpLog.info("#ATM #KV jediTaskID={0} timeout".format(jediTaskID))
+                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} timeout")
                 elif keepFlag:
-                    tmpLog.info("#ATM #KV jediTaskID={0} action=keep_pending".format(jediTaskID))
+                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=keep_pending")
                 else:
-                    tmpLog.info("#ATM #KV jediTaskID={0} action=reactivate".format(jediTaskID))
+                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=reactivate")
                 tmpRow = self.cur.rowcount
                 nRow += tmpRow
                 if tmpRow > 0 and not keepFlag:
@@ -8698,7 +8652,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("updated {0} rows".format(nRow))
+            tmpLog.debug(f"updated {nRow} rows")
             return nRow
         except Exception:
             # roll back
@@ -8711,7 +8665,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def restartTasksForContentsUpdate_JEDI(self, vo, prodSourceLabel, timeLimit):
         comment = " /* JediDBProxy.restartTasksForContentsUpdate_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2}min>".format(vo, prodSourceLabel, timeLimit)
+        methodName += f" <vo={vo} label={prodSourceLabel} limit={timeLimit}min>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -8742,9 +8696,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlTR += "AND tabT.status=:taskStatus1 AND tabD.status=:dsStatus1 "
             sqlTR += "AND tabD.type=:dsType AND tabT.modificationTime<:timeLimit "
             sqlTR += "AND NOT EXISTS "
-            sqlTR += "(SELECT 1 FROM {0}.JEDI_Datasets WHERE jediTaskID=tabT.jediTaskID AND type=:dsType AND status<>:dsStatus1) ".format(
-                jedi_config.db.schemaJEDI
-            )
+            sqlTR += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=tabT.jediTaskID AND type=:dsType AND status<>:dsStatus1) "
             if vo not in [None, "any"]:
                 sqlTR += "AND tabT.vo=:vo "
             if prodSourceLabel not in [None, "any"]:
@@ -8760,15 +8712,15 @@ class DBProxy(OraDBProxy.DBProxy):
             if prodSourceLabel not in [None, "any"]:
                 sqlTW += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # sql to update mutable datasets
-            sqlTU = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlTU += "SET status=:newStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND type=:type AND state=:state AND status=:oldStatus "
             # sql to update ready datasets
-            sqlRD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += "SET status=:newStatus "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND type=:type AND status=:oldStatus "
             # sql to update task
-            sqlTD = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTD += "SET status=:newStatus,modificationtime=CURRENT_DATE "
             sqlTD += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # start transaction
@@ -8789,7 +8741,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":newStatus"] = "toupdate"
                     self.cur.execute(sqlTU + comment, varMap)
                     nRow = self.cur.rowcount
-                    tmpLog.debug("jediTaskID={0} toupdate {1} datasets".format(jediTaskID, nRow))
+                    tmpLog.debug(f"jediTaskID={jediTaskID} toupdate {nRow} datasets")
                     if nRow > 0:
                         nTasks += 1
                         # update task
@@ -8831,7 +8783,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":newStatus"] = "defined"
                 self.cur.execute(sqlRD + comment, varMap)
                 nRow = self.cur.rowcount
-                tmpLog.debug("jediTaskID={0} reset {1} datasets in ready".format(jediTaskID, nRow))
+                tmpLog.debug(f"jediTaskID={jediTaskID} reset {nRow} datasets in ready")
                 if nRow > 0:
                     nTasks += 1
             # get tasks in ready with defined datasets
@@ -8858,7 +8810,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if nRow > 0:
                     self.record_task_status_change(jediTaskID)
                     self.push_task_status_message(None, jediTaskID, varMap[":newStatus"])
-                    tmpLog.debug("jediTaskID={0} reset to defined".format(jediTaskID))
+                    tmpLog.debug(f"jediTaskID={jediTaskID} reset to defined")
                     nTasks += 1
             # commit
             if not self._commit():
@@ -8877,7 +8829,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def kickExhaustedTasks_JEDI(self, vo, prodSourceLabel, timeLimit):
         comment = " /* JediDBProxy.kickExhaustedTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2}h>".format(vo, prodSourceLabel, timeLimit)
+        methodName += f" <vo={vo} label={prodSourceLabel} limit={timeLimit}h>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -8896,7 +8848,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # sql to timeout tasks
-            sqlTO = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTO += "SET status=:newStatus,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
             sqlTO += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # start transaction
@@ -8919,7 +8871,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":newStatus"] = "finishing"
                 self.cur.execute(sqlTO + comment, varMap)
                 nRow = self.cur.rowcount
-                tmpLog.debug("jediTaskID={0} to {1} with {2}".format(jediTaskID, varMap[":newStatus"], nRow))
+                tmpLog.debug(f"jediTaskID={jediTaskID} to {varMap[':newStatus']} with {nRow}")
                 if nRow > 0:
                     nTasks += 1
                     # add missing record_task_status_change and push_task_status_message updates
@@ -8943,20 +8895,20 @@ class DBProxy(OraDBProxy.DBProxy):
     def getBuildFileSpec_JEDI(self, jediTaskID, siteName, associatedSites):
         comment = " /* JediDBProxy.getBuildFileSpec_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} siteName={1}>".format(jediTaskID, siteName)
+        methodName += f" <jediTaskID={jediTaskID} siteName={siteName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        tmpLog.debug("associatedSites={0}".format(str(associatedSites)))
+        tmpLog.debug(f"associatedSites={str(associatedSites)}")
         try:
             # sql to get dataset
-            sqlRD = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlRD += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND type=:type AND site=:site "
             sqlRD += "AND (state IS NULL OR state<>:state) "
             sqlRD += "ORDER BY creationTime DESC "
             # sql to read files
-            sqlFR = "SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type "
             sqlFR += "AND status IN (:status1) "
             sqlFR += "ORDER BY creationDate DESC "
@@ -9003,7 +8955,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             if fileSpec is not None:
-                tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
+                tmpLog.debug(f"got lib.tgz={fileSpec.lfn}")
             else:
                 tmpLog.debug("no lib.tgz")
             return True, fileSpec, datasetSpec
@@ -9018,17 +8970,17 @@ class DBProxy(OraDBProxy.DBProxy):
     def getOldBuildFileSpec_JEDI(self, jediTaskID, datasetID, fileID):
         comment = " /* JediDBProxy.getOldBuildFileSpec_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1} fileID={2}>".format(jediTaskID, datasetID, fileID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID} fileID={fileID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get dataset
-            sqlRD = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlRD += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to read files
-            sqlFR = "SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # start transaction
             self.conn.begin()
@@ -9054,7 +9006,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             if fileSpec is not None:
-                tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
+                tmpLog.debug(f"got lib.tgz={fileSpec.lfn}")
             else:
                 tmpLog.debug("no lib.tgz")
             return True, fileSpec, datasetSpec
@@ -9069,20 +9021,20 @@ class DBProxy(OraDBProxy.DBProxy):
     def insertBuildFileSpec_JEDI(self, jobSpec, reusedDatasetID, simul):
         comment = " /* JediDBProxy.insertBuildFileSpec_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jobSpec.jediTaskID)
+        methodName += f" <jediTaskID={jobSpec.jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to insert dataset
-            sqlDS = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+            sqlDS = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
             sqlDS += JediDatasetSpec.bindValuesExpression()
             sqlDS += " RETURNING datasetID INTO :newDatasetID"
             # sql to insert file
-            sqlFI = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlFI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlFI += JediFileSpec.bindValuesExpression()
             sqlFI += " RETURNING fileID INTO :newFileID"
             # sql to update LFN
-            sqlFU = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFU += "SET lfn=:newLFN "
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # make datasetSpec
@@ -9168,12 +9120,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getSitesUsedByTask_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getSitesUsedByTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to insert dataset
-            sqlDS = "SELECT distinct site FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS = f"SELECT distinct site FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # start transaction
             self.conn.begin()
@@ -9191,7 +9143,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done -> {0}".format(str(siteList)))
+            tmpLog.debug(f"done -> {str(siteList)}")
             return True, siteList
         except Exception:
             # roll back
@@ -9204,28 +9156,28 @@ class DBProxy(OraDBProxy.DBProxy):
     def getRandomSeed_JEDI(self, jediTaskID, simul):
         comment = " /* JediDBProxy.getRandomSeed_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get pseudo dataset for random seed
-            sqlDS = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS = f"SELECT {JediDatasetSpec.columnNames()} "
+            sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDS += "WHERE jediTaskID=:jediTaskID AND type=:type "
             # sql to get min random seed
-            sqlFR = "SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlFR += "ORDER BY firstEvent "
             # sql to update file status
-            sqlFU = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFU += "SET status=:status "
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # sql to get max random seed
-            sqlLR = "SELECT MAX(firstEvent) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlLR = f"SELECT MAX(firstEvent) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlLR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to insert file
-            sqlFI = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlFI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlFI += JediFileSpec.bindValuesExpression()
             sqlFI += " RETURNING fileID INTO :newFileID"
             # start transaction
@@ -9254,7 +9206,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # make FileSpec to reuse the row
                     tmpFileSpec = JediFileSpec()
                     tmpFileSpec.pack(resFR)
-                    tmpLog.debug("reuse fileID={0} datasetID={1} rndmSeed={2}".format(tmpFileSpec.fileID, tmpFileSpec.datasetID, tmpFileSpec.firstEvent))
+                    tmpLog.debug(f"reuse fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} rndmSeed={tmpFileSpec.firstEvent}")
                     # update status
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -9286,7 +9238,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     tmpFileSpec.creationDate = datetime.datetime.utcnow()
                     tmpFileSpec.keepTrack = 1
                     tmpFileSpec.type = "random_seed"
-                    tmpFileSpec.lfn = "{0}".format(maxRndSeed)
+                    tmpFileSpec.lfn = f"{maxRndSeed}"
                     tmpFileSpec.firstEvent = maxRndSeed
                     if not simul:
                         varMap = tmpFileSpec.valuesMap(useSeq=True)
@@ -9294,7 +9246,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.cur.execute(sqlFI + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
                         tmpFileSpec.fileID = int(val)
-                        tmpLog.debug("insert fileID={0} datasetID={1} rndmSeed={2}".format(tmpFileSpec.fileID, tmpFileSpec.datasetID, tmpFileSpec.firstEvent))
+                        tmpLog.debug(f"insert fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} rndmSeed={tmpFileSpec.firstEvent}")
                     tmpFileSpec.status = "ready"
                 # cannot return JobFileSpec due to owner.PandaID
                 retVal = (tmpFileSpec, datasetSpec)
@@ -9315,7 +9267,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getPreprocessMetadata_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getPreprocessMetadata_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # sql to get jobPrams for runXYZ
@@ -9324,7 +9276,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
         sqlSCF += "AND tabF.type=:type AND tabD.masterID IS NULL "
-        sqlSCD = "SELECT metaData FROM {0}.metaTable ".format(jedi_config.db.schemaPANDA)
+        sqlSCD = f"SELECT metaData FROM {jedi_config.db.schemaPANDA}.metaTable "
         sqlSCD += "WHERE PandaID=:pandaID "
         failedRet = False, None
         retVal = failedRet
@@ -9351,10 +9303,10 @@ class DBProxy(OraDBProxy.DBProxy):
                     metaData = clobMeta
                     break
                 if metaData is None:
-                    tmpLog.error("no metaData for PandaID={0}".format(pandaID))
+                    tmpLog.error(f"no metaData for PandaID={pandaID}")
                 else:
                     retVal = True, metaData
-                    tmpLog.debug("got metaData from PandaID={0}".format(pandaID))
+                    tmpLog.debug(f"got metaData from PandaID={pandaID}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -9371,19 +9323,19 @@ class DBProxy(OraDBProxy.DBProxy):
     def getPreproLog_JEDI(self, jediTaskID, simul):
         comment = " /* JediDBProxy.getPreproLog_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # sql to get dataset
-        sqlDS = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-        sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlDS = f"SELECT {JediDatasetSpec.columnNames()} "
+        sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlDS += "WHERE jediTaskID=:jediTaskID AND type=:type "
         # sql to insert file
-        sqlFI = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+        sqlFI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
         sqlFI += JediFileSpec.bindValuesExpression()
         sqlFI += " RETURNING fileID INTO :newFileID"
         # sql to update dataset
-        sqlUD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlUD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlUD += "SET nFiles=nFiles+1 "
         sqlUD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
         failedRet = False, None, None
@@ -9398,7 +9350,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.cur.execute(sqlDS + comment, varMap)
             resDS = self.cur.fetchone()
             if resDS is None:
-                tmpLog.error("no dataset with type={0}".format(varMap[":type"]))
+                tmpLog.error(f"no dataset with type={varMap[':type']}")
             else:
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(resDS)
@@ -9411,7 +9363,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpFileSpec.creationDate = datetime.datetime.utcnow()
                 tmpFileSpec.keepTrack = 1
                 tmpFileSpec.type = "log"
-                tmpFileSpec.lfn = "{0}._{1:06d}.log.tgz".format(datasetSpec.datasetName, datasetSpec.nFiles)
+                tmpFileSpec.lfn = f"{datasetSpec.datasetName}._{datasetSpec.nFiles:06d}.log.tgz"
                 if not simul:
                     varMap = tmpFileSpec.valuesMap(useSeq=True)
                     varMap[":newFileID"] = self.cur.var(varNUMBER)
@@ -9444,42 +9396,42 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.retryTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start command={0} retryChildTasks={1}".format(commStr, retryChildTasks))
+        tmpLog.debug(f"start command={commStr} retryChildTasks={retryChildTasks}")
         newTaskStatus = None
         # check command
         if commStr not in ["retry", "incexec"]:
-            tmpLog.debug("unknown command={0}".format(commStr))
+            tmpLog.debug(f"unknown command={commStr}")
             return False, None
         try:
             # sql to retry files without maxFailure
-            sqlRFO = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRFO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlRFO += "SET maxAttempt=maxAttempt+:maxAttempt,proc_status=:proc_status "
             sqlRFO += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRFO += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt<=attemptNr AND maxFailure IS NULL "
             # sql to retry files with maxFailure
-            sqlRFF = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRFF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlRFF += "SET maxAttempt=maxAttempt+:maxAttempt,maxFailure=maxFailure+:maxAttempt,proc_status=:proc_status "
             sqlRFF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRFF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxFailure IS NOT NULL AND (maxAttempt<=attemptNr OR maxFailure<=failedAttempt) "
             # sql to reset ramCount
-            sqlRRC = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRRC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlRRC += "SET ramCount=0 "
             sqlRRC += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRRC += "AND keepTrack=:keepTrack "
             # sql to count unprocessed files
-            sqlCU = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCU = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlCU += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt>attemptNr "
             sqlCU += "AND (maxFailure IS NULL OR maxFailure>failedAttempt) "
             # sql to count failed files
-            sqlCF = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCF = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlCF += "AND keepTrack=:keepTrack AND ((maxAttempt IS NOT NULL AND maxAttempt<=attemptNr) "
             sqlCF += "OR (maxFailure IS NOT NULL AND maxFailure<=failedAttempt)) "
             # sql to retry/incexecute datasets
-            sqlRD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += (
                 "SET status=:status,"
                 "nFilesUsed=(CASE WHEN nFilesUsed-:nDiff-:nRun > 0 THEN nFilesUsed-:nDiff-:nRun ELSE 0 END),"
@@ -9487,40 +9439,40 @@ class DBProxy(OraDBProxy.DBProxy):
             )
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to reset lost files in datasets
-            sqlRL = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRL = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRL += "SET nFiles=nFiles+nFilesMissing,nFilesToBeUsed=nFilesToBeUsed+nFilesMissing,nFilesMissing=0 "
             sqlRL += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
-            sqlUTB = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUTB = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlUTB += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUTB += "WHERE jediTaskID=:jediTaskID "
-            sqlUTN = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUTN = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,"
             sqlUTN += "stateChangeTime=CURRENT_DATE,startTime=NULL,attemptNr=attemptNr+1,frozenTime=NULL "
             sqlUTN += "WHERE jediTaskID=:jediTaskID "
             # sql to update DEFT task status
-            sqlTT = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlTT = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
             sqlTT += "SET status=:status,timeStamp=CURRENT_DATE,start_time=NULL "
             sqlTT += "WHERE taskID=:jediTaskID AND start_time IS NOT NULL "
             # sql to discard events
-            sqlDE = "UPDATE {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
+            sqlDE = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Events "
             sqlDE += "SET status=:newStatus "
             sqlDE += "WHERE jediTaskID=:jediTaskID "
             sqlDE += "AND status IN (:esFinished,:esDone) "
             # sql to reset running files
-            sqlRR = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRR = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt,proc_status=:proc_status "
             sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status IN (:oldStatus1,:oldStatus2) "
             sqlRR += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL "
             # sql to update output/lib/log datasets
-            sqlUO = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUO += "SET status=:status "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,"
             for tmpType in JediDatasetSpec.getProcessTypes():
                 if tmpType in JediDatasetSpec.getInputTypes():
                     continue
                 mapKey = ":type_" + tmpType
-                sqlUO += "{0},".format(mapKey)
+                sqlUO += f"{mapKey},"
             sqlUO = sqlUO[:-1]
             sqlUO += ") "
             # start transaction
@@ -9530,7 +9482,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # check task status
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlTK = "SELECT status,oldStatus FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
+            sqlTK = f"SELECT status,oldStatus FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
             self.cur.execute(sqlTK + comment, varMap)
             resTK = self.cur.fetchone()
             if resTK is None:
@@ -9544,13 +9496,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 newErrorDialog = None
                 if taskOldStatus == "done" and commStr == "retry" and statusCheck:
                     # no retry for finished task
-                    msgStr = "no {0} for task in {1} status".format(commStr, taskOldStatus)
+                    msgStr = f"no {commStr} for task in {taskOldStatus} status"
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
                 elif taskOldStatus not in JediTaskSpec.statusToIncexec() and statusCheck:
                     # only tasks in a relevant final status
-                    msgStr = "no {0} since not in relevant final status ({1})".format(commStr, taskOldStatus)
+                    msgStr = f"no {commStr} since not in relevant final status ({taskOldStatus})"
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
@@ -9564,7 +9516,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     sqlMAX += "AND d.jediTaskID=:jediTaskID AND d.type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
                         mapKey = ":type_" + tmpType
-                        sqlMAX += "{0},".format(mapKey)
+                        sqlMAX += f"{mapKey},"
                         varMap[mapKey] = tmpType
                     sqlMAX = sqlMAX[:-1]
                     sqlMAX += ") "
@@ -9573,7 +9525,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     maxRetry = 1000
                     if resMAX is not None and resMAX[0] is not None and resMAX[0] + maxAttempt >= maxRetry:
                         # only tasks in a relevant final status
-                        msgStr = "no {0} since too many attempts (~{1}) in the past".format(commStr, maxRetry)
+                        msgStr = f"no {commStr} since too many attempts (~{maxRetry}) in the past"
                         tmpLog.debug(msgStr)
                         newTaskStatus = taskOldStatus
                         newErrorDialog = msgStr
@@ -9582,11 +9534,11 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
                         sqlDS = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed," "status,state,type,datasetName,nFilesMissing "
-                        sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                        sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
                             mapKey = ":type_" + tmpType
-                            sqlDS += "{0},".format(mapKey)
+                            sqlDS += f"{mapKey},"
                             varMap[mapKey] = tmpType
                         sqlDS = sqlDS[:-1]
                         sqlDS += ") "
@@ -9620,7 +9572,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     varMap[":nDiff"] = 0
                                     varMap[":nRun"] = 0
                                     varMap[":status"] = "ready"
-                                    tmpLog.debug("set status={0} for 2nd datasetID={1}".format(varMap[":status"], datasetID))
+                                    tmpLog.debug(f"set status={varMap[':status']} for 2nd datasetID={datasetID}")
                                     self.cur.execute(sqlRD + comment, varMap)
                                 else:
                                     # set dataset status to defined to trigger file lookup when state is not set
@@ -9630,7 +9582,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     varMap[":nDiff"] = 0
                                     varMap[":nRun"] = 0
                                     varMap[":status"] = "defined"
-                                    tmpLog.debug("set status={0} for 2nd datasetID={1}".format(varMap[":status"], datasetID))
+                                    tmpLog.debug(f"set status={varMap[':status']} for 2nd datasetID={datasetID}")
                                     self.cur.execute(sqlRD + comment, varMap)
                             else:
                                 # set done if no more try is needed
@@ -9642,11 +9594,11 @@ class DBProxy(OraDBProxy.DBProxy):
                                     varMap[":nDiff"] = 0
                                     varMap[":nRun"] = 0
                                     varMap[":status"] = "done"
-                                    tmpLog.debug("set status={0} for datasetID={1}".format(varMap[":status"], datasetID))
+                                    tmpLog.debug(f"set status={varMap[':status']} for datasetID={datasetID}")
                                     self.cur.execute(sqlRD + comment, varMap)
                                 # no retry if master dataset successfully finished
                                 if commStr == "retry" and nFiles == nFilesFinished:
-                                    tmpLog.debug("no {0} for datasetID={1} : nFiles==nFilesFinished".format(commStr, datasetID))
+                                    tmpLog.debug(f"no {commStr} for datasetID={datasetID} : nFiles==nFilesFinished")
                                     continue
                                 # count unprocessed files
                                 varMap = {}
@@ -9706,10 +9658,10 @@ class DBProxy(OraDBProxy.DBProxy):
                                         varMap[":jediTaskID"] = jediTaskID
                                         varMap[":datasetID"] = datasetID
                                         self.cur.execute(sqlRL + comment, varMap)
-                                        tmpLog.debug("reset nFilesMissing for datasetID={}".format(datasetID))
+                                        tmpLog.debug(f"reset nFilesMissing for datasetID={datasetID}")
                                 # no retry if no failed files
                                 if commStr == "retry" and nDiff == 0 and nUnp == 0 and nRun == 0 and state != "mutable":
-                                    tmpLog.debug("no {0} for datasetID={1} : nDiff/nReady/nRun=0".format(commStr, datasetID))
+                                    tmpLog.debug(f"no {commStr} for datasetID={datasetID} : nDiff/nReady/nRun=0")
                                     continue
                                 # count failed files which could be screwed up when files are lost
                                 if nDiff == 0 and nRun == 0 and nFilesUsed <= (nFilesFinished + nFilesFailed):
@@ -9721,7 +9673,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     self.cur.execute(sqlCF + comment, varMap)
                                     (newNumFailed,) = self.cur.fetchone()
                                     nDiff = nFilesFailed - newNumFailed
-                                    tmpLog.debug("got nFilesFailed={0} while {1} in DB for datasetID={2}".format(newNumFailed, nFilesFailed, datasetID))
+                                    tmpLog.debug(f"got nFilesFailed={newNumFailed} while {nFilesFailed} in DB for datasetID={datasetID}")
                                 # update dataset
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
@@ -9730,7 +9682,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":nRun"] = nRun
                                 if commStr == "retry":
                                     varMap[":status"] = "ready"
-                                    tmpLog.debug("set status={0} for datasetID={1} diff={2}".format(varMap[":status"], datasetID, nDiff))
+                                    tmpLog.debug(f"set status={varMap[':status']} for datasetID={datasetID} diff={nDiff}")
                                 elif commStr == "incexec":
                                     varMap[":status"] = "toupdate"
                                 self.cur.execute(sqlRD + comment, varMap)
@@ -9798,7 +9750,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                         varMap[":jediTaskID"] = jediTaskID
                                         varMap[":datasetID"] = datasetID
                                         self.cur.execute(sqlRL + comment, varMap)
-                                        tmpLog.debug("reset nFilesMissing for datasetID={}".format(datasetID))
+                                        tmpLog.debug(f"reset nFilesMissing for datasetID={datasetID}")
                                 # update dataset
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
@@ -9809,7 +9761,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     varMap[":status"] = "toupdate"
                                 else:
                                     varMap[":status"] = "ready"
-                                tmpLog.debug("set status={0} for associated 2nd datasetID={1}".format(varMap[":status"], datasetID))
+                                tmpLog.debug(f"set status={varMap[':status']} for associated 2nd datasetID={datasetID}")
                                 self.cur.execute(sqlRD + comment, varMap)
                         # discard events
                         if discardEvents:
@@ -9820,14 +9772,14 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":esFinished"] = EventServiceUtils.ST_finished
                             self.cur.execute(sqlDE + comment, varMap)
                             nDE = self.cur.rowcount
-                            tmpLog.debug("discarded {0} events".format(nDE))
+                            tmpLog.debug(f"discarded {nDE} events")
                         # update task
                         if commStr == "retry":
                             if changedMasterList != [] or taskOldStatus == "exhausted":
                                 newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]["done"]
                             else:
                                 # to finalization since no files left in ready status
-                                msgStr = "no {0} since no new/unprocessed files available".format(commStr)
+                                msgStr = f"no {commStr} since no new/unprocessed files available"
                                 tmpLog.debug(msgStr)
                                 newTaskStatus = taskOldStatus
                                 newErrorDialog = msgStr
@@ -9840,7 +9792,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":status"] = newTaskStatus
                 varMap[":errorDialog"] = newErrorDialog
                 if newTaskStatus != taskOldStatus:
-                    tmpLog.debug("set taskStatus={} from {} for command={}".format(newTaskStatus, taskStatus, commStr))
+                    tmpLog.debug(f"set taskStatus={newTaskStatus} from {taskStatus} for command={commStr}")
                     # set old update time to trigger subsequent process
                     varMap[":updateTime"] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlUTN + comment, varMap)
@@ -9857,7 +9809,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # task attempt start log
                     self.log_task_attempt_start(jediTaskID)
                 else:
-                    tmpLog.debug("back to taskStatus={0} for command={1}".format(newTaskStatus, commStr))
+                    tmpLog.debug(f"back to taskStatus={newTaskStatus} for command={commStr}")
                     varMap[":updateTime"] = datetime.datetime.utcnow()
                     self.cur.execute(sqlUTB + comment, varMap)
                 # update output/lib/log
@@ -9896,7 +9848,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def appendDatasets_JEDI(self, jediTaskID, inMasterDatasetSpecList, inSecDatasetSpecList):
         comment = " /* JediDBProxy.appendDatasets_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         goDefined = False
@@ -9909,7 +9861,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # check task status
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlTK = "SELECT status FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
+            sqlTK = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
             self.cur.execute(sqlTK + comment, varMap)
             resTK = self.cur.fetchone()
             if resTK is None:
@@ -9920,7 +9872,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 (taskStatus,) = resTK
                 # invalid status
                 if taskStatus != JediTaskSpec.commandStatusMap()[commandStr]["done"]:
-                    msgStr = "invalid status={0} for dataset appending".format(taskStatus)
+                    msgStr = f"invalid status={taskStatus} for dataset appending"
                     tmpLog.debug(msgStr)
                 else:
                     timeNow = datetime.datetime.utcnow()
@@ -9928,11 +9880,11 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     sqlDS = "SELECT datasetName,status,nFilesTobeUsed,nFilesUsed,masterID "
-                    sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                    sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                     sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
                         mapKey = ":type_" + tmpType
-                        sqlDS += "{0},".format(mapKey)
+                        sqlDS += f"{mapKey},"
                         varMap[mapKey] = tmpType
                     sqlDS = sqlDS[:-1]
                     sqlDS += ") "
@@ -9950,7 +9902,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         except Exception:
                             pass
                     # insert datasets
-                    sqlID = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI, JediDatasetSpec.columnNames())
+                    sqlID = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
                     sqlID += JediDatasetSpec.bindValuesExpression()
                     sqlID += " RETURNING datasetID INTO :newDatasetID"
                     for datasetSpec in inMasterDatasetSpecList:
@@ -9984,7 +9936,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             datasetSpec.datasetID = datasetID
                         goDefined = True
                     # update task
-                    sqlUT = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                    sqlUT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
                     sqlUT += "SET status=:status,lockedBy=NULL,lockedTime=NULL,modificationtime=:updateTime,stateChangeTime=CURRENT_DATE "
                     sqlUT += "WHERE jediTaskID=:jediTaskID "
                     varMap = {}
@@ -10002,7 +9954,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":status"] = "prepared"
                     # set old update time to trigger subsequent process
                     varMap[":updateTime"] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
-                    tmpLog.debug("set taskStatus={0}".format(varMap[":status"]))
+                    tmpLog.debug(f"set taskStatus={varMap[':status']}")
                     self.cur.execute(sqlUT + comment, varMap)
                     # add missing record_task_status_change and push_task_status_message updates
                     self.record_task_status_change(jediTaskID)
@@ -10025,11 +9977,11 @@ class DBProxy(OraDBProxy.DBProxy):
     def recordRetryHistory_JEDI(self, jediTaskID, oldNewPandaIDs, relationType):
         comment = " /* JediDBProxy.recordRetryHistory_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
-            sqlIN = "INSERT INTO {0}.JEDI_Job_Retry_History ".format(jedi_config.db.schemaJEDI)
+            sqlIN = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Job_Retry_History "
             if relationType is None:
                 sqlIN += "(jediTaskID,oldPandaID,newPandaID,originPandaID) "
                 sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:originPandaID) "
@@ -10070,9 +10022,9 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.getTasksWithCriteria_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start with tC={0} dC={1}".format(str(taskCriteria), str(datasetCriteria)))
+        tmpLog.debug(f"start with tC={str(taskCriteria)} dC={str(datasetCriteria)}")
         # return value for failure
         failedRet = None
         try:
@@ -10080,18 +10032,18 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             sqlRT = "SELECT tabT.jediTaskID,"
             for tmpPar in taskParamList:
-                sqlRT += "tabT.{0},".format(tmpPar)
+                sqlRT += f"tabT.{tmpPar},"
             for tmpPar in datasetParamList:
-                sqlRT += "tabD.{0},".format(tmpPar)
+                sqlRT += f"tabD.{tmpPar},"
             sqlRT = sqlRT[:-1]
             sqlRT += " "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
             sqlRT += "AND tabT.status IN ("
             for tmpStatus in taskStatusList:
-                tmpKey = ":status_{0}".format(tmpStatus)
+                tmpKey = f":status_{tmpStatus}"
                 varMap[tmpKey] = tmpStatus
-                sqlRT += "{0},".format(tmpKey)
+                sqlRT += f"{tmpKey},"
             sqlRT = sqlRT[:-1]
             sqlRT += ") "
             if vo not in [None, "any"]:
@@ -10102,30 +10054,30 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             for tmpKey, tmpVal in taskCriteria.items():
                 if isinstance(tmpVal, list):
-                    sqlRT += "AND tabT.{0} IN (".format(tmpKey)
+                    sqlRT += f"AND tabT.{tmpKey} IN ("
                     for tmpValItem in tmpVal:
-                        sqlRT += ":{0}_{1},".format(tmpKey, tmpValItem)
-                        varMap[":{0}_{1}".format(tmpKey, tmpValItem)] = tmpValItem
+                        sqlRT += f":{tmpKey}_{tmpValItem},"
+                        varMap[f":{tmpKey}_{tmpValItem}"] = tmpValItem
                     sqlRT = sqlRT[:-1]
                     sqlRT += ") "
                 elif tmpVal is not None:
                     sqlRT += "AND tabT.{0}=:{0} ".format(tmpKey)
-                    varMap[":{0}".format(tmpKey)] = tmpVal
+                    varMap[f":{tmpKey}"] = tmpVal
                 else:
-                    sqlRT += "AND tabT.{0} IS NULL ".format(tmpKey)
+                    sqlRT += f"AND tabT.{tmpKey} IS NULL "
             for tmpKey, tmpVal in datasetCriteria.items():
                 if isinstance(tmpVal, list):
-                    sqlRT += "AND tabD.{0} IN (".format(tmpKey)
+                    sqlRT += f"AND tabD.{tmpKey} IN ("
                     for tmpValItem in tmpVal:
-                        sqlRT += ":{0}_{1},".format(tmpKey, tmpValItem)
-                        varMap[":{0}_{1}".format(tmpKey, tmpValItem)] = tmpValItem
+                        sqlRT += f":{tmpKey}_{tmpValItem},"
+                        varMap[f":{tmpKey}_{tmpValItem}"] = tmpValItem
                     sqlRT = sqlRT[:-1]
                     sqlRT += ") "
                 elif tmpVal is not None:
                     sqlRT += "AND tabD.{0}=:{0} ".format(tmpKey)
-                    varMap[":{0}".format(tmpKey)] = tmpVal
+                    varMap[f":{tmpKey}"] = tmpVal
                 else:
-                    sqlRT += "AND tabD.{0} IS NULL ".format(tmpKey)
+                    sqlRT += f"AND tabD.{tmpKey} IS NULL "
             timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=taskLockInterval)
             if taskLockColumn is not None:
                 sqlRT += "AND (tabT.{0} IS NULL OR tabT.{0}<:lockTimeLimit) ".format(taskLockColumn)
@@ -10133,8 +10085,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRT += "ORDER BY tabT.jediTaskID "
             # sql to lock
             if taskLockColumn is not None:
-                sqlLK = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                sqlLK += "SET {0}=CURRENT_DATE ".format(taskLockColumn)
+                sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
+                sqlLK += f"SET {taskLockColumn}=CURRENT_DATE "
                 sqlLK += "WHERE jediTaskID=:jediTaskID AND ({0} IS NULL OR {0}<:lockTimeLimit) ".format(taskLockColumn)
             # begin transaction
             self.conn.begin()
@@ -10171,7 +10123,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if nLK == 0:
                         continue
                 retTasks.append((taskParMap, datasetParMap))
-            tmpLog.debug("got {0} tasks".format(len(retTasks)))
+            tmpLog.debug(f"got {len(retTasks)} tasks")
             return retTasks
         except Exception:
             # roll back
@@ -10184,12 +10136,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def checkParentTask_JEDI(self, jediTaskID, useCommit=True):
         comment = " /* JediDBProxy.checkParentTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = None
-            sql = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sql += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -10208,7 +10160,7 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 # task status
                 (taskStatus,) = resTK
-                tmpLog.debug("parent status = {0}".format(taskStatus))
+                tmpLog.debug(f"parent status = {taskStatus}")
                 if taskStatus in ["done", "finished"]:
                     # parent is completed
                     retVal = "completed"
@@ -10219,7 +10171,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # parent is running
                     retVal = "running"
             # return
-            tmpLog.debug("done with {0}".format(retVal))
+            tmpLog.debug(f"done with {retVal}")
             return retVal
         except Exception:
             if useCommit:
@@ -10233,12 +10185,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTaskStatus_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getTaskStatus_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = None
-            sql = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sql += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -10252,7 +10204,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if resTK is not None:
                 (retVal,) = resTK
             # return
-            tmpLog.debug("done with {0}".format(retVal))
+            tmpLog.debug(f"done with {retVal}")
             return retVal
         except Exception:
             # roll back
@@ -10265,26 +10217,26 @@ class DBProxy(OraDBProxy.DBProxy):
     def getLibForWaitingRunJob_JEDI(self, vo, prodSourceLabel, checkInterval):
         comment = " /* JediDBProxy.getLibForWaitingRunJob_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get the list of user/jobIDs
             sqlL = "SELECT prodUserName,jobsetID,jobDefinitionID,MAX(PandaID) "
-            sqlL += "FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlL += f"FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sqlL += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
             sqlL += "AND lockedBy=:lockedBy AND modificationTime<:timeLimit "
             sqlL += "GROUP BY prodUserName,jobsetID,jobDefinitionID "
             # sql to get data of lib.tgz
             sqlD = "SELECT lfn,dataset,jediTaskID,datasetID,fileID "
-            sqlD += "FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
+            sqlD += f"FROM {jedi_config.db.schemaPANDA}.filesTable4 "
             sqlD += "WHERE PandaID=:PandaID AND type=:type AND status=:status "
             # sql to read file spec
-            sqlF = "SELECT {0} ".format(JediFileSpec.columnNames())
-            sqlF += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"SELECT {JediFileSpec.columnNames()} "
+            sqlF += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # sql to update modificationTime
-            sqlU = "UPDATE {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlU = f"UPDATE {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sqlU += "SET modificationTime=CURRENT_DATE "
             sqlU += "WHERE prodUserName=:prodUserName AND jobsetID=:jobsetID AND jobDefinitionID=:jobDefinitionID "
             # start transaction
@@ -10338,7 +10290,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done with {0}".format(len(retList)))
+            tmpLog.debug(f"done with {len(retList)}")
             return retList
         except Exception:
             # roll back
@@ -10351,7 +10303,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTasksToReassign_JEDI(self, vo=None, prodSourceLabel=None):
         comment = " /* JediDBProxy.getTasksToReassign_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTasks = []
@@ -10360,7 +10312,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":status"] = "reassigning"
             varMap[":timeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
-            sqlSCF = "SELECT {0} ".format(JediTaskSpec.columnNames("tabT"))
+            sqlSCF = f"SELECT {JediTaskSpec.columnNames('tabT')} "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlSCF += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit "
@@ -10371,7 +10323,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
             sqlSCF += "FOR UPDATE"
-            sqlSPC = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSPC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationTime=CURRENT_DATE "
             sqlSPC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -10394,7 +10346,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0} tasks".format(len(retTasks)))
+            tmpLog.debug(f"got {len(retTasks)} tasks")
             return retTasks
         except Exception:
             # roll back
@@ -10407,16 +10359,16 @@ class DBProxy(OraDBProxy.DBProxy):
     def killChildTasks_JEDI(self, jediTaskID, taskStatus, useCommit=True):
         comment = " /* JediDBProxy.killChildTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTasks = []
         try:
             # sql to get child tasks
-            sqlGT = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT = f"SELECT jediTaskID,status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to change status
-            sqlCT = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET status=:status,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlCT += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
@@ -10436,9 +10388,9 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[":jediTaskID"] = cJediTaskID
                 varMap[":status"] = cTaskStatus
-                varMap[":errorDialog"] = "parent task is {0}".format(taskStatus)
+                varMap[":errorDialog"] = f"parent task is {taskStatus}"
                 self.cur.execute(sqlCT + comment, varMap)
-                tmpLog.debug("set {0} to jediTaskID={1}".format(cTaskStatus, cJediTaskID))
+                tmpLog.debug(f"set {cTaskStatus} to jediTaskID={cJediTaskID}")
                 # add missing record_task_status_change and push_task_status_message updates
                 self.record_task_status_change(cJediTaskID)
                 self.push_task_status_message(None, cJediTaskID, cTaskStatus)
@@ -10465,23 +10417,23 @@ class DBProxy(OraDBProxy.DBProxy):
     def kickChildTasks_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.kickChildTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTasks = []
         try:
             # sql to get child tasks
-            sqlGT = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT = f"SELECT jediTaskID,status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to change modification time to the time just before pending tasks are reactivated
             timeLimitT = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
-            sqlCT = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET modificationTime=CURRENT_DATE-1 "
             sqlCT += "WHERE jediTaskID=:jediTaskID AND modificationTime<:timeLimit "
             sqlCT += "AND status=:status AND lockedBy IS NULL "
             # sql to change state check time
             timeLimitD = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
-            sqlCC = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCC += "SET stateCheckTime=CURRENT_DATE-1 "
             sqlCC += "WHERE jediTaskID=:jediTaskID AND state=:dsState AND stateCheckTime<:timeLimit "
             # begin transaction
@@ -10505,7 +10457,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # add missing record_task_status_change and push_task_status_message updates
                 self.record_task_status_change(cJediTaskID)
                 self.push_task_status_message(None, cJediTaskID, varMap[":status"])
-                tmpLog.debug("kicked jediTaskID={0} with {1}".format(cJediTaskID, nRow))
+                tmpLog.debug(f"kicked jediTaskID={cJediTaskID} with {nRow}")
                 # change state check time for mutable datasets
                 if cTaskStatus not in ["pending"]:
                     varMap = {}
@@ -10514,7 +10466,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":timeLimit"] = timeLimitD
                     self.cur.execute(sqlCC + comment, varMap)
                     nRow = self.cur.rowcount
-                    tmpLog.debug("kicked {0} mutable datasets for jediTaskID={1}".format(nRow, cJediTaskID))
+                    tmpLog.debug(f"kicked {nRow} mutable datasets for jediTaskID={cJediTaskID}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -10532,35 +10484,35 @@ class DBProxy(OraDBProxy.DBProxy):
     def retryChildTasks_JEDI(self, jediTaskID, useCommit=True):
         comment = " /* JediDBProxy.retryChildTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retTasks = []
         try:
             # sql to get output datasets of parent task
-            sqlPD = "SELECT datasetName,containerName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlPD = f"SELECT datasetName,containerName FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlPD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to get child tasks
-            sqlGT = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT = f"SELECT jediTaskID,status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to get input datasets of child task
-            sqlRD = "SELECT datasetID,datasetName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD = f"SELECT datasetID,datasetName FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getProcessTypes():
                 mapKey = ":type_" + tmpType
-                sqlRD += "{0},".format(mapKey)
+                sqlRD += f"{mapKey},"
             sqlRD = sqlRD[:-1]
             sqlRD += ") "
             # sql to change task status
-            sqlCT = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET status=:status,errorDialog=NULL,stateChangeTime=CURRENT_DATE "
             sqlCT += "WHERE jediTaskID=:jediTaskID "
             # sql to set mutable to dataset status
-            sqlMD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlMD += "SET state=:state,stateCheckTime=CURRENT_DATE "
             sqlMD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to set dataset status
-            sqlCD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCD += "SET status=:status "
             sqlCD += "WHERE jediTaskID=:jediTaskID AND type=:type "
             # begin transaction
@@ -10585,7 +10537,7 @@ class DBProxy(OraDBProxy.DBProxy):
             for cJediTaskID, cTaskStatus in resList:
                 # not to retry if child task is aborted/broken
                 if cTaskStatus in ["aborted", "toabort", "aborting", "broken", "tobroken", "failed"]:
-                    tmpLog.debug("not to retry child jediTaskID={0} in {1}".format(cJediTaskID, cTaskStatus))
+                    tmpLog.debug(f"not to retry child jediTaskID={cJediTaskID} in {cTaskStatus}")
                     continue
                 # get input datasets of child task
                 varMap = {}
@@ -10615,10 +10567,10 @@ class DBProxy(OraDBProxy.DBProxy):
                     # add missing record_task_status_change and push_task_status_message updates
                     self.record_task_status_change(cJediTaskID)
                     self.push_task_status_message(None, cJediTaskID, varMap[":status"])
-                    tmpLog.debug("set status of child jediTaskID={0} to {1}".format(cJediTaskID, varMap[":status"]))
+                    tmpLog.debug(f"set status of child jediTaskID={cJediTaskID} to {varMap[':status']}")
                 elif cTaskStatus not in ["ready", "running", "scouting", "scouted"]:
                     # incexec child task
-                    tmpLog.debug("incremental execution for child jediTaskID={0}".format(cJediTaskID))
+                    tmpLog.debug(f"incremental execution for child jediTaskID={cJediTaskID}")
                     self.retryTask_JEDI(cJediTaskID, "incexec", useCommit=False, statusCheck=False)
             # commit
             if useCommit:
@@ -10639,12 +10591,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def setSuperStatus_JEDI(self, jediTaskID, superStatus):
         comment = " /* JediDBProxy.setSuperStatus_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         retTasks = []
         try:
             # sql to set super status
-            sqlCT = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET superStatus=:superStatus "
             sqlCT += "WHERE jediTaskID=:jediTaskID "
             # set super status
@@ -10662,10 +10614,10 @@ class DBProxy(OraDBProxy.DBProxy):
     def setDeftStatus_JEDI(self, jediTaskID, taskStatus):
         comment = " /* JediDBProxy.setDeftStatus_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         try:
-            sqlD = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlD = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
             sqlD += "SET status=:status,timeStamp=CURRENT_DATE "
             sqlD += "WHERE taskID=:jediTaskID "
             varMap = {}
@@ -10683,16 +10635,16 @@ class DBProxy(OraDBProxy.DBProxy):
     def lockTask_JEDI(self, jediTaskID, pid):
         comment = " /* JediDBProxy.lockTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} pid={1}>".format(jediTaskID, pid)
+        methodName += f" <jediTaskID={jediTaskID} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to lock task
-            sqlPD = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlPD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlPD += "SET lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlPD += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy "
             # sql to check lock
-            sqlCL = "SELECT lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCL = f"SELECT lockedBy,lockedTime FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCL += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -10704,7 +10656,7 @@ class DBProxy(OraDBProxy.DBProxy):
             nRow = self.cur.rowcount
             if nRow == 1:
                 retVal = True
-                tmpLog.debug("done with {0}".format(retVal))
+                tmpLog.debug(f"done with {retVal}")
             else:
                 retVal = False
                 # check lock
@@ -10712,7 +10664,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":jediTaskID"] = jediTaskID
                 self.cur.execute(sqlCL + comment, varMap)
                 tmpLockedBy, tmpLockedTime = self.cur.fetchone()
-                tmpLog.debug("done with {0} locked by another {1} at {2}".format(retVal, tmpLockedBy, tmpLockedTime))
+                tmpLog.debug(f"done with {retVal} locked by another {tmpLockedBy} at {tmpLockedTime}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -10729,12 +10681,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getSuccessfulFiles_JEDI(self, jediTaskID, datasetID):
         comment = " /* JediDBProxy.getSuccessfulFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID, datasetID)
+        methodName += f" <jediTaskID={jediTaskID} datasetID={datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get files
-            sqlF = "SELECT lfn FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF = f"SELECT lfn FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             # begin transaction
             self.conn.begin()
@@ -10752,7 +10704,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0} files".format(len(lfnList)))
+            tmpLog.debug(f"got {len(lfnList)} files")
             return lfnList
         except Exception:
             # roll back
@@ -10765,12 +10717,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def unlockSingleTask_JEDI(self, jediTaskID, pid):
         comment = " /* JediDBProxy.unlockSingleTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} pid={1}>".format(jediTaskID, pid)
+        methodName += f" <jediTaskID={jediTaskID} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to unlock
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:pid "
             # begin transaction
@@ -10784,7 +10736,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0}".format(nRow))
+            tmpLog.debug(f"done with {nRow}")
             return True
         except Exception:
             # roll back
@@ -10797,9 +10749,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def throttleTasks_JEDI(self, vo, prodSourceLabel, waitTime):
         comment = " /* JediDBProxy.throttleTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start waitTime={0}min".format(waitTime))
+        tmpLog.debug(f"start waitTime={waitTime}min")
         try:
             # sql
             varMap = {}
@@ -10817,7 +10769,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRT += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlRT += "{0},".format(mapKey)
+                sqlRT += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sqlRT = sqlRT[:-1]
             sqlRT += ") AND tabD.masterID IS NULL "
@@ -10841,7 +10793,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # sql to throttle tasks
-            sqlTH = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTH = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTH += "SET throttledTime=:releaseTime,modificationTime=CURRENT_DATE,"
             sqlTH += "oldStatus=status,status=:newStatus,errorDialog=:errorDialog,"
             sqlTH += "numThrottled=:numThrottled "
@@ -10863,8 +10815,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     errorDialog = "#ATM #KV action=throttle jediTaskID={0} due to reason=many_attempts {0} > {1}x{2} ".format(
                         jediTaskID, largestAttemptNr, numThrottled, attemptInterval
                     )
-                    errorDialog += "from {0} ".format(throttledTime.strftime("%Y/%m/%d %H:%M:%S"))
-                    errorDialog += "till {0}".format(releaseTime.strftime("%Y/%m/%d %H:%M:%S"))
+                    errorDialog += f"from {throttledTime.strftime('%Y/%m/%d %H:%M:%S')} "
+                    errorDialog += f"till {releaseTime.strftime('%Y/%m/%d %H:%M:%S')}"
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":newStatus"] = "throttled"
@@ -10880,7 +10832,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.record_task_status_change(jediTaskID)
                         self.push_task_status_message(None, jediTaskID, varMap[":newStatus"])
                 except Exception:
-                    tmpLog.debug("skip locked jediTaskID={0}".format(jediTaskID))
+                    tmpLog.debug(f"skip locked jediTaskID={jediTaskID}")
                 # commit
                 if not self._commit():
                     raise RuntimeError("Commit error")
@@ -10897,12 +10849,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def throttleTask_JEDI(self, jediTaskID, waitTime, errorDialog):
         comment = " /* JediDBProxy.throttleTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start waitTime={0}min".format(waitTime))
+        tmpLog.debug(f"start waitTime={waitTime}min")
         try:
             # sql to throttle tasks
-            sqlTH = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTH = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTH += "SET throttledTime=:releaseTime,modificationTime=CURRENT_DATE,"
             sqlTH += "oldStatus=status,status=:newStatus,errorDialog=:errorDialog "
             sqlTH += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
@@ -10917,7 +10869,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":errorDialog"] = errorDialog
             self.cur.execute(sqlTH + comment, varMap)
             nRow = self.cur.rowcount
-            tmpLog.debug("done with {0}".format(nRow))
+            tmpLog.debug(f"done with {nRow}")
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
                 self.push_task_status_message(None, jediTaskID, varMap[":newStatus"])
@@ -10936,7 +10888,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def releaseThrottledTasks_JEDI(self, vo, prodSourceLabel):
         comment = " /* JediDBProxy.releaseThrottledTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -10949,7 +10901,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlTL += "AND tabD.jediTaskID=tabT.jediTaskID AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlTL += "{0},".format(mapKey)
+                sqlTL += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sqlTL = sqlTL[:-1]
             sqlTL += ") AND tabD.masterID IS NULL "
@@ -10964,7 +10916,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
 
             # sql to update tasks
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
 
@@ -10978,14 +10930,14 @@ class DBProxy(OraDBProxy.DBProxy):
             nRow = 0
             for jediTaskID, oldStatus in resTL:
                 if oldStatus in [None, ""]:
-                    tmpLog.debug("cannot release jediTaskID={0} since oldStatus is invalid".format(jediTaskID))
+                    tmpLog.debug(f"cannot release jediTaskID={jediTaskID} since oldStatus is invalid")
                     continue
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
                 varMap[":oldStatus"] = "throttled"
                 self.cur.execute(sqlTU + comment, varMap)
                 iRow = self.cur.rowcount
-                tmpLog.info("#ATM #KV action=released jediTaskID={0} with {1}".format(jediTaskID, iRow))
+                tmpLog.info(f"#ATM #KV action=released jediTaskID={jediTaskID} with {iRow}")
                 nRow += iRow
                 if iRow > 0:
                     self.record_task_status_change(jediTaskID)
@@ -10994,7 +10946,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("updated {0} rows".format(nRow))
+            tmpLog.debug(f"updated {nRow} rows")
             return nRow
         except Exception:
             # roll back
@@ -11007,12 +10959,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def releaseThrottledTask_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.releaseThrottledTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to update tasks
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
             # start transaction
@@ -11022,7 +10974,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":oldStatus"] = "throttled"
             self.cur.execute(sqlTU + comment, varMap)
             nRow = self.cur.rowcount
-            tmpLog.debug("done with {0}".format(nRow))
+            tmpLog.debug(f"done with {nRow}")
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
                 self.push_task_status_message(None, jediTaskID, None)
@@ -11042,7 +10994,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getThrottledUsersTasks_JEDI(self, vo, prodSourceLabel):
         comment = " /* JediDBProxy.getThrottledUsersTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -11077,7 +11029,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("get {0} users".format(len(userTaskMap)))
+            tmpLog.debug(f"get {len(userTaskMap)} users")
             return userTaskMap
         except Exception:
             # roll back
@@ -11090,14 +11042,14 @@ class DBProxy(OraDBProxy.DBProxy):
     def duplicateFilesForReuse_JEDI(self, datasetSpec):
         comment = " /* JediDBProxy.duplicateFilesForReuse_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID, datasetSpec.datasetID)
+        methodName += f" <jediTaskID={datasetSpec.jediTaskID} datasetID={datasetSpec.datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         try:
-            tmpLog.debug("start random={}".format(datasetSpec.isRandom()))
+            tmpLog.debug(f"start random={datasetSpec.isRandom()}")
             # sql to get unique files
             sqlCT = "SELECT COUNT(*) FROM ("
             sqlCT += "SELECT distinct lfn,startEvent,endEvent "
-            sqlCT += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCT += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCT += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlCT += ") "
             # sql to read file spec
@@ -11107,13 +11059,13 @@ class DBProxy(OraDBProxy.DBProxy):
             defaultVales["attemptNr"] = 0
             defaultVales["failedAttempt"] = 0
             defaultVales["ramCount"] = 0
-            sqlFR = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
-            sqlFR += "SELECT {0} FROM ( ".format(JediFileSpec.columnNames(useSeq=True, defaultVales=defaultVales))
-            sqlFR += "SELECT {0} ".format(JediFileSpec.columnNames(defaultVales=defaultVales, skipDefaultAttr=True))
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
+            sqlFR += f"SELECT {JediFileSpec.columnNames(useSeq=True, defaultVales=defaultVales)} FROM ( "
+            sqlFR += f"SELECT {JediFileSpec.columnNames(defaultVales=defaultVales, skipDefaultAttr=True)} "
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID IN ( "
             sqlFR += "SELECT /*+ UNNEST */ MIN(fileID) minFileID "
-            sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlFR += "GROUP BY lfn,startEvent,endEvent) "
             if not datasetSpec.isRandom():
@@ -11121,7 +11073,7 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 sqlFR += "ORDER BY DBMS_RANDOM.value) "
             # sql to update dataset record
-            sqlDU = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # read unique files
@@ -11143,7 +11095,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":datasetID"] = datasetSpec.datasetID
                 varMap[":iFiles"] = iFile
                 self.cur.execute(sqlDU + comment, varMap)
-            tmpLog.debug("inserted {0} files".format(iFile))
+            tmpLog.debug(f"inserted {iFile} files")
             return iFile
         except Exception:
             # error
@@ -11154,7 +11106,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def increaseSeqNumber_JEDI(self, datasetSpec, n_records):
         comment = " /* JediDBProxy.increaseSeqNumber_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID, datasetSpec.datasetID)
+        methodName += f" <jediTaskID={datasetSpec.jediTaskID} datasetID={datasetSpec.datasetID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -11200,11 +11152,11 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap = fileSpec.valuesMap(useSeq=True)
                 varMaps.append(varMap)
             # sql for insert
-            sqlIn = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI, JediFileSpec.columnNames())
+            sqlIn = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlIn += JediFileSpec.bindValuesExpression()
             self.cur.executemany(sqlIn + comment, varMaps)
             # sql to update dataset record
-            sqlDU = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             varMap = {}
@@ -11212,7 +11164,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":datasetID"] = datasetSpec.datasetID
             varMap[":iFiles"] = n_records
             self.cur.execute(sqlDU + comment, varMap)
-            tmpLog.debug("inserted {0} files".format(n_records))
+            tmpLog.debug(f"inserted {n_records} files")
             return n_records
         except Exception:
             # error
@@ -11232,26 +11184,24 @@ class DBProxy(OraDBProxy.DBProxy):
             resource_name = "default"
         if component is None:
             component = "default"
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(
-            vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid
-        )
+        methodName += f" <vo={vo} label={prodSourceLabel} cloud={cloud} queue={workqueue_id} resource_type={resource_name} component={component} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to check
             sqlCT = "SELECT lockedBy "
-            sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCT += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
             sqlCT += "AND resource_type=:resource_name AND component=:component "
             sqlCT += "AND lockedTime>:timeLimit "
             sqlCT += "FOR UPDATE"
             # sql to delete
-            sqlCD = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
             sqlCD += "AND resource_type=:resource_name AND component=:component "
             # sql to insert
-            sqlFR = "INSERT INTO {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlFR += "(vo, prodSourceLabel, cloud, workqueue_id, resource_type, component, lockedBy, lockedTime) "
             sqlFR += "VALUES(:vo, :prodSourceLabel, :cloud, :workqueue_id, :resource_name, :component, :lockedBy, CURRENT_DATE) "
             # start transaction
@@ -11271,7 +11221,7 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 resCT = None
             if resCT is not None:
-                tmpLog.debug("skipped, locked by {0}".format(resCT[0]))
+                tmpLog.debug(f"skipped, locked by {resCT[0]}")
             else:
                 # delete
                 varMap = {}
@@ -11318,15 +11268,13 @@ class DBProxy(OraDBProxy.DBProxy):
             resource_name = "default"
         if component is None:
             component = "default"
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(
-            vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid
-        )
+        methodName += f" <vo={vo} label={prodSourceLabel} cloud={cloud} queue={workqueue_id} resource_type={resource_name} component={component} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to delete
-            sqlCD = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
             sqlCD += "AND workqueue_id=:workqueue_id AND lockedBy=:lockedBy "
             sqlCD += "AND resource_type=:resource_name AND component=:component "
@@ -11359,15 +11307,13 @@ class DBProxy(OraDBProxy.DBProxy):
     def unlockProcessWithPID_JEDI(self, vo, prodSourceLabel, workqueue_id, resource_name, pid, useBase):
         comment = " /* JediDBProxy.unlockProcessWithPID_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} queue={2} resource_type={3} pid={4} useBase={5}>".format(
-            vo, prodSourceLabel, workqueue_id, resource_name, pid, useBase
-        )
+        methodName += f" <vo={vo} label={prodSourceLabel} queue={workqueue_id} resource_type={resource_name} pid={pid} useBase={useBase}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to delete
-            sqlCD = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD = f"DELETE FROM {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
             sqlCD += "AND workqueue_id=:workqueue_id "
             sqlCD += "AND resource_name=:resource_name "
@@ -11414,16 +11360,14 @@ class DBProxy(OraDBProxy.DBProxy):
             resource_name = "default"
         if component is None:
             component = "default"
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(
-            vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid
-        )
+        methodName += f" <vo={vo} label={prodSourceLabel} cloud={cloud} queue={workqueue_id} resource_type={resource_name} component={component} pid={pid}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to check
             sqlCT = "SELECT lockedBy "
-            sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCT += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Process_Lock "
             sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
             sqlCT += "AND resource_type=:resource_name AND component=:component "
             sqlCT += "AND lockedTime>:timeLimit "
@@ -11451,11 +11395,11 @@ class DBProxy(OraDBProxy.DBProxy):
                     if lockedBy != pid:
                         retVal = True
                 if retVal is True:
-                    tmpLog.debug("skipped locked by {0}".format(lockedBy))
+                    tmpLog.debug(f"skipped locked by {lockedBy}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0}".format(retVal))
+            tmpLog.debug(f"done with {retVal}")
             return retVal
         except Exception:
             # roll back
@@ -11468,7 +11412,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getAchievedTasks_JEDI(self, vo, prodSourceLabel, timeLimit, nTasks):
         comment = " /* JediDBProxy.getAchievedTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # return value for failure
@@ -11490,22 +11434,22 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND goal IS NOT NULL "
             sqlRT += "AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) "
-            sqlRT += "AND rownum<{0} ".format(nTasks)
-            sqlLK = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlRT += f"AND rownum<{nTasks} "
+            sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET assessmentTime=CURRENT_DATE "
             sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
             sqlDS = "SELECT datasetID,type,nEvents,status "
-            sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDS += "WHERE jediTaskID=:jediTaskID AND ((type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlDS += "{0},".format(mapKey)
+                sqlDS += f"{mapKey},"
             sqlDS = sqlDS[:-1]
             sqlDS += ") AND masterID IS NULL) OR (type=:type1)) "
             sqlFC = "SELECT COUNT(*) "
-            sqlFC += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFC += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFC += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status AND failedAttempt=:failedAttempt "
             # sql to check parent
-            sqlCP = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCP = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCP += "WHERE jediTaskID=:parent_tid "
             # begin transaction
             self.conn.begin()
@@ -11539,7 +11483,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     taskSpec = JediTaskSpec()
                     taskSpec.splitRule = splitRule
                     if taskSpec.disableAutoFinish():
-                        tmpLog.debug("skip jediTaskID={0} as auto-finish is disabled".format(jediTaskID))
+                        tmpLog.debug(f"skip jediTaskID={jediTaskID} as auto-finish is disabled")
                         continue
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -11556,7 +11500,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         self.cur.execute(sqlCP + comment, varMapTmp)
                         resCP = self.cur.fetchone()
                         if resCP[0] not in ["finished", "failed", "done", "aborted", "broken"]:
-                            tmpLog.debug("skip jediTaskID={0} as parent {1} is still {2}".format(jediTaskID, parent_tid, resCP[0]))
+                            tmpLog.debug(f"skip jediTaskID={jediTaskID} as parent {parent_tid} is still {resCP[0]}")
                             # commit
                             if not self._commit():
                                 raise RuntimeError("Commit error")
@@ -11572,7 +11516,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     for datasetID, datasetType, nEvents, dsStatus in resDS:
                         # to update contents
                         if dsStatus in JediDatasetSpec.statusToUpdateContents():
-                            tmpLog.debug("skip jediTaskID={0} datasetID={1} is in {2}".format(jediTaskID, datasetID, dsStatus))
+                            tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={datasetID} is in {dsStatus}")
                             taskToFinish = False
                             break
                         # counts events
@@ -11591,7 +11535,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             self.cur.execute(sqlFC + comment, varMap)
                             (nUnUsed,) = self.cur.fetchone()
                             if nUnUsed != 0:
-                                tmpLog.debug("skip jediTaskID={0} datasetID={1} has {2} unused files".format(jediTaskID, datasetID, nUnUsed))
+                                tmpLog.debug(f"skip jediTaskID={jediTaskID} datasetID={datasetID} has {nUnUsed} unused files")
                                 taskToFinish = False
                                 break
                         else:
@@ -11610,26 +11554,22 @@ class DBProxy(OraDBProxy.DBProxy):
                     if taskToFinish:
                         if totalInputEvents == 0:
                             # input has 0 events
-                            tmpLog.debug("skip jediTaskID={0} input has 0 events".format(jediTaskID))
+                            tmpLog.debug(f"skip jediTaskID={jediTaskID} input has 0 events")
                             taskToFinish = False
                         elif float(totalOutputEvents) / float(totalInputEvents) * 1000.0 < taskGoal:
                             # goal is not yet reached
                             tmpLog.debug(
-                                "skip jediTaskID={0} goal is not yet reached {1}.{2}%>{3}/{4}".format(
-                                    jediTaskID, taskGoal / 10, taskGoal % 10, totalOutputEvents, totalInputEvents
-                                )
+                                f"skip jediTaskID={jediTaskID} goal is not yet reached {taskGoal / 10}.{taskGoal % 10}%>{totalOutputEvents}/{totalInputEvents}"
                             )
                             taskToFinish = False
                         else:
                             tmpLog.debug(
-                                "to finsh jediTaskID={0} goal is reached {1}.{2}%<={3}/{4}".format(
-                                    jediTaskID, taskGoal / 10, taskGoal % 10, totalOutputEvents, totalInputEvents
-                                )
+                                f"to finsh jediTaskID={jediTaskID} goal is reached {taskGoal / 10}.{taskGoal % 10}%<={totalOutputEvents}/{totalInputEvents}"
                             )
                     # append
                     if taskToFinish:
                         retTasks.append(jediTaskID)
-            tmpLog.debug("got {0} tasks".format(len(retTasks)))
+            tmpLog.debug(f"got {len(retTasks)} tasks")
             return retTasks
         except Exception:
             # roll back
@@ -11642,13 +11582,13 @@ class DBProxy(OraDBProxy.DBProxy):
     def getInactiveSites_JEDI(self, flag, timeLimit):
         comment = " /* JediDBProxy.getInactiveSites_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <flag={0} timeLimit={1}>".format(flag, timeLimit)
+        methodName += f" <flag={flag} timeLimit={timeLimit}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = set()
             # sql
-            sqlCD = "SELECT site FROM {0}.SiteData ".format(jedi_config.db.schemaMETA)
+            sqlCD = f"SELECT site FROM {jedi_config.db.schemaMETA}.SiteData "
             sqlCD += "WHERE flag=:flag AND hours=:hours AND laststart<:laststart "
             # start transaction
             self.conn.begin()
@@ -11677,14 +11617,14 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = " /* JediDBProxy.getTotalWallTime_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} queue={2}>".format(vo, prodSourceLabel, workQueue.queue_name)
+        methodName += f" <vo={vo} label={prodSourceLabel} queue={workQueue.queue_name}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get size
             var_map = {":vo": vo, ":prodSourceLabel": prodSourceLabel, ":resource_name": resource_name}
             sql = "SELECT total_walltime, n_has_value, n_no_value "
-            sql += "FROM {0}.total_walltime_cache ".format(jedi_config.db.schemaPANDA)
+            sql += f"FROM {jedi_config.db.schemaPANDA}.total_walltime_cache "
             sql += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND resource_type=:resource_name "
             sql += "AND agg_type=:agg_type AND agg_key=:agg_key"
 
@@ -11710,7 +11650,7 @@ class DBProxy(OraDBProxy.DBProxy):
             except TypeError:  # there was no result
                 pass
 
-            tmpLog.debug("totWalltime={0} nHasVal={1} nNoVal={2}".format(totWalltime, nHasVal, nNoVal))
+            tmpLog.debug(f"totWalltime={totWalltime} nHasVal={nHasVal} nNoVal={nNoVal}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -11718,7 +11658,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 totWalltime = int(totWalltime * (1 + float(nNoVal) / float(nHasVal)))
             else:
                 totWalltime = None
-            tmpLog.debug("done totWalltime={0}".format(totWalltime))
+            tmpLog.debug(f"done totWalltime={totWalltime}")
             return totWalltime
         except Exception:
             # roll back
@@ -11731,39 +11671,39 @@ class DBProxy(OraDBProxy.DBProxy):
     def checkDuplication_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.checkDuplication_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # sql to check useJumbo
-        sqlJ = "SELECT useJumbo FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+        sqlJ = f"SELECT useJumbo FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
         # sql to get input datasetID
-        sqlM = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlM = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlM += "WHERE jediTaskID=:jediTaskID AND type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
             mapKey = ":type_" + tmpType
-            sqlM += "{0},".format(mapKey)
+            sqlM += f"{mapKey},"
         sqlM = sqlM[:-1]
         sqlM += ") AND masterID IS NULL "
         # sql to get output datasetID and templateID
-        sqlO = "SELECT datasetID,provenanceID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlO = f"SELECT datasetID,provenanceID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlO += "WHERE jediTaskID=:jediTaskID AND type=:type "
         # sql to check duplication without internal merge
         sqlWM = "SELECT distinct outPandaID "
-        sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlWM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
         sqlWM += "MINUS "
         sqlWM += "SELECT distinct PandaID "
-        sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlWM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
         # sql to check duplication with jumbo
         sqlJM = "WITH tmpTab AS ("
-        sqlJM += "SELECT f.fileID,f.PandaID FROM {0}.filesTable4 f, (".format(jedi_config.db.schemaPANDA)
-        sqlJM += "SELECT PandaID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += f"SELECT f.fileID,f.PandaID FROM {jedi_config.db.schemaPANDA}.filesTable4 f, ("
+        sqlJM += f"SELECT PandaID FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2)) t "
         sqlJM += "WHERE f.PandaID=t.PandaID AND f.datasetID=:inDatasetID "
         sqlJM += "UNION "
-        sqlJM += "SELECT f.fileID,f.PandaID FROM {0}.filesTable_Arch f, (".format(jedi_config.db.schemaPANDAARCH)
-        sqlJM += "SELECT PandaID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += f"SELECT f.fileID,f.PandaID FROM {jedi_config.db.schemaPANDAARCH}.filesTable_Arch f, ("
+        sqlJM += f"SELECT PandaID FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2)) t "
         sqlJM += "WHERE f.PandaID=t.PandaID AND f.datasetID=:inDatasetID AND f.modificationTime>CURRENT_DATE-365 "
         sqlJM += ") "
@@ -11775,7 +11715,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlCM += "AND c1.jediTaskID=c2.jediTaskID AND c2.datasetID=:outDatasetID AND c1.pandaID=c2.pandaID and c2.status IN (:statT1,:statT2) "
         sqlCM += "MINUS "
         sqlCM += "SELECT distinct PandaID "
-        sqlCM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlCM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlCM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
         try:
             # start transaction
@@ -11831,12 +11771,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     dupPandaIDs = []
                     for (dupPandaID,) in retList:
                         dupPandaIDs.append(dupPandaID)
-                        tmpLog.debug("bad PandaID={0}".format(dupPandaID))
+                        tmpLog.debug(f"bad PandaID={dupPandaID}")
                     retVal = len(dupPandaIDs)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("dup={0}".format(retVal))
+            tmpLog.debug(f"dup={retVal}")
             return retVal
         except Exception:
             # roll back
@@ -11867,17 +11807,15 @@ class DBProxy(OraDBProxy.DBProxy):
         varMap = {"dst": dst, "latest_validity": latest_validity}
         i = 0
         for key in keyList:
-            varMap[":key{0}".format(i)] = key
+            varMap[f":key{i}"] = key
             i += 1
-        key_bindings = ",".join(":key{0}".format(i) for i in range(len(keyList)))
+        key_bindings = ",".join(f":key{i}" for i in range(len(keyList)))
 
-        sql = """
-        SELECT src, key, value, ts FROM {0}.network_matrix_kv
-        WHERE dst = :dst AND key IN ({1})
+        sql = f"""
+        SELECT src, key, value, ts FROM {jedi_config.db.schemaJEDI}.network_matrix_kv
+        WHERE dst = :dst AND key IN ({key_bindings})
         AND ts > :latest_validity
-        """.format(
-            jedi_config.db.schemaJEDI, key_bindings
-        )
+        """
 
         self.cur.execute(sql + comment, varMap)
         resList = self.cur.fetchall()
@@ -11894,7 +11832,7 @@ class DBProxy(OraDBProxy.DBProxy):
             except Exception:
                 pass
         networkMap["total"] = total
-        tmpLog.debug("network map to nucleus {0} is: {1}".format(dst, networkMap))
+        tmpLog.debug(f"network map to nucleus {dst} is: {networkMap}")
 
         return networkMap
 
@@ -11917,16 +11855,14 @@ class DBProxy(OraDBProxy.DBProxy):
 
         varMap = {":latest_validity": latest_validity, ":nqueued_cap": nqueued_cap}
 
-        sql = """
+        sql = f"""
               SELECT dst
-              FROM {0}.network_matrix_kv
+              FROM {jedi_config.db.schemaJEDI}.network_matrix_kv
               WHERE key = 'Production Output_queued'
               AND ts > :latest_validity
               GROUP BY dst
               HAVING SUM(value) > :nqueued_cap
-        """.format(
-            jedi_config.db.schemaJEDI
-        )
+        """
 
         self.cur.execute(sql + comment, varMap)
         try:
@@ -11934,7 +11870,7 @@ class DBProxy(OraDBProxy.DBProxy):
         except IndexError:
             backlogged_nuclei = []
 
-        tmpLog.debug("Nuclei with a long backlog are: {0}".format(backlogged_nuclei))
+        tmpLog.debug(f"Nuclei with a long backlog are: {backlogged_nuclei}")
 
         return backlogged_nuclei
 
@@ -11973,14 +11909,14 @@ class DBProxy(OraDBProxy.DBProxy):
     def getFailureCountsForTask_JEDI(self, jediTaskID, timeWindow):
         comment = " /* JediDBProxy.getFailureCountsForTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql
             sql = "SELECT COUNT(*),computingSite,jobStatus "
-            sql += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
-            sql += "WHERE jediTaskID=:jediTaskID AND modificationTime>CURRENT_DATE-{0}/24 ".format(timeWindow)
+            sql += f"FROM {jedi_config.db.schemaPANDA}.jobsArchived4 "
+            sql += f"WHERE jediTaskID=:jediTaskID AND modificationTime>CURRENT_DATE-{timeWindow}/24 "
             sql += "AND ("
             sql += "(jobStatus=:jobFailed AND pilotErrorCode IS NOT NULL AND pilotErrorCode<>0) OR "
             sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign AND relocationFlag<>:relThrottled) OR "
@@ -12022,19 +11958,19 @@ class DBProxy(OraDBProxy.DBProxy):
     def countJobsPerTarget_JEDI(self, target, is_user):
         comment = " /* JediDBProxy.countJobsPerTarget_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <target={}>".format(target)
+        methodName += f" <target={target}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql
             sql = "SELECT COUNT(*),SUM(coreCount),jobStatus FROM ("
-            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sql += f"SELECT PandaID,jobStatus,coreCount FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             if is_user:
                 sql += "WHERE prodUserName=:target "
             else:
                 sql += "WHERE workingGroup=:target "
             sql += "UNION "
-            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql += f"SELECT PandaID,jobStatus,coreCount FROM {jedi_config.db.schemaPANDA}.jobsActive4 "
             if is_user:
                 sql += "WHERE prodUserName=:target AND workingGroup IS NULL "
             else:
@@ -12071,7 +12007,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getOldMergeJobPandaIDs_JEDI(self, jediTaskID, pandaID):
         comment = " /* JediDBProxy.getOldMergeJobPandaIDs_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} PandaID={1}>".format(jediTaskID, pandaID)
+        methodName += f" <jediTaskID={jediTaskID} PandaID={pandaID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12110,21 +12046,21 @@ class DBProxy(OraDBProxy.DBProxy):
     def getActiveJumboJobs_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getActiveJumboJobs_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql
             sql = "SELECT PandaID,jobStatus,computingSite "
-            sql += "FROM {0}.jobsWaiting4 ".format(jedi_config.db.schemaPANDA)
+            sql += f"FROM {jedi_config.db.schemaPANDA}.jobsWaiting4 "
             sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
             sql += "UNION "
             sql += "SELECT PandaID,jobStatus,computingSite "
-            sql += "FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sql += f"FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
             sql += "UNION "
             sql += "SELECT PandaID,jobStatus,computingSite "
-            sql += "FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql += f"FROM {jedi_config.db.schemaPANDA}.jobsActive4 "
             sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -12154,7 +12090,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getJobParamsOfFirstJob_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getJobParamsOfFirstJob_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12172,25 +12108,23 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND tabF.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sql = sql[:-1]
             sql += ") "
             sql += "ORDER BY fileID "
             sql += ") WHERE rownum<2 "
             # sql to get PandaIDs
-            sqlP = "SELECT PandaID FROM {0}.filesTable4 WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID ".format(
-                jedi_config.db.schemaPANDA
-            )
+            sqlP = f"SELECT PandaID FROM {jedi_config.db.schemaPANDA}.filesTable4 WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             sqlPA = "SELECT PandaID FROM {0}.filesTable_arch WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID ".format(
                 jedi_config.db.schemaPANDAARCH
             )
             # sql to get jobParms
-            sqlJ = "SELECT jobParameters FROM {0}.jobParamsTable WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
-            sqlJA = "SELECT jobParameters FROM {0}.jobParamsTable_ARCH WHERE PandaID=:PandaID".format(jedi_config.db.schemaPANDAARCH)
+            sqlJ = f"SELECT jobParameters FROM {jedi_config.db.schemaPANDA}.jobParamsTable WHERE PandaID=:PandaID "
+            sqlJA = f"SELECT jobParameters FROM {jedi_config.db.schemaPANDAARCH}.jobParamsTable_ARCH WHERE PandaID=:PandaID"
             # sql to get file
-            sqlF = "SELECT lfn,datasetID FROM {0}.filesTable4 where PandaID=:PandaID AND type=:type ".format(jedi_config.db.schemaPANDA)
-            sqlFA = "SELECT lfn,datasetID FROM {0}.filesTable_Arch where PandaID=:PandaID AND type=:type ".format(jedi_config.db.schemaPANDAARCH)
+            sqlF = f"SELECT lfn,datasetID FROM {jedi_config.db.schemaPANDA}.filesTable4 where PandaID=:PandaID AND type=:type "
+            sqlFA = f"SELECT lfn,datasetID FROM {jedi_config.db.schemaPANDAARCH}.filesTable_Arch where PandaID=:PandaID AND type=:type "
             # start transaction
             self.conn.begin()
             self.cur.execute(sql + comment, varMap)
@@ -12232,7 +12166,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("get {0} bytes".format(len(retVal)))
+            tmpLog.debug(f"get {len(retVal)} bytes")
             return retVal, outFileMap
         except Exception:
             # roll back
@@ -12245,7 +12179,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def bulkFetchFileIDs_JEDI(self, jediTaskID, nIDs):
         comment = " /* JediDBProxy.bulkFetchFileIDs_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} nIDs={1}>".format(jediTaskID, nIDs)
+        methodName += f" <jediTaskID={jediTaskID} nIDs={nIDs}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12253,7 +12187,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":nIDs"] = nIDs
             # sql to get fileID
-            sqlFID = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM ".format(jedi_config.db.schemaJEDI)
+            sqlFID = f"SELECT {jedi_config.db.schemaJEDI}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM "
             sqlFID += "(SELECT level FROM dual CONNECT BY level<=:nIDs) "
             # start transaction
             self.conn.begin()
@@ -12265,7 +12199,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} IDs".format(len(newFileIDs)))
+            tmpLog.debug(f"got {len(newFileIDs)} IDs")
             return newFileIDs
         except Exception:
             # roll back
@@ -12278,7 +12212,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def setDelFlagToEvents_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.setDelFlagToEvents_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12286,7 +12220,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":jediTaskID"] = jediTaskID
             varMap[":delFlag"] = "Y"
             # sql to set del flag
-            sqlFID = "UPDATE /*+ INDEX_RS_ASC(JEDI_EVENTS JEDI_EVENTS_PK) */ {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
+            sqlFID = f"UPDATE /*+ INDEX_RS_ASC(JEDI_EVENTS JEDI_EVENTS_PK) */ {jedi_config.db.schemaJEDI}.JEDI_Events "
             sqlFID += "SET file_not_deleted=:delFlag "
             sqlFID += "WHERE jediTaskID=:jediTaskID AND file_not_deleted IS NULL AND objStore_ID IS NOT NULL "
             # start transaction
@@ -12296,7 +12230,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("set Y to {0} event ranges".format(nRow))
+            tmpLog.debug(f"set Y to {nRow} event ranges")
             return nRow
         except Exception:
             # roll back
@@ -12309,12 +12243,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def removeFilesIndexInconsistent_JEDI(self, jediTaskID, datasetIDs):
         comment = " /* JediDBProxy.removeFilesIndexInconsistent_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get files
-            sqlFID = "SELECT lfn,fileID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFID = f"SELECT lfn,fileID FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFID += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # start transaction
             self.conn.begin()
@@ -12344,17 +12278,17 @@ class DBProxy(OraDBProxy.DBProxy):
             commonIdx = set(lfnMap[datasetID].keys())
             for datasetID in datasetIDs[1:]:
                 commonIdx = commonIdx & set(lfnMap[datasetID].keys())
-            tmpLog.debug("{0} common files".format(len(commonIdx)))
+            tmpLog.debug(f"{len(commonIdx)} common files")
             # sql to remove uncommon
-            sqlRF = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlRF += "SET status=:newStatus "
             sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             sqlRF += "AND status=:oldStatus "
             # sql to count files
-            sqlCF = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCF = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlCF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status<>:status "
             # sql to update nFiles
-            sqlUD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUD += "SET nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed "
             sqlUD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             self.conn.begin()
@@ -12374,7 +12308,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             nRow = self.cur.rowcount
                             if nRow > 0:
                                 nLost += 1
-                tmpLog.debug("set {0} files to lost for datasetID={1}".format(nLost, datasetID))
+                tmpLog.debug(f"set {nLost} files to lost for datasetID={datasetID}")
                 # count files
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
@@ -12404,7 +12338,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def throttleJobsInPausedTasks_JEDI(self, vo, prodSourceLabel):
         comment = " /* JediDBProxy.throttleJobsInPausedTasks_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12423,15 +12357,15 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sqlTL += "AND prodSourceLabel=:prodSourceLabel "
             # sql to update tasks
-            sqlTU = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
             # sql to throttle jobs
-            sqlJT = "UPDATE {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sqlJT = f"UPDATE {jedi_config.db.schemaPANDA}.jobsActive4 "
             sqlJT += "SET jobStatus=:newJobStatus "
             sqlJT += "WHERE jediTaskID=:jediTaskID AND jobStatus=:oldJobStatus "
             # sql to get jobs in jobsDefined
-            sqlJD = "SELECT PandaID FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlJD = f"SELECT PandaID FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sqlJD += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
@@ -12456,7 +12390,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":oldJobStatus"] = "activated"
                     self.cur.execute(sqlJT + comment, varMap)
                     iRow = self.cur.rowcount
-                    tmpLog.debug("throttled {0} jobs for jediTaskID={1}".format(iRow, jediTaskID))
+                    tmpLog.debug(f"throttled {iRow} jobs for jediTaskID={jediTaskID}")
                 # get jobs
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
@@ -12481,12 +12415,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def setUseJumboFlag_JEDI(self, jediTaskID, statusStr):
         comment = " /* JediDBProxy.setUseJumboFlag_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} status={1}>".format(jediTaskID, statusStr)
+        methodName += f" <jediTaskID={jediTaskID} status={statusStr}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # check current flag
-            sqlCF = "SELECT useJumbo FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCF = f"SELECT useJumbo FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCF += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -12497,11 +12431,11 @@ class DBProxy(OraDBProxy.DBProxy):
             # check files
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlFF = "SELECT nFilesToBeUsed-nFilesUsed-nFilesWaiting FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlFF = f"SELECT nFilesToBeUsed-nFilesUsed-nFilesWaiting FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlFF += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlFF += "{0},".format(mapKey)
+                sqlFF += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sqlFF = sqlFF[:-1]
             sqlFF += ") AND masterID IS NULL "
@@ -12512,22 +12446,22 @@ class DBProxy(OraDBProxy.DBProxy):
             if statusStr == "pending" and curStr == JediTaskSpec.enum_useJumbo["lack"]:
                 # to prevent from changing lack to pending
                 statusStr = "lack"
-                tmpLog.debug("changed to {0} since to pending is not allowed".format(statusStr))
+                tmpLog.debug(f"changed to {statusStr} since to pending is not allowed")
                 retVal = False
             elif statusStr == "running" and curStr == JediTaskSpec.enum_useJumbo["pending"]:
                 # to running from pending only when all files are used
                 if nFiles != 0:
                     statusStr = "pending"
-                    tmpLog.debug("changed to {0} since nFiles={1}".format(statusStr, nFiles))
+                    tmpLog.debug(f"changed to {statusStr} since nFiles={nFiles}")
                     retVal = False
             elif statusStr == "pending" and curStr == JediTaskSpec.enum_useJumbo["running"]:
                 # to pending from running only when some files are available
                 if nFiles == 0:
                     statusStr = "running"
-                    tmpLog.debug("changed to {0} since nFiles == 0".format(statusStr))
+                    tmpLog.debug(f"changed to {statusStr} since nFiles == 0")
                     retVal = False
             # set jumbo
-            sqlDJ = "UPDATE {0}.JEDI_Tasks SET useJumbo=:status ".format(jedi_config.db.schemaJEDI)
+            sqlDJ = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET useJumbo=:status "
             sqlDJ += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -12537,7 +12471,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("set {0} -> {1}".format(curStr, varMap[":status"]))
+            tmpLog.debug(f"set {curStr} -> {varMap[':status']}")
             return retVal
         except Exception:
             # roll back
@@ -12550,12 +12484,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def getNumTasksWithRunningJumbo_JEDI(self, vo, prodSourceLabel, cloudName, workqueue):
         comment = " /* JediDBProxy.getNumTasksWithRunningJumbo_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2} queue={3}>".format(vo, prodSourceLabel, cloudName, workqueue.queue_name)
+        methodName += f" <vo={vo} label={prodSourceLabel} cloud={cloudName} queue={workqueue.queue_name}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # get tasks
-            sqlDJ = "SELECT task_count FROM {0}.MV_RUNNING_JUMBO_TASK_COUNT ".format(jedi_config.db.schemaJEDI)
+            sqlDJ = f"SELECT task_count FROM {jedi_config.db.schemaJEDI}.MV_RUNNING_JUMBO_TASK_COUNT "
             sqlDJ += "WHERE vo=:vo AND prodSourceLabel=:label AND cloud=:cloud "
             sqlDJ += "AND useJumbo in (:useJumbo1,:useJumbo2) AND status IN (:st1,:st2,:st3) "
             varMap = {}
@@ -12564,9 +12498,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":cloud"] = cloudName
             if workqueue.is_global_share:
                 sqlDJ += "AND gshare =:gshare "
-                sqlDJ += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(
-                    jedi_config.db.schemaJEDI
-                )
+                sqlDJ += f"AND workqueue_id NOT IN (SELECT queue_id FROM {jedi_config.db.schemaJEDI}.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[":gshare"] = workqueue.queue_name
             else:
                 sqlDJ += "AND workQueue_ID =:queue_id "
@@ -12588,7 +12520,7 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 nTasks = res[0]
             # return
-            tmpLog.debug("got {0} tasks".format(nTasks))
+            tmpLog.debug(f"got {nTasks} tasks")
             return nTasks
         except Exception:
             # roll back
@@ -12601,9 +12533,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria, neg_criteria):
         comment = " /* JediDBProxy.getNumUnprocessedEvents_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start with criteria={0} neg={1}".format(str(criteria), str(neg_criteria)))
+        tmpLog.debug(f"start with criteria={str(criteria)} neg={str(neg_criteria)}")
         try:
             # get num events
             varMap = {}
@@ -12620,10 +12552,10 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlDJ += "AND tabT.status IN (:st1,:st2,:st3,:st4,:st5,:st6,:st7) AND tabD.type=:type AND tabD.masterID IS NULL "
             for key, val in criteria.items():
                 sqlDJ += "AND tabT.{0}=:{0} ".format(key)
-                varMap[":{0}".format(key)] = val
+                varMap[f":{key}"] = val
             for key, val in neg_criteria.items():
                 sqlDJ += "AND tabT.{0}<>:neg_{0} ".format(key)
-                varMap[":neg_{0}".format(key)] = val
+                varMap[f":neg_{key}"] = val
             sqlDJ += ") "
             varMap[":st1"] = "running"
             varMap[":st2"] = "pending"
@@ -12653,14 +12585,14 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":st1"] = "pending"
             varMap[":st2"] = "registered"
             for key, val in criteria.items():
-                varMap[":{0}".format(key)] = val
+                varMap[f":{key}"] = val
             self.cur.execute(sqlPD + comment, varMap)
             (nPending,) = self.cur.fetchone()
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got nEvents={0} lastTaskTime={1} nPendingTasks={2}".format(nEvents, lastTaskTime, nPending))
+            tmpLog.debug(f"got nEvents={nEvents} lastTaskTime={lastTaskTime} nPendingTasks={nPending}")
             return nEvents, lastTaskTime, nPending
         except Exception:
             # roll back
@@ -12673,7 +12605,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getNumJobsForTask_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.getNumJobsForTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -12688,7 +12620,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sql += "{0},".format(mapKey)
+                sql += f"{mapKey},"
                 varMap[mapKey] = tmpType
             sql = sql[:-1]
             sql += ") "
@@ -12701,7 +12633,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             (nDone,) = self.cur.fetchone()
             # return
-            tmpLog.debug("got {0} jobs".format(nDone))
+            tmpLog.debug(f"got {nDone} jobs")
             return nDone
         except Exception:
             # roll back
@@ -12722,7 +12654,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get num of done jobs
             varMap = dict()
             varMap[":status"] = "standby"
-            sql = "SELECT /* use_json_type */ panda_queue, scj.data.catchall FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+            sql = f"SELECT /* use_json_type */ panda_queue, scj.data.catchall FROM {jedi_config.db.schemaJEDI}.schedconfig_json scj "
             sql += "WHERE scj.data.status=:status "
             self.conn.begin()
             self.cur.arraysize = 1000
@@ -12751,7 +12683,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":status"] = "starting"
                                 varMap[":resource_type"] = resource_type
                                 varMap[":computingsite"] = siteid
-                                sql = "SELECT /*+ RESULT_CACHE */ njobs FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
+                                sql = f"SELECT /*+ RESULT_CACHE */ njobs FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS "
                                 sql += "WHERE vo=:vo AND resource_type=:resource_type AND jobstatus=:status AND computingsite=:computingsite "
                                 if workqueue.is_global_share:
                                     sql += "AND gshare=:gshare "
@@ -12775,7 +12707,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 retMap[resource_type] = 0
                             retMap[resource_type] += num
             # return
-            tmpLog.debug("got static={0} dynamic={1}".format(str(retMapStatic), str(retMapDynamic)))
+            tmpLog.debug(f"got static={str(retMapStatic)} dynamic={str(retMapDynamic)}")
             return retMapStatic, retMapDynamic
         except Exception:
             # roll back
@@ -12788,34 +12720,34 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateDatasetsToFinishTask_JEDI(self, jediTaskID, lockedBy):
         comment = " /* JediDBProxy.updateDatasetsToFinishTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to lock task
-            sqlLK = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
             sqlLK += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
             # sql to get datasets
-            sqlAV = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlAV += "{0},".format(mapKey)
+                sqlAV += f"{mapKey},"
             sqlAV = sqlAV[:-1]
             sqlAV += ") "
             # sql to update attemptNr for files
-            sqlFR = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFR += "SET attemptNr=maxAttempt "
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlFR += "AND status=:status AND keepTrack=:keepTrack "
             sqlFR += "AND maxAttempt IS NOT NULL AND attemptNr<maxAttempt "
             sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
             # sql to update output/lib/log datasets
-            sqlUO = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUO += "SET nFilesFailed=nFilesFailed+:nDiff "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to release task
-            sqlRT = "UPDATE {0}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlRT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL "
             sqlRT += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy "
             # lock task
             self.conn.begin()
@@ -12876,19 +12808,19 @@ class DBProxy(OraDBProxy.DBProxy):
     def toEnableJumbo_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.toEnableJumbo_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to get thresholds
-            sqlLK = "SELECT value FROM {0}.CONFIG ".format(jedi_config.db.schemaPANDA)
+            sqlLK = f"SELECT value FROM {jedi_config.db.schemaPANDA}.CONFIG "
             sqlLK += "WHERE component=:component AND key=:key AND app=:app "
             # sql to get nevents
-            sqlAV = "SELECT nEvents,nFilesToBeUsed,nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV = f"SELECT nEvents,nFilesToBeUsed,nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlAV += "{0},".format(mapKey)
+                sqlAV += f"{mapKey},"
             sqlAV = sqlAV[:-1]
             sqlAV += ") AND masterID IS NULL "
             # sql to get # of active jumbo jobs
@@ -12906,12 +12838,12 @@ class DBProxy(OraDBProxy.DBProxy):
             self.cur.execute(sqlLK + comment, varMap)
             resLK = self.cur.fetchone()
             if resLK is None:
-                tmpLog.debug("False since {0} is not defined".format(configMaxJumbo))
+                tmpLog.debug(f"False since {configMaxJumbo} is not defined")
                 return False
             try:
                 (maxJumbo,) = resLK
             except Exception:
-                tmpLog.debug("False since {0} is not an int".format(configMaxJumbo))
+                tmpLog.debug(f"False since {configMaxJumbo} is not an int")
                 return False
             varMap = dict()
             varMap[":component"] = "taskrefiner"
@@ -12939,12 +12871,10 @@ class DBProxy(OraDBProxy.DBProxy):
             try:
                 nEvents = nEvents * nFilesToBeUsed // (nFilesToBeUsed - nFilesUsed)
             except Exception:
-                tmpLog.debug(
-                    "False since cannot get effective nEvents from nEvents={0} nFilesToBeUsed={1} nFilesUsed={2}".format(nEvents, nFilesToBeUsed, nFilesUsed)
-                )
+                tmpLog.debug(f"False since cannot get effective nEvents from nEvents={nEvents} nFilesToBeUsed={nFilesToBeUsed} nFilesUsed={nFilesUsed}")
                 return False
             if nEvents < minEvents:
-                tmpLog.debug("False since effective nEvents={0} < minEventsJumbo={1}".format(nEvents, minEvents))
+                tmpLog.debug(f"False since effective nEvents={nEvents} < minEventsJumbo={minEvents}")
                 return False
             # get num jombo tasks
             varMap = dict()
@@ -12959,7 +12889,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if resAJ is not None:
                 (nJumbo,) = resAJ
             if nJumbo > maxJumbo:
-                tmpLog.debug("False since nJumbo={0} > maxJumbo={1}".format(nJumbo, maxJumbo))
+                tmpLog.debug(f"False since nJumbo={nJumbo} > maxJumbo={maxJumbo}")
                 return False
             tmpLog.debug("True since nJumbo={0} < maxJumbo={1} and nEvents={0} > minEventsJumbo={1}".format(nJumbo, maxJumbo, nEvents, minEvents))
             return True
@@ -12974,9 +12904,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def enableJumboInTask_JEDI(self, jediTaskID, eventService, site, useJumbo, splitRule):
         comment = " /* JediDBProxy.enableJumboInTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("eventService={0} site={1} useJumbo={2}".format(eventService, site, useJumbo))
+        tmpLog.debug(f"eventService={eventService} site={site} useJumbo={useJumbo}")
         if eventService == 1 and site is None and useJumbo is None:
             taskSpec = JediTaskSpec()
             taskSpec.splitRule = splitRule
@@ -12988,7 +12918,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not toEnable:
                 return
             # get nJumbo jobs
-            sqlLK = "SELECT value, type FROM {0}.CONFIG ".format(jedi_config.db.schemaPANDA)
+            sqlLK = f"SELECT value, type FROM {jedi_config.db.schemaPANDA}.CONFIG "
             sqlLK += "WHERE component=:component AND key=:key AND app=:app "
             varMap = dict()
             varMap[":component"] = "taskrefiner"
@@ -13008,7 +12938,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getTaskWithJumbo_JEDI(self, vo, prodSourceLabel):
         comment = " /* JediDBProxy.getTaskWithJumbo_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < vo={0} label={1} >".format(vo, prodSourceLabel)
+        methodName += f" < vo={vo} label={prodSourceLabel} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13021,7 +12951,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlAV += "{0},".format(mapKey)
+                sqlAV += f"{mapKey},"
             sqlAV = sqlAV[:-1]
             sqlAV += ") AND d.masterID IS NULL "
             # sql to get event stat info
@@ -13032,13 +12962,13 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlFR += "AND c.fileID=tab.fileID AND c.status<>:status "
             sqlFR += "GROUP BY tab.status "
             # sql to get jumbo jobs
-            sqlUO = "SELECT computingSite,jobStatus FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO = f"SELECT computingSite,jobStatus FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
             sqlUO += "UNION "
-            sqlUO += "SELECT computingSite,jobStatus FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO += f"SELECT computingSite,jobStatus FROM {jedi_config.db.schemaPANDA}.jobsActive4 "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
             sqlUO += "UNION "
-            sqlUO += "SELECT computingSite,jobStatus FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO += f"SELECT computingSite,jobStatus FROM {jedi_config.db.schemaPANDA}.jobsArchived4 "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
             sqlUO += "AND modificationTime>CURRENT_DATE-1 "
             self.conn.begin()
@@ -13079,7 +13009,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":status"] = "finished"
                 self.cur.execute(sqlFR + comment, varMap)
                 resFR = self.cur.fetchall()
-                tmpLog.debug("got event stat info for jediTaskID={0}".format(jediTaskID))
+                tmpLog.debug(f"got event stat info for jediTaskID={jediTaskID}")
                 nEventsDone = nEventsUsed
                 nEventsRunning = 0
                 for eventStatus, eventCount in resFR:
@@ -13095,7 +13025,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":eventService"] = EventServiceUtils.jumboJobFlagNumber
                 self.cur.execute(sqlUO + comment, varMap)
                 resUO = self.cur.fetchall()
-                tmpLog.debug("got jumbo jobs for jediTaskID={0}".format(jediTaskID))
+                tmpLog.debug(f"got jumbo jobs for jediTaskID={jediTaskID}")
                 taskData["jumboJobs"] = dict()
                 for computingSite, jobStatus in resUO:
                     taskData["jumboJobs"].setdefault(computingSite, dict())
@@ -13105,7 +13035,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done with {0}".format(str(tasksWithJumbo)))
+            tmpLog.debug(f"done with {str(tasksWithJumbo)}")
             return tasksWithJumbo
         except Exception:
             # roll back
@@ -13118,12 +13048,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def kickPendingTasksWithJumbo_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.kickPendingTasksWithJumbo_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # sql to kick
-            sqlAV = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlAV = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlAV += "SET useJumbo=:useJumboL "
             sqlAV += "WHERE jediTaskID=:jediTaskID AND useJumbo IN (:useJumboP,:useJumboR) "
             sqlAV += "AND status IN (:statusR,:statusP) AND lockedBy IS NULL "
@@ -13142,7 +13072,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("kicked with {0}".format(nDone))
+            tmpLog.debug(f"kicked with {nDone}")
             return nDone
         except Exception:
             # roll back
@@ -13155,7 +13085,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def resetInputToReGenCoJumbo_JEDI(self, jediTaskID):
         comment = " /* JediDBProxy.resetInputToReGenCoJumbo_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13165,35 +13095,35 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlF += "WHERE d.jediTaskID=:jediTaskID AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlF += "{0},".format(mapKey)
+                sqlF += f"{mapKey},"
             sqlF = sqlF[:-1]
             sqlF += ") AND d.masterID IS NULL "
             sqlF += "AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID AND c.status=:status "
             # sql to get PandaIDs
-            sqlP = "SELECT PandaID FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
+            sqlP = f"SELECT PandaID FROM {jedi_config.db.schemaPANDA}.filesTable4 "
             sqlP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileid=:fileID "
             sqlP += "ORDER BY PandaID DESC "
             # sql to check jobs
-            sqlJ = "SELECT 1 FROM {0}.jobsWaiting4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ = f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsWaiting4 WHERE PandaID=:PandaID "
             sqlJ += "UNION "
-            sqlJ += "SELECT 1 FROM {0}.jobsDefined4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsDefined4 WHERE PandaID=:PandaID "
             sqlJ += "UNION "
-            sqlJ += "SELECT 1 FROM {0}.jobsActive4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsActive4 WHERE PandaID=:PandaID "
             # sql to get files
-            sqlFL = "SELECT datasetID,fileID FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type IN (".format(jedi_config.db.schemaPANDA)
+            sqlFL = f"SELECT datasetID,fileID FROM {jedi_config.db.schemaPANDA}.filesTable4 WHERE PandaID=:PandaID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ":type_" + tmpType
-                sqlFL += "{0},".format(mapKey)
+                sqlFL += f"{mapKey},"
             sqlFL = sqlFL[:-1]
             sqlFL += ") "
             # sql to update files
-            sqlUF = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlUF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlUF += "SET status=:newStatus,proc_status=:proc_status,attemptNr=attemptNr+1,maxAttempt=maxAttempt+1,"
             sqlUF += "maxFailure=(CASE WHEN maxFailure IS NULL THEN NULL ELSE maxFailure+1 END) "
             sqlUF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             sqlUF += "AND status=:oldStatus AND keepTrack=:keepTrack "
             # sql to update datasets
-            sqlUD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUD = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUD += "SET nFilesUsed=nFilesUsed-1 WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             self.conn.begin()
             # get JEDI files
@@ -13244,7 +13174,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":keepTrack"] = 1
                         self.cur.execute(sqlUF + comment, varMap)
                         nRow = self.cur.rowcount
-                        tmpLog.debug("reset datasetID={0} fileID={1} with {2}".format(f_datasetID, f_fileID, nRow))
+                        tmpLog.debug(f"reset datasetID={f_datasetID} fileID={f_fileID} with {nRow}")
                         if nRow > 0:
                             varMap = dict()
                             varMap[":jediTaskID"] = jediTaskID
@@ -13255,7 +13185,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done with {0}".format(nReset))
+            tmpLog.debug(f"done with {nReset}")
             return nReset
         except Exception:
             # roll back
@@ -13272,7 +13202,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmp_log.debug("start")
         try:
             # sql
-            sql = "SELECT sum(prorated_diskio_avg * njobs) / sum(njobs), computingSite FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
+            sql = f"SELECT sum(prorated_diskio_avg * njobs) / sum(njobs), computingSite FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS "
             sql += "WHERE jobStatus=:jobStatus GROUP BY computingSite "
             var_map = dict()
             var_map[":jobStatus"] = "running"
@@ -13301,13 +13231,13 @@ class DBProxy(OraDBProxy.DBProxy):
     def get_nq_nr_ratio_JEDI(self, source_label):
         comment = " /* JediDBProxy.get_nq_nr_ratio_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < label={0} >".format(source_label)
+        methodName += f" < label={source_label} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retMap = dict()
             # sql
-            sql = "SELECT computingSite,jobStatus,COUNT(*) FROM {0}.{{0}} ".format(jedi_config.db.schemaPANDA)
+            sql = f"SELECT computingSite,jobStatus,COUNT(*) FROM {jedi_config.db.schemaPANDA}.{{0}} "
             sql += "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
             sql += "GROUP BY computingSite,jobStatus "
             for tableName, jobStatus1, jobStatus2 in [("jobsDefined4", "defined", "assigned"), ("jobsActive4", "activated, " "running")]:
@@ -13337,7 +13267,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
         comment = " /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
+        methodName += f" < jediTaskID={jeditaskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13349,9 +13279,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":type1"] = "input"
             varMap[":type2"] = "pseudo_input"
             # sql to get datasetIDs
-            sqlGD = ("SELECT datasetID,masterID FROM {0}.JEDI_Datasets " "WHERE jediTaskID=:jediTaskID " "AND type IN (:type1,:type2) ").format(
-                jedi_config.db.schemaJEDI
-            )
+            sqlGD = f"SELECT datasetID,masterID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to update file status
             if scope != "pseudo_dataset":
                 sqlUF = (
@@ -13374,7 +13302,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # get datasetIDs from DB if no fileID nor datasetID provided by the message
-            tmpLog.debug("running sql: {0} {1}".format(sqlGD, varMap))
+            tmpLog.debug(f"running sql: {sqlGD} {varMap}")
             self.cur.execute(sqlGD + comment, varMap)
             varMap = dict()
             varMap[":jediTaskID"] = jeditaskid
@@ -13390,7 +13318,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 for idx, (tmp_datasetID, masterID) in enumerate(resGD):
                     if masterID is None:
                         primaryID = tmp_datasetID
-                    key = ":datasetID_{0}".format(idx)
+                    key = f":datasetID_{idx}"
                     params_key_list.append(key)
                     var_map_datasetids[key] = tmp_datasetID
             else:
@@ -13428,8 +13356,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             tmp_varMap[":lfn"] = "%" + filename
                         tmp_varMap[":fileID"] = fileid
                         varMaps.append(tmp_varMap)
-                        tmpLog.debug("tmp_varMap: {0}".format(tmp_varMap))
-                    tmpLog.debug("running sql executemany: {0}".format(sqlUF_with_fileID))
+                        tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
+                    tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID}")
                     self.cur.executemany(sqlUF_with_fileID + comment, varMaps)
                     retVal += self.cur.rowcount
                 # loop over files with datasetID
@@ -13443,8 +13371,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             tmp_varMap[":lfn"] = "%" + filename
                         tmp_varMap[":datasetID"] = datasetid
                         varMaps.append(tmp_varMap)
-                        tmpLog.debug("tmp_varMap: {0}".format(tmp_varMap))
-                    tmpLog.debug("running sql executemany: {0}".format(sqlUF_with_datasetID))
+                        tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
+                    tmpLog.debug(f"running sql executemany: {sqlUF_with_datasetID}")
                     self.cur.executemany(sqlUF_with_datasetID + comment, varMaps)
                     retVal += self.cur.rowcount
                 # loop over files without ID
@@ -13458,8 +13386,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             tmp_varMap[":lfn"] = "%" + filename
                         tmp_varMap.update(var_map_datasetids)
                         varMaps.append(tmp_varMap)
-                        tmpLog.debug("tmp_varMap: {0}".format(tmp_varMap))
-                    tmpLog.debug("running sql executemany: {0}".format(sqlUF_without_ID))
+                        tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
+                    tmpLog.debug(f"running sql executemany: {sqlUF_without_ID}")
                     self.cur.executemany(sqlUF_without_ID + comment, varMaps)
                     retVal += self.cur.rowcount
             # update associated files
@@ -13467,17 +13395,15 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
             # update task to trigger CF immediately
             if retVal:
-                sqlUT = ("UPDATE {}.JEDI_Tasks " "SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ").format(
-                    jedi_config.db.schemaJEDI
-                )
+                sqlUT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
                 varMap = dict()
                 varMap[":jediTaskID"] = jeditaskid
                 self.cur.execute(sqlUT + comment, varMap)
-                tmpLog.debug("unlocked task with {}".format(self.cur.rowcount))
+                tmpLog.debug(f"unlocked task with {self.cur.rowcount}")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("updated {0} files".format(retVal))
+            tmpLog.debug(f"updated {retVal} files")
             return retVal
         except Exception:
             # roll back
@@ -13490,14 +13416,12 @@ class DBProxy(OraDBProxy.DBProxy):
     def fix_associated_files_in_staging(self, jeditaskid, primary_id=None, secondary_id=None):
         comment = " /* JediDBProxy.fix_associated_files_in_staging */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
+        methodName += f" < jediTaskID={jeditaskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # get primary dataset
         if primary_id is None:
-            sqlGD = ("SELECT datasetID FROM {0}.JEDI_Datasets" " WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NULL ").format(
-                jedi_config.db.schemaJEDI
-            )
+            sqlGD = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NULL "
             varMap = dict()
             varMap[":jediTaskID"] = jeditaskid
             varMap[":type"] = "input"
@@ -13510,9 +13434,7 @@ class DBProxy(OraDBProxy.DBProxy):
         if secondary_id is not None:
             secondary_id_list = [secondary_id]
         else:
-            sqlGS = ("SELECT datasetID FROM {0}.JEDI_Datasets" " WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NOT NULL ").format(
-                jedi_config.db.schemaJEDI
-            )
+            sqlGS = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NOT NULL "
             varMap = dict()
             varMap[":jediTaskID"] = jeditaskid
             varMap[":type"] = "pseudo_input"
@@ -13522,9 +13444,7 @@ class DBProxy(OraDBProxy.DBProxy):
         if len(secondary_id_list) == 0:
             return
         # get primary files
-        sqlGP = ("SELECT status FROM {0}.JEDI_Dataset_Contents " " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " "ORDER BY lfn ").format(
-            jedi_config.db.schemaJEDI
-        )
+        sqlGP = f"SELECT status FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents  WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID ORDER BY lfn "
         varMap = dict()
         varMap[":jediTaskID"] = jeditaskid
         varMap[":datasetID"] = primary_id
@@ -13580,13 +13500,13 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":datasetID"] = secondaryID
             varMap[":status"] = "staging"
             self.cur.execute(sqlUD + comment, varMap)
-            tmpLog.debug("updated {0} files for datasetID={1}".format(n, secondaryID))
+            tmpLog.debug(f"updated {n} files for datasetID={secondaryID}")
 
     # update input datasets stage-in done according to message from idds
     def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict=None, use_commit=True):
         comment = " /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
+        methodName += f" < jediTaskID={jeditaskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13626,7 +13546,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 self.conn.begin()
             for dsname in dsnames_dict:
                 if scope:
-                    varMap[":datasetName"] = "{0}:{1}".format(scope, dsname)
+                    varMap[":datasetName"] = f"{scope}:{dsname}"
                     sql = sqlUD
                 else:
                     sql = sql_wo_dataset_name
@@ -13636,18 +13556,16 @@ class DBProxy(OraDBProxy.DBProxy):
             self.fix_associated_files_in_staging(jeditaskid)
             # update task to trigger CF immediately
             if retVal:
-                sqlUT = ("UPDATE {}.JEDI_Tasks " "SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ").format(
-                    jedi_config.db.schemaJEDI
-                )
+                sqlUT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
                 varMap = dict()
                 varMap[":jediTaskID"] = jeditaskid
                 self.cur.execute(sqlUT + comment, varMap)
-                tmpLog.debug("unlocked task with {}".format(self.cur.rowcount))
+                tmpLog.debug(f"unlocked task with {self.cur.rowcount}")
             # commit
             if use_commit:
                 if not self._commit():
                     raise RuntimeError("Commit error")
-            tmpLog.debug("updated {0} files".format(retVal))
+            tmpLog.debug(f"updated {retVal} files")
             return retVal
         except Exception:
             if use_commit:
@@ -13661,7 +13579,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def getNumStagingFiles_JEDI(self, jeditaskid):
         comment = " /* JediDBProxy.getNumStagingFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
+        methodName += f" < jediTaskID={jeditaskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13686,7 +13604,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("got {0} staging files".format(retVal))
+            tmpLog.debug(f"got {retVal} staging files")
             return retVal
         except Exception:
             # roll back
@@ -13699,7 +13617,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def record_task_status_change(self, jedi_task_id):
         comment = " /* JediDBProxy.record_task_status_change */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         varMap = dict()
@@ -13731,7 +13649,7 @@ class DBProxy(OraDBProxy.DBProxy):
         #     return
         comment = " /* JediDBProxy.push_task_status_message */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # send task status messages to mq
@@ -13753,7 +13671,7 @@ class DBProxy(OraDBProxy.DBProxy):
             try:
                 mb_proxy = self.jedi_mb_proxy_dict["out"]["jedi_jobtaskstatus"]
             except KeyError as e:
-                tmpLog.warning("Skipped due to {0} ; jedi_mb_proxy_dict is {1}".format(e, self.jedi_mb_proxy_dict))
+                tmpLog.warning(f"Skipped due to {e} ; jedi_mb_proxy_dict is {self.jedi_mb_proxy_dict}")
                 return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
@@ -13766,7 +13684,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
         comment = " /* JediDBProxy.push_task_trigger_message */"
         methodName = self.getMethodName(comment)
-        methodName += " < msg_type={0} jediTaskID={1} >".format(msg_type, jedi_task_id)
+        methodName += f" < msg_type={msg_type} jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # send task status messages to mq
@@ -13793,7 +13711,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 mq_name = msg_type
                 mb_proxy = self.jedi_mb_proxy_dict["out"][mq_name]
             except KeyError as e:
-                tmpLog.warning("Skipped due to {0} ; jedi_mb_proxy_dict is {1}".format(e, self.jedi_mb_proxy_dict))
+                tmpLog.warning(f"Skipped due to {e} ; jedi_mb_proxy_dict is {self.jedi_mb_proxy_dict}")
                 return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
@@ -13809,11 +13727,11 @@ class DBProxy(OraDBProxy.DBProxy):
     def log_task_attempt_start(self, jedi_task_id):
         comment = " /* JediDBProxy.log_task_attempt_start */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # sql
-        sqlGLTA = ("SELECT MAX(attemptnr) " "FROM {0}.TASK_ATTEMPTS " "WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
+        sqlGLTA = f"SELECT MAX(attemptnr) FROM {jedi_config.db.schemaJEDI}.TASK_ATTEMPTS WHERE jediTaskID=:jediTaskID "
         sqlELTA = (
             "UPDATE {0}.TASK_ATTEMPTS "
             "SET (endtime, endstatus) = ( "
@@ -13856,7 +13774,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def log_task_attempt_end(self, jedi_task_id):
         comment = " /* JediDBProxy.log_task_attempt_end */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         varMap = dict()
@@ -13879,7 +13797,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def get_task_progress(self, jedi_task_id):
         comment = " /* JediDBProxy.get_task_progress */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13954,9 +13872,9 @@ class DBProxy(OraDBProxy.DBProxy):
                 # result
                 res = self.cur.fetchall()
                 if res is None:
-                    tmpLog.debug("total %s " % res)
+                    tmpLog.debug(f"total {res} ")
                 else:
-                    tmpLog.debug("total %s " % len(res))
+                    tmpLog.debug(f"total {len(res)} ")
                     # make map
                     for cnt, prodUserName, jobStatus, workingGroup, computingSite, coreCount in res:
                         if coreCount is None:
@@ -14015,9 +13933,9 @@ class DBProxy(OraDBProxy.DBProxy):
             # result
             res = self.cur.fetchall()
             if res is None:
-                tmpLog.debug("total %s " % res)
+                tmpLog.debug(f"total {res} ")
             else:
-                tmpLog.debug("total %s " % len(res))
+                tmpLog.debug(f"total {len(res)} ")
                 # make map
                 for cnt, prodUserName, jobStatus, gshare, computingSite in res:
                     # append to PerUser map
@@ -14031,7 +13949,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     )
                     # count # of running/done and activated
                     if jobStatus in ["defined", "assigned", "activated", "starting"]:
-                        status_name = "n{0}".format(jobStatus.capitalize())
+                        status_name = f"n{jobStatus.capitalize()}"
                         jobsStatsPerUser[computingSite][gshare][prodUserName][status_name] += cnt
                         jobsStatsPerUser[computingSite][gshare][prodUserName]["nQueue"] += cnt
                         jobsStatsPerUser[computingSite][gshare]["_total"][status_name] += cnt
@@ -14053,9 +13971,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def add_events_jedi(self, jedi_task_id, start_number, end_number, max_attempt):
         comment = " /* JediDBProxy.add_events_jedi */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start start={0} end={1}".format(start_number, end_number))
+        tmpLog.debug(f"start start={start_number} end={end_number}")
         varMap = dict()
         varMap[":jediTaskID"] = jedi_task_id
         varMap[":modificationHost"] = socket.getfqdn()
@@ -14091,7 +14009,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("added {0} events".format(end_number - start_number + 1))
+            tmpLog.debug(f"added {end_number - start_number + 1} events")
             return True
         except Exception:
             # roll back
@@ -14104,9 +14022,9 @@ class DBProxy(OraDBProxy.DBProxy):
     def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):
         comment = " /* JediDBProxy.insertHpoEventAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start event_id_list={0}".format(event_id_list))
+        tmpLog.debug(f"start event_id_list={event_id_list}")
         varMap = dict()
         varMap[":jediTaskID"] = jedi_task_id
         varMap[":modificationHost"] = socket.getfqdn()
@@ -14137,7 +14055,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":startEvent"] = event_id
             varMap[":lastEvent"] = event_id
             varMap[":eventOffset"] = 0
-            varMap[":cont"] = "%/{}".format(model_id)
+            varMap[":cont"] = f"%/{model_id}"
             varMaps.append(varMap)
             n_events += 1
         try:
@@ -14146,7 +14064,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("added {0} events".format(n_events))
+            tmpLog.debug(f"added {n_events} events")
             return True
         except Exception:
             # roll back
@@ -14159,7 +14077,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def get_event_statistics(self, jedi_task_id):
         comment = " /* JediDBProxy.get_event_statistics */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_task_id)
+        methodName += f" < jediTaskID={jedi_task_id} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -14167,7 +14085,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = dict()
             varMap[":jediTaskID"] = jedi_task_id
             # sql
-            sqlGNE = ("SELECT status,COUNT(*) FROM {0}.JEDI_Events " "WHERE jediTaskID=:jediTaskID GROUP BY status ").format(jedi_config.db.schemaJEDI)
+            sqlGNE = f"SELECT status,COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Events WHERE jediTaskID=:jediTaskID GROUP BY status "
             self.cur.execute(sqlGNE + comment, varMap)
             # result
             ret_dict = dict()
@@ -14178,7 +14096,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("got {0}".format(str(ret_dict)))
+            tmpLog.debug(f"got {str(ret_dict)}")
             return ret_dict
         except Exception:
             # roll back
@@ -14196,7 +14114,7 @@ class DBProxy(OraDBProxy.DBProxy):
         """
         comment = " /* DBProxy.getSiteToRunRateStats */"
         methodName = self.getMethodName(comment)
-        methodName += " < vo={0} >".format(vo)
+        methodName += f" < vo={vo} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         # interval in hours
@@ -14211,17 +14129,15 @@ class DBProxy(OraDBProxy.DBProxy):
                AND jobStatus IN ('running', 'holding', 'transferring', 'finished', 'cancelled')
                """
         if exclude_rwq:
-            sql_jt += """
+            sql_jt += f"""
                AND workqueue_id NOT IN
-               (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
-               """.format(
-                jedi_config.db.schemaPANDA
-            )
+               (SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource')
+               """
         sql_jt += """
                GROUP BY computingSite
                """
         # job tables
-        tables = ["{0}.jobsActive4".format(jedi_config.db.schemaPANDA), "{0}.jobsDefined4".format(jedi_config.db.schemaPANDA)]
+        tables = [f"{jedi_config.db.schemaPANDA}.jobsActive4", f"{jedi_config.db.schemaPANDA}.jobsDefined4"]
         # get
         return_map = {}
         try:
@@ -14254,19 +14170,17 @@ class DBProxy(OraDBProxy.DBProxy):
         # last update time
         last_update = datetime.datetime.utcnow()
         last_update_str = last_update.strftime("%Y-%m-%d_%H:%M:%S")
-        methodName += " <main_key={0} sub_key={1} last_update={2}>".format(main_key, sub_key, last_update_str)
+        methodName += f" <main_key={main_key} sub_key={sub_key} last_update={last_update_str}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to check
-            sqlC = ("SELECT last_update " "FROM {0}.Cache " "WHERE main_key=:main_key AND sub_key=:sub_key ").format(jedi_config.db.schemaJEDI)
+            sqlC = f"SELECT last_update FROM {jedi_config.db.schemaJEDI}.Cache WHERE main_key=:main_key AND sub_key=:sub_key "
             # sql to insert
-            sqlI = ("INSERT INTO {0}.Cache " "({1}) {2} ").format(jedi_config.db.schemaJEDI, JediCacheSpec.columnNames(), JediCacheSpec.bindValuesExpression())
+            sqlI = f"INSERT INTO {jedi_config.db.schemaJEDI}.Cache ({JediCacheSpec.columnNames()}) {JediCacheSpec.bindValuesExpression()} "
             # sql to update
-            sqlU = ("UPDATE {0}.Cache " "SET {1} " "WHERE main_key=:main_key AND sub_key=:sub_key ").format(
-                jedi_config.db.schemaJEDI, JediCacheSpec.bindUpdateChangesExpression()
-            )
+            sqlU = f"UPDATE {jedi_config.db.schemaJEDI}.Cache SET {JediCacheSpec.bindUpdateChangesExpression()} WHERE main_key=:main_key AND sub_key=:sub_key "
             # start transaction
             self.conn.begin()
             # check
@@ -14306,15 +14220,13 @@ class DBProxy(OraDBProxy.DBProxy):
         # defaults
         if sub_key is None:
             sub_key = "default"
-        methodName += " <main_key={0} sub_key={1}>".format(main_key, sub_key)
+        methodName += f" <main_key={main_key} sub_key={sub_key}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = False
             # sql to get
-            sqlC = ("SELECT {1} " "FROM {0}.Cache " "WHERE main_key=:main_key AND sub_key=:sub_key ").format(
-                jedi_config.db.schemaJEDI, JediCacheSpec.columnNames()
-            )
+            sqlC = f"SELECT {JediCacheSpec.columnNames()} FROM {jedi_config.db.schemaJEDI}.Cache WHERE main_key=:main_key AND sub_key=:sub_key "
             # check
             varMap = {}
             varMap[":main_key"] = main_key
@@ -14339,20 +14251,20 @@ class DBProxy(OraDBProxy.DBProxy):
     def extendSandboxLifetime_JEDI(self, jedi_taskid, file_name):
         comment = " /* JediDBProxy.extendSandboxLifetime_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_taskid)
+        methodName += f" < jediTaskID={jedi_taskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         try:
             self.conn.begin()
             retVal = False
             # sql to update
-            sqlC = ("UPDATE {0}.userCacheUsage SET creationTime=CURRENT_DATE " "WHERE fileName=:fileName ").format(jedi_config.db.schemaMETA)
+            sqlC = f"UPDATE {jedi_config.db.schemaMETA}.userCacheUsage SET creationTime=CURRENT_DATE WHERE fileName=:fileName "
             varMap = {}
             varMap[":fileName"] = file_name
             self.cur.execute(sqlC + comment, varMap)
             nRows = self.cur.rowcount
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done {0} with {1}".format(file_name, nRows))
+            tmpLog.debug(f"done {file_name} with {nRows}")
             # return
             return nRows
         except Exception:
@@ -14366,7 +14278,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def makeTaskPending_JEDI(self, jedi_taskid, reason):
         comment = " /* JediDBProxy.makeTaskPending_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jedi_taskid)
+        methodName += f" < jediTaskID={jedi_taskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         try:
             self.conn.begin()
@@ -14392,7 +14304,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.push_task_status_message(None, jedi_taskid, varMap[":status"])
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0} rows".format(nRows))
+            tmpLog.debug(f"done with {nRows} rows")
             # return
             return nRows
         except Exception:
@@ -14436,12 +14348,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.record_task_status_change(jedi_taskid)
                     self.push_task_status_message(None, jedi_taskid, varMap[":status"])
                     n_updated += 1
-                    tmpLog.debug("made pending jediTaskID={0}".format(jedi_taskid))
+                    tmpLog.debug(f"made pending jediTaskID={jedi_taskid}")
                 elif nRow > 1:
-                    tmpLog.error("updated {0} rows with same jediTaskID={1}".format(nRow, jedi_taskid))
+                    tmpLog.error(f"updated {nRow} rows with same jediTaskID={jedi_taskid}")
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0} rows".format(n_updated))
+            tmpLog.debug(f"done with {n_updated} rows")
             # return
             return n_updated
         except Exception:
@@ -14456,7 +14368,7 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.get_tasks_inputdatasets_JEDI */"
         methodName = self.getMethodName(comment)
         # last update time
-        methodName += " <vo={0}>".format(vo)
+        methodName += f" <vo={vo}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         now_ts = datetime.datetime.utcnow()
@@ -14484,7 +14396,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             retVal = res
-            tmpLog.debug("done with {0} rows".format(nRows))
+            tmpLog.debug(f"done with {nRows} rows")
             return retVal
         except Exception:
             # roll back
@@ -14500,7 +14412,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # last update time
         timestamp = datetime.datetime.utcnow()
         timestamp_str = timestamp.strftime("%Y-%m-%d_%H:%M:%S")
-        methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
+        methodName += f" <taskID={jedi_taskid} datasetID={datasetid} rse={rse} timestamp={timestamp_str}>"
         tmpLog = MsgWrapper(logger, methodName)
         # tmpLog.debug('start')
         try:
@@ -14555,13 +14467,13 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName = self.getMethodName(comment)
         # last update time
         before_timestamp_str = before_timestamp.strftime("%Y-%m-%d_%H:%M:%S")
-        methodName += " <before_timestamp={0}>".format(before_timestamp_str)
+        methodName += f" <before_timestamp={before_timestamp_str}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             retVal = 0
             # sql to delete
-            sqlD = ("DELETE {0}.Jedi_Dataset_Locality " "WHERE timestamp<=:timestamp ").format(jedi_config.db.schemaJEDI)
+            sqlD = f"DELETE {jedi_config.db.schemaJEDI}.Jedi_Dataset_Locality WHERE timestamp<=:timestamp "
             # start transaction
             self.conn.begin()
             # check
@@ -14574,7 +14486,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done, deleted {0} records".format(retVal))
+            tmpLog.debug(f"done, deleted {retVal} records")
             return retVal
         except Exception:
             # roll back
@@ -14595,7 +14507,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to query
             self.cur.execute(sql_query + comment, params_map)
             taskIDs = self.cur.fetchall()
-            tmpLog.debug("{0} {1} ; got {2} taskIDs".format(sql_query, params_map, len(taskIDs)))
+            tmpLog.debug(f"{sql_query} {params_map} ; got {len(taskIDs)} taskIDs")
             # sql to preassign the task to a site
             sqlPDG = (
                 "UPDATE {0}.JEDI_Tasks "
@@ -14631,12 +14543,12 @@ class DBProxy(OraDBProxy.DBProxy):
                         "workQueue_ID": orig_workqueue_id,
                     }
                     updated_tasks_attr.append((jedi_taskid, orig_attr))
-                    tmpLog.debug("preassigned jediTaskID={0} to site={1} , orig_attr={2}".format(jedi_taskid, site, orig_attr))
+                    tmpLog.debug(f"preassigned jediTaskID={jedi_taskid} to site={site} , orig_attr={orig_attr}")
                 elif nRow > 1:
-                    tmpLog.error("updated {0} rows with same jediTaskID={1}".format(nRow, jedi_taskid))
+                    tmpLog.error(f"updated {nRow} rows with same jediTaskID={jedi_taskid}")
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done with {0} rows to site={1}".format(n_updated, site))
+            tmpLog.debug(f"done with {n_updated} rows to site={site}")
             # return
             return updated_tasks_attr
         except Exception:
@@ -14650,7 +14562,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def reassignJobsInPreassignedTask_JEDI(self, jedi_taskid, site, n_jobs_to_close):
         comment = " /* JediDBProxy.reassignJobsInPreassignedTask_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} to {1} to close {2} jobs >".format(jedi_taskid, site, n_jobs_to_close)
+        methodName += f" < jediTaskID={jedi_taskid} to {site} to close {n_jobs_to_close} jobs >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -14684,7 +14596,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     n_jobs_closed += 1
                 if n_jobs_closed >= n_jobs_to_close:
                     break
-            tmpLog.debug("closed {0} jobs".format(n_jobs_closed))
+            tmpLog.debug(f"closed {n_jobs_closed} jobs")
             return n_jobs_closed
         except Exception:
             # roll back
@@ -14749,7 +14661,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     orig_attr = task_orig_attr_map[str(jedi_taskid)]
                     orig_workqueue_id = orig_attr["workQueue_ID"]
                 except KeyError:
-                    tmpLog.warning("missed original attributes of jediTaskID={0} ; use default values ".format(jedi_taskid))
+                    tmpLog.warning(f"missed original attributes of jediTaskID={jedi_taskid} ; use default values ")
                     orig_workqueue_id = magic_workqueue_id
                 varMap = {}
                 varMap[":jediTaskID"] = jedi_taskid
@@ -14767,12 +14679,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     # self.record_task_status_change(jedi_taskid)
                     n_updated += 1
                     updated_tasks.append(jedi_taskid)
-                    tmpLog.debug("{0} undid preassigned jediTaskID={1}".format(force_str, jedi_taskid))
+                    tmpLog.debug(f"{force_str} undid preassigned jediTaskID={jedi_taskid}")
                 elif nRow > 1:
-                    tmpLog.error("{0} updated {1} rows with same jediTaskID={2}".format(force_str, nRow, jedi_taskid))
+                    tmpLog.error(f"{force_str} updated {nRow} rows with same jediTaskID={jedi_taskid}")
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("{0} done with {1} rows".format(force_str, n_updated))
+            tmpLog.debug(f"{force_str} done with {n_updated} rows")
             # return
             return updated_tasks
         except Exception:
@@ -14786,7 +14698,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames_dict):
         comment = " /* JediDBProxy.setMissingFilesAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskID={0} nfiles={1}>".format(jeditaskid, len(filenames_dict))
+        methodName += f" <jediTaskID={jeditaskid} nfiles={len(filenames_dict)}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -14818,7 +14730,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug("done set {0} missing files".format(nFileRow))
+            tmpLog.debug(f"done set {nFileRow} missing files")
             return nFileRow
         except Exception:
             # roll back
@@ -14837,7 +14749,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
         try:
             # sql to get size
-            sql = "SELECT PANDA_QUEUE, DATA FROM {0}.SW_TAGS".format(jedi_config.db.schemaPANDA)
+            sql = f"SELECT PANDA_QUEUE, DATA FROM {jedi_config.db.schemaPANDA}.SW_TAGS"
             self.cur.execute(sql + comment)
             results = self.cur.fetchall()
             for panda_queue, data in results:
@@ -14855,7 +14767,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
         comment = " /* JediDBProxy.get_origin_datasets */"
         method_name = self.getMethodName(comment)
-        method_name += " < jediTaskID={} {} n_files={} >".format(jedi_task_id, dataset_name, len(lfns))
+        method_name += f" < jediTaskID={jedi_task_id} {dataset_name} n_files={len(lfns)} >"
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
         try:
@@ -14868,9 +14780,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 "WHERE tabC.lfn=:lfn AND tabC.type=:type AND tabD.datasetID=tabC.datasetID ".format(jedi_config.db.schemaJEDI)
             )
             sql_c = (
-                "SELECT lfn "
-                "FROM {0}.JEDI_Dataset_Contents "
-                "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status ".format(jedi_config.db.schemaJEDI)
+                f"SELECT lfn FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             )
             to_break = False
             for lfn in lfns:
@@ -14892,7 +14802,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     for (tmp_lfn,) in res:
                         known_lfns.add(tmp_lfn)
                 else:
-                    tmp_log.debug("no dataset for {}".format(lfn))
+                    tmp_log.debug(f"no dataset for {lfn}")
                     # return nothing if any dataset is not found
                     dataset_names = None
                     to_break = True
@@ -14902,7 +14812,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if to_break:
                     break
             # return
-            tmp_log.debug("found {}".format(str(dataset_names)))
+            tmp_log.debug(f"found {str(dataset_names)}")
             return dataset_names
         except Exception:
             # roll back
@@ -14915,7 +14825,7 @@ class DBProxy(OraDBProxy.DBProxy):
     def get_task_carbon_footprint(self, jedi_task_id, level):
         comment = " /* JediDBProxy.get_task_carbon_footprint */"
         method_name = self.getMethodName(comment)
-        method_name += " < jediTaskID={} n_files={} >".format(jedi_task_id, level)
+        method_name += f" < jediTaskID={jedi_task_id} n_files={level} >"
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
 
@@ -14957,7 +14867,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
 
-            tmp_log.debug("done: {0}".format(footprint))
+            tmp_log.debug(f"done: {footprint}")
 
             if not data:
                 return None

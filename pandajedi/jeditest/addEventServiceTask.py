@@ -6,7 +6,7 @@ from userinterface import Client
 site = sys.argv[1]
 
 dsName = "mc12_8TeV.189659.gg2VVPythia8_AU2CT10_ggH125p5_VV_2mu2numu_m2l4_2pt3.evgen.EVNT.e2872_tid01461041_00"
-logDatasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
+logDatasetName = f"panda.jeditest.log.{uuid.uuid4()}"
 
 taskParamMap = {}
 
@@ -41,9 +41,9 @@ taskParamMap["log"] = {
     "param_type": "log",
     "token": "ATLASDATADISK",
     "offset": 1000,
-    "value": "{0}.${{SN}}.log.tgz".format(logDatasetName),
+    "value": f"{logDatasetName}.${{SN}}.log.tgz",
 }
-outDatasetName = "panda.jeditest.HITS.{0}".format(uuid.uuid4())
+outDatasetName = f"panda.jeditest.HITS.{uuid.uuid4()}"
 
 
 taskParamMap["jobParameters"] = [
@@ -75,7 +75,7 @@ taskParamMap["jobParameters"] = [
         "type": "template",
         "param_type": "output",
         "token": "ATLASDATADISK",
-        "value": " --outputHitsFile={0}.${{SN}}.pool.root".format(outDatasetName),
+        "value": f" --outputHitsFile={outDatasetName}.${{SN}}.pool.root",
         "dataset": outDatasetName,
     },
     {
