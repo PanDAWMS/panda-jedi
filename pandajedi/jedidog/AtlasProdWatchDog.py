@@ -22,7 +22,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
 
     # main
     def doAction(self):
@@ -293,7 +293,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             for jediTaskID, pandaIDs in tmpRet.items():
                 gTmpLog.info(f"throttled jobs in paused jediTaskID={jediTaskID} successfully")
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs, "reassign", "51", True)
-                gTmpLog.info("reassigned {0} jobs in paused jediTaskID={1} with {2}".format(len(pandaIDs), jediTaskID, tmpRet))
+                gTmpLog.info(f"reassigned {len(pandaIDs)} jobs in paused jediTaskID={jediTaskID} with {tmpRet}")
 
     # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
     def doActionToProvokeDCTasks(self, gTmpLog):
