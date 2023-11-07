@@ -5922,7 +5922,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlCore = f"SELECT /* use_json_type */ scj.data.corepower FROM {jedi_config.db.schemaJEDI}.schedconfig_json scj "
         sqlCore += "WHERE panda_queue=:site "
 
-        # get nJobs
+        # get num of new jobs
         sqlNumJobs = f"SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
@@ -5930,6 +5930,20 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlNumJobs += f"{mapKey},"
         sqlNumJobs = sqlNumJobs[:-1]
         sqlNumJobs += ") AND masterID IS NULL "
+
+        # get num of new jobs with size
+        sql_num_jobs_size = (
+            "SELECT SUM(tabF.fSize), SUM(CASE WHEN tabF.status='finished' THEN tabF.fsize ELSE 0 END) "
+            f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets tabD, "
+            f"{jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents tabF "
+            "WHERE tabD.jediTaskID=:jediTaskID AND tabF.jediTaskID=tabD.jediTaskID "
+            "AND tabF.datasetID=tabD.datasetID AND tabD.type IN ("
+        )
+        for tmpType in JediDatasetSpec.getInputTypes():
+            mapKey = ":type_" + tmpType
+            sql_num_jobs_size += f"{mapKey},"
+        sql_num_jobs_size = sql_num_jobs_size[:-1]
+        sql_num_jobs_size += ") AND tabD.masterID IS NULL "
 
         if useTransaction:
             # begin transaction
@@ -6127,7 +6141,9 @@ class DBProxy(OraDBProxy.DBProxy):
         totFiles = 0
         totFinished = 0
         nNewJobs = 0
+        total_jobs_with_size = 0
         if not mergeScout:
+            # estimate the number of new jobs with the number of files
             varMap = dict()
             varMap[":jediTaskID"] = jediTaskID
             for tmpType in JediDatasetSpec.getInputTypes():
@@ -6140,11 +6156,23 @@ class DBProxy(OraDBProxy.DBProxy):
                 if totFinished > 0:
                     totalJobs = int(totFiles * len(pandaIDList) // totFinished)
                     nNewJobs = int((totFiles - totUsed) * len(pandaIDList) // totFinished)
+                    # estimate the number of new jobs with size
+                    var_map = dict()
+                    var_map[":jediTaskID"] = jediTaskID
+                    for tmp_type in JediDatasetSpec.getInputTypes():
+                        var_map[":type_" + tmp_type] = tmp_type
+                    self.cur.execute(sql_num_jobs_size + comment, var_map)
+                    res_num_jobs_size = self.cur.fetchone()
+                    if res_num_jobs_size:
+                        total_in_size, total_finished_size = res_num_jobs_size
+                        if total_finished_size > 0:
+                            total_jobs_with_size = int(total_in_size * len(pandaIDList) // total_finished_size)
         extraInfo["expectedNumJobs"] = totalJobs
         extraInfo["numFinishedJobs"] = len(pandaIDList)
         extraInfo["nFiles"] = totFiles
         extraInfo["nFilesFinished"] = totFinished
         extraInfo["nNewJobs"] = nNewJobs
+        extraInfo["expectedNumJobsWithSize"] = total_jobs_with_size
         # loop over all jobs
         loopPandaIDs = list(inFSizeMap.keys())
         random.shuffle(loopPandaIDs)
@@ -6722,10 +6750,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     if manyShortJobs:
                         toExhausted = True
                         # check expected number of jobs
-                        if shortJobCutoff and extraInfo["expectedNumJobs"] < shortJobCutoff:
+                        if shortJobCutoff and max(extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithSize"]) < shortJobCutoff:
                             tmpLog.debug(
                                 "not to set exhausted or change split rule since expect num of jobs "
-                                "({}) is less than {}".format(extraInfo["expectedNumJobs"], shortJobCutoff)
+                                "max({} file-based est., {} size-based est.) is less than {}".format(
+                                    extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithSize"], shortJobCutoff
+                                )
                             )
                             toExhausted = False
                         # remove wrong rules
@@ -6783,13 +6813,14 @@ class DBProxy(OraDBProxy.DBProxy):
                                 "{}/{} jobs (greater than {}/10, excluding {} jobs that the site "
                                 "config enforced "
                                 "to run with copy-to-scratch) had shorter execution time than {} min "
-                                "and the expected num of jobs ({}) is larger than {} {}".format(
+                                "and the expected num of jobs max({} file-based est., {} size-based est.) is larger than {} {}".format(
                                     extraInfo["nShortJobs"],
                                     extraInfo["nTotalForShort"],
                                     maxShortJobs,
                                     extraInfo["nShortJobsWithCtoS"],
                                     extraInfo["shortExecTime"],
                                     extraInfo["expectedNumJobs"],
+                                    extraInfo["expectedNumJobsWithSize"],
                                     shortJobCutoff,
                                     scMsg,
                                 )
@@ -6817,17 +6848,18 @@ class DBProxy(OraDBProxy.DBProxy):
                         and extraInfo["nTotalForIneff"] > 0
                         and extraInfo["nInefficientJobs"] / extraInfo["nTotalForIneff"] >= maxIneffJobs / 10
                         and ineffJobCutoff
-                        and extraInfo["expectedNumJobs"] > ineffJobCutoff
+                        and max(extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithSize"]) > ineffJobCutoff
                     ):
                         tmp_skip = True
                         errMsg += (
                             "{}/{} jobs (greater than {}/10) had lower CPU efficiencies than {} "
-                            "and expected num of jobs ({}) is larger than {}".format(
+                            "and expected num of jobs max({} file-based est, {} size-based est) is larger than {}".format(
                                 extraInfo["nInefficientJobs"],
                                 extraInfo["nTotalForIneff"],
                                 maxIneffJobs,
                                 extraInfo["cpuEfficiencyCap"],
                                 extraInfo["expectedNumJobs"],
+                                extraInfo["expectedNumJobsWithSize"],
                                 ineffJobCutoff,
                             )
                         )
