@@ -340,10 +340,10 @@ modConfig = wlcg:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
 
 ##########################
 #
-# Internal Message Queue parameters
+# Message Queue parameters
 #
 
 [mq]
 
-# json config file of internal message queues
+# json config file of message queues for JEDI agents (except msgprocessor) to send to
 #configFile = /etc/panda/jedi_mq_config.json

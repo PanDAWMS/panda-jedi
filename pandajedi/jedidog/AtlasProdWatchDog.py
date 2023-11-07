@@ -1,3 +1,5 @@
+import os
+import socket
 import sys
 import traceback
 
@@ -20,6 +22,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
+        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
 
     # main
     def doAction(self):
@@ -53,6 +56,10 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # action for jumbo
             jumbo = JumboWatchDog(self.taskBufferIF, self.ddmIF, tmpLog, "atlas", "managed")
             jumbo.run()
+
+            # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
+            self.doActionToProvokeDCTasks(tmpLog)
+
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error(f"failed with {errtype.__name__}:{errvalue} {traceback.format_exc()}")
@@ -286,4 +293,58 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             for jediTaskID, pandaIDs in tmpRet.items():
                 gTmpLog.info(f"throttled jobs in paused jediTaskID={jediTaskID} successfully")
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs, "reassign", "51", True)
-                gTmpLog.info(f"reassigned {len(pandaIDs)} jobs in paused jediTaskID={jediTaskID} with {tmpRet}")
+                gTmpLog.info("reassigned {0} jobs in paused jediTaskID={1} with {2}".format(len(pandaIDs), jediTaskID, tmpRet))
+
+    # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
+    def doActionToProvokeDCTasks(self, gTmpLog):
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(
+            vo=self.vo,
+            prodSourceLabel=self.prodSourceLabel,
+            cloud=None,
+            workqueue_id=None,
+            resource_name=None,
+            component="AtlasProdWatchDog.doActionToProvokeDCT",
+            pid=self.pid,
+            timeLimit=30,
+        )
+        if not got_lock:
+            gTmpLog.debug("doActionToProvokeDCTasks locked by another process. Skipped")
+            return
+        # run
+        res_dict = self.taskBufferIF.get_pending_dc_tasks_JEDI(task_type="prod", time_limit_minutes=60)
+        if res_dict is None:
+            # failed
+            gTmpLog.error("failed to get pending DC tasks")
+        elif not res_dict:
+            # empty
+            gTmpLog.debug("no pending DC task; skipped")
+        else:
+            ddm_if = self.ddmIF.getInterface(self.vo)
+            # loop over pending DC tasks
+            for task_id, ds_name_list in res_dict.items():
+                if not ds_name_list:
+                    continue
+                total_all_ok = True
+                for ds_name in ds_name_list:
+                    # ret_code, (all_ok, rule_dict) = ddm_if.get_rules_state(ds_name)
+                    ret_code, ret_data = ddm_if.get_rules_state(ds_name)
+                    try:
+                        all_ok, rule_dict = ret_data
+                        total_all_ok = total_all_ok and all_ok
+                    except ValueError:
+                        gTmpLog.error(f"failed to thottle jobs in paused tasks, {ret_data}")
+                        total_all_ok = False
+                        break
+                if total_all_ok:
+                    if False:
+                        # Dry-run; all rules ok; provoke the task
+                        gTmpLog.info(f"provoking task {task_id} (dry-run)")
+                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked (dry-run)")
+                    else:
+                        # all rules ok; provoke the task
+                        gTmpLog.info(f"provoking task {task_id}")
+                        self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None, None)
+                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked")
+                else:
+                    gTmpLog.debug(f"not all staging rules of task {task_id} are OK; skipped ")

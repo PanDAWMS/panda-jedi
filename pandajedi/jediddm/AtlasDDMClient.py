@@ -1648,3 +1648,32 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, ruleID
+
+    # get state of all rules of a dataset
+    def get_rules_state(self, dataset_name):
+        methodName = "get_rules_state"
+        methodName += " datasetName={0}".format(dataset_name)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        res_dict = {}
+        all_ok = False
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope, dsn = self.extract_scope(dataset_name)
+            # get rules and state
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                rule_id = rule["id"]
+                state = rule["state"]
+                res_dict[rule_id] = state
+            # if all ok
+            if all((x == "OK" for x in res_dict.values())):
+                all_ok = True
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, "{0} : {1}".format(methodName, errMsg)
+        tmpLog.debug(f"got {all_ok}, {res_dict}")
+        return self.SC_SUCCEEDED, (all_ok, res_dict)

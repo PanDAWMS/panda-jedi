@@ -47,55 +47,73 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
 
     # handle waiting jobs
     def doForWaitingJobs(self):
-        tmpLog = MsgWrapper(logger, "doForWaitingJobs label=user")
-        # check every 60 min
-        checkInterval = 60
-        # get lib.tgz for waiting jobs
-        libList = self.taskBufferIF.getLibForWaitingRunJob_JEDI(self.vo, self.prodSourceLabel, checkInterval)
-        tmpLog.debug(f"got {len(libList)} lib.tgz files")
-        # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
-        for prodUserName, datasetName, tmpFileSpec in libList:
-            tmpLog = MsgWrapper(logger, f"< #ATM #KV doForWaitingJobs jediTaskID={tmpFileSpec.jediTaskID} label=user >")
-            tmpLog.debug("start")
-            # check status of lib.tgz
-            if tmpFileSpec.status == "failed":
-                # get buildJob
-                pandaJobSpecs = self.taskBufferIF.peekJobs([tmpFileSpec.PandaID], fromDefined=False, fromActive=False, fromWaiting=False)
-                pandaJobSpec = pandaJobSpecs[0]
-                if pandaJobSpec is not None:
-                    # kill
-                    self.taskBufferIF.updateJobs([pandaJobSpec], False)
-                    tmpLog.debug(f'  action=killed_downstream_jobs for user="{prodUserName}" with libDS={datasetName}')
+        try:
+            tmpLog = MsgWrapper(logger, "doForWaitingJobs label=user")
+            # lock
+            got_lock = self.taskBufferIF.lockProcess_JEDI(
+                vo=self.vo,
+                prodSourceLabel=self.prodSourceLabel,
+                cloud=None,
+                workqueue_id=None,
+                resource_name=None,
+                component="AtlasAnalWatchDog.doForWaitingJobs",
+                pid=self.pid,
+                timeLimit=0.5,
+            )
+            if not got_lock:
+                tmpLog.debug("locked by another process. Skipped")
+                return
+            # check every 60 min
+            checkInterval = 60
+            # get lib.tgz for waiting jobs
+            libList = self.taskBufferIF.getLibForWaitingRunJob_JEDI(self.vo, self.prodSourceLabel, checkInterval)
+            tmpLog.debug("got {0} lib.tgz files".format(len(libList)))
+            # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
+            for prodUserName, datasetName, tmpFileSpec in libList:
+                tmpLog = MsgWrapper(logger, "< #ATM #KV doForWaitingJobs jediTaskID={0} label=user >".format(tmpFileSpec.jediTaskID))
+                tmpLog.debug("start")
+                # check status of lib.tgz
+                if tmpFileSpec.status == "failed":
+                    # get buildJob
+                    pandaJobSpecs = self.taskBufferIF.peekJobs([tmpFileSpec.PandaID], fromDefined=False, fromActive=False, fromWaiting=False)
+                    pandaJobSpec = pandaJobSpecs[0]
+                    if pandaJobSpec is not None:
+                        # kill
+                        self.taskBufferIF.updateJobs([pandaJobSpec], False)
+                        tmpLog.debug('  action=killed_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName, datasetName))
+                    else:
+                        # PandaJobSpec not found
+                        tmpLog.error('  cannot find PandaJobSpec for user="{0}" with PandaID={1}'.format(prodUserName, tmpFileSpec.PandaID))
+                elif tmpFileSpec.status == "finished":
+                    # set metadata
+                    self.taskBufferIF.setGUIDs(
+                        [
+                            {
+                                "guid": tmpFileSpec.GUID,
+                                "lfn": tmpFileSpec.lfn,
+                                "checksum": tmpFileSpec.checksum,
+                                "fsize": tmpFileSpec.fsize,
+                                "scope": tmpFileSpec.scope,
+                            }
+                        ]
+                    )
+                    # get lib dataset
+                    dataset = self.taskBufferIF.queryDatasetWithMap({"name": datasetName})
+                    if dataset is not None:
+                        # activate jobs
+                        aThr = Activator(self.taskBufferIF, dataset)
+                        aThr.start()
+                        aThr.join()
+                        tmpLog.debug('  action=activated_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName, datasetName))
+                    else:
+                        # datasetSpec not found
+                        tmpLog.error('  cannot find datasetSpec for user="{0}" with libDS={1}'.format(prodUserName, datasetName))
                 else:
-                    # PandaJobSpec not found
-                    tmpLog.error(f'  cannot find PandaJobSpec for user="{prodUserName}" with PandaID={tmpFileSpec.PandaID}')
-            elif tmpFileSpec.status == "finished":
-                # set metadata
-                self.taskBufferIF.setGUIDs(
-                    [
-                        {
-                            "guid": tmpFileSpec.GUID,
-                            "lfn": tmpFileSpec.lfn,
-                            "checksum": tmpFileSpec.checksum,
-                            "fsize": tmpFileSpec.fsize,
-                            "scope": tmpFileSpec.scope,
-                        }
-                    ]
-                )
-                # get lib dataset
-                dataset = self.taskBufferIF.queryDatasetWithMap({"name": datasetName})
-                if dataset is not None:
-                    # activate jobs
-                    aThr = Activator(self.taskBufferIF, dataset)
-                    aThr.start()
-                    aThr.join()
-                    tmpLog.debug(f'  action=activated_downstream_jobs for user="{prodUserName}" with libDS={datasetName}')
-                else:
-                    # datasetSpec not found
-                    tmpLog.error(f'  cannot find datasetSpec for user="{prodUserName}" with libDS={datasetName}')
-            else:
-                # lib.tgz is not ready
-                tmpLog.debug(f'  keep waiting for user="{prodUserName}" libDS={datasetName}')
+                    # lib.tgz is not ready
+                    tmpLog.debug('  keep waiting for user="{0}" libDS={1}'.format(prodUserName, datasetName))
+        except Exception:
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error("failed with {0} {1} {2}".format(errtype, errvalue, traceback.format_exc()))
 
     # throttle tasks if so many prestaging requests
     def doForPreStaging(self):
@@ -111,7 +129,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                 resource_name=None,
                 component="AtlasAnalWatchDog.doForPreStaging",
                 pid=self.pid,
-                timeLimit=5,
+                timeLimit=0.5,
             )
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
