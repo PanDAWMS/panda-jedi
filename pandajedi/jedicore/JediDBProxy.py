@@ -5933,7 +5933,8 @@ class DBProxy(OraDBProxy.DBProxy):
 
         # get num of new jobs with event
         sql_num_jobs_event = (
-            "SELECT SUM(tabF.nEvents), SUM(CASE WHEN tabF.status='finished' THEN tabF.nEvents ELSE 0 END) "
+            "SELECT SUM(n_events), SUM(CASE WHEN status='finished' THEN n_events ELSE 0 END) FROM ("
+            "SELECT (CASE WHEN tabF.endEvent IS NULL THEN tabF.nEvents ELSE tabF.endEvent-tabF.startEvent+1 END) n_events,tabF.status "
             f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets tabD, "
             f"{jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents tabF "
             "WHERE tabD.jediTaskID=:jediTaskID AND tabF.jediTaskID=tabD.jediTaskID "
@@ -5943,7 +5944,7 @@ class DBProxy(OraDBProxy.DBProxy):
             mapKey = ":type_" + tmpType
             sql_num_jobs_event += f"{mapKey},"
         sql_num_jobs_event = sql_num_jobs_event[:-1]
-        sql_num_jobs_event += ") AND tabD.masterID IS NULL "
+        sql_num_jobs_event += ") AND tabD.masterID IS NULL) tmp_tab "
 
         if useTransaction:
             # begin transaction
