@@ -36,7 +36,7 @@ class FileRecovery(TaskRefinerBase):
         try:
             # make logger
             tmpLog = self.tmpLog
-            tmpLog.debug("start jediTaskID={0}".format(jediTaskID))
+            tmpLog.debug(f"start jediTaskID={jediTaskID}")
             # old dataset name
             oldDatasetName = taskParamMap["oldDatasetName"]
             # accompany datasets
@@ -49,14 +49,14 @@ class FileRecovery(TaskRefinerBase):
             # get ole jediTaskID and datasetIDs
             tmpStat, oldIDs = self.taskBufferIF.getIDsWithFileDataset_JEDI(oldDatasetName, lostFileName, "output")
             if tmpStat is not True or oldIDs is None:
-                tmpLog.error("failed to get jediTaskID and DatasetID for {0}:{1}".format(oldDatasetName, lostFileName))
+                tmpLog.error(f"failed to get jediTaskID and DatasetID for {oldDatasetName}:{lostFileName}")
                 return self.SC_FAILED
             # get task
             oldJediTaskID = oldIDs["jediTaskID"]
             oldDatasetID = oldIDs["datasetID"]
             tmpStat, oldTaskSpec = self.taskBufferIF.getTaskWithID_JEDI(oldJediTaskID, True)
             if tmpStat is not True:
-                tmpLog.error("failed to get TaskSpec for old jediTaskId={0}".format(oldJediTaskID))
+                tmpLog.error(f"failed to get TaskSpec for old jediTaskId={oldJediTaskID}")
                 return self.SC_FAILED
             # make task spec
             taskSpec = JediTaskSpec()
@@ -156,17 +156,17 @@ class FileRecovery(TaskRefinerBase):
                 # get FileID
                 tmpStat, tmpIDs = self.taskBufferIF.getIDsWithFileDataset_JEDI(oldDatasetName, lostFileName, "output")
                 if tmpStat is not True or tmpIDs is None:
-                    tmpLog.error("failed to get FileID for {0}:{1}".format(oldDatasetName, lostFileName))
+                    tmpLog.error(f"failed to get FileID for {oldDatasetName}:{lostFileName}")
                     return self.SC_FAILED
                 # get PandaID
                 tmpStat, pandaID = self.taskBufferIF.getPandaIDWithFileID_JEDI(tmpIDs["jediTaskID"], tmpIDs["datasetID"], tmpIDs["fileID"])
                 if tmpStat is not True or pandaID is None:
-                    tmpLog.error("failed to get PandaID for {0}".format(str(tmpIDs)))
+                    tmpLog.error(f"failed to get PandaID for {str(tmpIDs)}")
                     return self.SC_FAILED
                 # get files
                 tmpStat, fileSpecList = self.taskBufferIF.getFilesWithPandaID_JEDI(pandaID)
                 if tmpStat is not True or fileSpecList == []:
-                    tmpLog.error("failed to get files for PandaID={0}".format(pandaID))
+                    tmpLog.error(f"failed to get files for PandaID={pandaID}")
                     return self.SC_FAILED
                 # append
                 for fileSpec in fileSpecList:
@@ -177,12 +177,12 @@ class FileRecovery(TaskRefinerBase):
                     if fileSpec.datasetID not in datasetIDSpecMap:
                         tmpStat, tmpDatasetSpec = self.taskBufferIF.getDatasetWithID_JEDI(fileSpec.jediTaskID, fileSpec.datasetID)
                         if tmpStat is not True or tmpDatasetSpec is None:
-                            tmpLog.error("failed to get dataset for jediTaskID={0} datasetID={1}".format(fileSpec.jediTaskID, fileSpec.datasetID))
+                            tmpLog.error(f"failed to get dataset for jediTaskID={fileSpec.jediTaskID} datasetID={fileSpec.datasetID}")
                             return self.SC_FAILED
                         datasetIDSpecMap[fileSpec.datasetID] = tmpDatasetSpec
                     origDatasetSpec = datasetIDSpecMap[fileSpec.datasetID]
                     if origDatasetSpec.datasetName not in datasetNameSpecMap:
-                        tmpLog.error("datasetName={0} is missing in new datasets".format(origDatasetSpec.datasetName))
+                        tmpLog.error(f"datasetName={origDatasetSpec.datasetName} is missing in new datasets")
                         return self.SC_FAILED
                     # not target or accompany datasets
                     if origDatasetSpec.datasetID != oldDatasetID and not self.checkDatasetNameMatching(origDatasetSpec.datasetName, oldAccDatasetNames):
@@ -252,7 +252,7 @@ class FileRecovery(TaskRefinerBase):
             self.setSplitRule(None, 4, JediTaskSpec.splitRuleToken["groupBoundaryID"])
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            tmpLog.error("doRefine failed with {0}:{1}".format(errtype.__name__, errvalue))
+            tmpLog.error(f"doRefine failed with {errtype.__name__}:{errvalue}")
             return self.SC_FAILED
         tmpLog.debug("done")
         return self.SC_SUCCEEDED

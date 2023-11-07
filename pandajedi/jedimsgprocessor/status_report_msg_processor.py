@@ -70,7 +70,7 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
         # parse json
         try:
             msg_dict = json.loads(msg_obj.data)
@@ -119,7 +119,7 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 if msg_dict.get("status") in to_return_job_status_list:
                     to_return_message = True
             else:
-                warn_str = "unknown msg_type : {0}".format(msg_type)
+                warn_str = f"unknown msg_type : {msg_type}"
                 tmp_log.warning(warn_str)
         except Exception:
             raise

@@ -1,21 +1,13 @@
 import os
-import re
 import socket
 import sys
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.ThreadUtils import ListWithLock
 from pandaserver.dataservice import DataServiceUtils
-
-# from pandaserver.dataservice.Activator import Activator
-from pandaserver.taskbuffer import JobUtils
-from six import iteritems
 
 from .WatchDogBase import WatchDogBase
 
@@ -27,7 +19,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         WatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         # self.cronActions = {'forPrestage': 'atlas_prs'}
         self.vo = "atlas"
         self.prodSourceLabelList = ["managed"]
@@ -55,7 +47,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
         # all sites
         allSiteList = []
-        for siteName, tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
+        for siteName, tmpSiteSpec in self.siteMapper.siteSpecList.items():
             # if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
             allSiteList.append(siteName)
         self.allSiteList = allSiteList
@@ -129,10 +121,10 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         for prod_source_label in self.prodSourceLabelList:
             # site-rse map and blacklisted rses
             site_rse_map, blacklisted_rse_set = self.get_site_rse_map_and_blacklisted_rse_set(prod_source_label)
-            tmp_log.debug("Found {0} blacklisted RSEs : {1}".format(len(blacklisted_rse_set), ",".join(list(blacklisted_rse_set))))
+            tmp_log.debug(f"Found {len(blacklisted_rse_set)} blacklisted RSEs : {','.join(list(blacklisted_rse_set))}")
             # parameter from GDP config
-            upplimit_ioIntensity = self.taskBufferIF.getConfigValue("task_withholder", "LIMIT_IOINTENSITY_{0}".format(prod_source_label), "jedi", self.vo)
-            lowlimit_currentPriority = self.taskBufferIF.getConfigValue("task_withholder", "LIMIT_PRIORITY_{0}".format(prod_source_label), "jedi", self.vo)
+            upplimit_ioIntensity = self.taskBufferIF.getConfigValue("task_withholder", f"LIMIT_IOINTENSITY_{prod_source_label}", "jedi", self.vo)
+            lowlimit_currentPriority = self.taskBufferIF.getConfigValue("task_withholder", f"LIMIT_PRIORITY_{prod_source_label}", "jedi", self.vo)
             if upplimit_ioIntensity is None:
                 upplimit_ioIntensity = 999999
             if lowlimit_currentPriority is None:
@@ -144,7 +136,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             for work_queue in work_queue_list:
                 gshare = work_queue.queue_name
                 # get cutoff
-                cutoff = self.taskBufferIF.getConfigValue("jobbroker", "NQUEUELIMITSITE_{}".format(gshare), "jedi", self.vo)
+                cutoff = self.taskBufferIF.getConfigValue("jobbroker", f"NQUEUELIMITSITE_{gshare}", "jedi", self.vo)
                 if not cutoff:
                     cutoff = 20
                 # busy sites
@@ -163,7 +155,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                 rse_params_list = []
                 rse_params_map = {}
                 for j, rse in enumerate(to_exclude_rses):
-                    rse_param = ":rse_{0}".format(j + 1)
+                    rse_param = f":rse_{j + 1}"
                     rse_params_list.append(rse_param)
                     rse_params_map[rse_param] = rse
                 rse_params_str = ",".join(rse_params_list)
@@ -224,19 +216,11 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                     n_tasks = 0 if res is None else len(res)
                     if n_tasks > 0:
                         result = [x[0] for x in res]
-                        tmp_log.debug(
-                            '[dry run] gshare: {gshare:<16} {n_tasks:>5} tasks would be pending : {result} ; reason="{reason}" '.format(
-                                gshare=gshare, n_tasks=n_tasks, result=result, reason=reason
-                            )
-                        )
+                        tmp_log.debug(f'[dry run] gshare: {gshare:<16} {n_tasks:>5} tasks would be pending : {result} ; reason="{reason}" ')
                 else:
                     n_tasks = self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
                     if n_tasks is not None and n_tasks > 0:
-                        tmp_log.info(
-                            'gshare: {gshare:<16} {n_tasks:>5} tasks got pending ; reason="{reason}" '.format(
-                                gshare=gshare, n_tasks=str(n_tasks), reason=reason
-                            )
-                        )
+                        tmp_log.info(f'gshare: {gshare:<16} {str(n_tasks):>5} tasks got pending ; reason="{reason}" ')
 
     # main
     def doAction(self):
@@ -255,7 +239,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             err_str = traceback.format_exc()
-            origTmpLog.error("failed with {0} {1} ; {2}".format(errtype, errvalue, err_str))
+            origTmpLog.error(f"failed with {errtype} {errvalue} ; {err_str}")
         # return
         origTmpLog.debug("done")
         return self.SC_SUCCEEDED

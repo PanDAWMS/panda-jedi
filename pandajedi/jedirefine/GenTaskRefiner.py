@@ -57,5 +57,5 @@ class GenTaskRefiner(TaskRefinerBase):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken["instantiateTmpl"])
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken["instantiateTmplSite"])
             for datasetSpec in self.outDatasetSpecList:
-                datasetSpec.type = "tmpl_{0}".format(datasetSpec.type)
+                datasetSpec.type = f"tmpl_{datasetSpec.type}"
         return self.SC_SUCCEEDED

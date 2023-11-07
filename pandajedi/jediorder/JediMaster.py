@@ -30,7 +30,7 @@ class JediMaster:
             mod = getattr(mod, subModuleName)
         # launch
         timeNow = datetime.datetime.utcnow()
-        print("{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow), moduleName, "launcher", os.getpid()))
+        print(f"{str(timeNow)} {moduleName}: INFO    start launcher with pid={os.getpid()}")
         mod.launcher(*args, **kwargs)
 
     # convert config parameters
@@ -171,7 +171,7 @@ class JediMaster:
         for knight in knightList:
             if not knight.is_alive():
                 timeNow = datetime.datetime.utcnow()
-                print("{0} {1}: ERROR    pid={2} died in initialization".format(str(timeNow), self.__class__.__name__, knight.pid))
+                print(f"{str(timeNow)} {self.__class__.__name__}: ERROR    pid={knight.pid} died in initialization")
                 os.killpg(os.getpgrp(), signal.SIGKILL)
         # join
         for knight in knightList:
@@ -203,7 +203,7 @@ if __name__ == "__main__":
         if jedi_config.master.gname:
             gid = grp.getgrnam(jedi_config.master.gname).gr_gid
     timeNow = datetime.datetime.utcnow()
-    print("{0} JediMaster: INFO    start".format(str(timeNow)))
+    print(f"{str(timeNow)} JediMaster: INFO    start")
     # make daemon context
     dc = daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stderr, uid=uid, gid=gid)
     with dc:
@@ -213,11 +213,11 @@ if __name__ == "__main__":
             if options.pid:  # pid files are no longer necessary in systemd
                 pidFile = open(options.pid, "x")
         except FileExistsError:
-            print("{} JediMaster: ERROR    terminated since pid file {} already exists".format(str(timeNow), options.pid))
+            print(f"{str(timeNow)} JediMaster: ERROR    terminated since pid file {options.pid} already exists")
             go_ahead = False
         if go_ahead:
             if options.pid:  # pid files are no longer necessary in systemd
-                pidFile.write("{0}".format(os.getpid()))
+                pidFile.write(f"{os.getpid()}")
                 pidFile.close()
 
             # master

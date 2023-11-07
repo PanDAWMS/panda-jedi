@@ -21,7 +21,7 @@ class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
         try:
             message_dict = yaml.safe_load(msg_obj.data)
         except Exception as e:
-            err_str = "failed to parse message yaml {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+            err_str = f"failed to parse message yaml {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # run
@@ -42,19 +42,19 @@ class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
                     # tmp_log.debug('{0} is not _dis or _sub dataset, skip'.format(dsn))
                     to_continue = False
             if to_continue:
-                tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
-                tmp_log.debug("{0} start".format(event_type))
+                tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
+                tmp_log.debug(f"{event_type} start")
                 # take action
                 scope = message_payload["scope"]
                 site = message_payload["rse"]
-                tmp_log.debug("{dsn} site={site} type={type}".format(dsn=dsn, site=site, type=event_type))
+                tmp_log.debug(f"{dsn} site={site} type={event_type}")
                 thr = DDMHandler(taskBuffer=self.tbIF, vuid=None, site=site, dataset=dsn, scope=scope)
                 # just call run rather than start+join, to run it in main thread instead of spawning new thread
                 thr.run()
                 del thr
-                tmp_log.debug("done {0}".format(dsn))
+                tmp_log.debug(f"done {dsn}")
         except Exception as e:
-            err_str = "failed to run, skipped. {0} : {1}".format(e.__class__.__name__, e)
+            err_str = f"failed to run, skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # done

@@ -22,7 +22,7 @@ class KafkaMsgProcPlugin(BaseMsgProcPlugin):
 
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
 
         # Parse and access the message content from msg_obj.data
         if decoded_data is None:
@@ -30,7 +30,7 @@ class KafkaMsgProcPlugin(BaseMsgProcPlugin):
             try:
                 message_content = json.loads(msg_obj.data)
             except Exception as e:
-                err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+                err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         else:

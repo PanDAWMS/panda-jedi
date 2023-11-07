@@ -42,24 +42,24 @@ class JediPostProcessorMsgProcPlugin(BaseMsgProcPlugin):
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
         # parse json
         try:
             msg_dict = json.loads(msg_obj.data)
         except Exception as e:
-            err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+            err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # sanity check
         try:
             msg_type = msg_dict["msg_type"]
         except Exception as e:
-            err_str = "failed to parse message object dict {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_dict)
+            err_str = f"failed to parse message object dict {msg_dict} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         if msg_type != "jedi_post_processor":
             # FIXME
-            err_str = "got unknown msg_type {0} , skipped ".format(msg_type)
+            err_str = f"got unknown msg_type {msg_type} , skipped "
             tmp_log.error(err_str)
             raise
         # run
@@ -72,11 +72,11 @@ class JediPostProcessorMsgProcPlugin(BaseMsgProcPlugin):
             if task_list and task_id in [task_spec.jediTaskID for task_spec in task_list]:
                 tmp_post_processor_thread_obj = self.post_processor_thread_dict[(vo, prodsourcelabel)]
                 tmp_post_processor_thread_obj.post_process_tasks(task_list)
-                tmp_log.info("post processed tasks {0} including {1}".format(task_list, task_id))
+                tmp_log.info(f"post processed tasks {task_list} including {task_id}")
             else:
-                tmp_log.debug("did not get task {0}; skip ".format(task_id))
+                tmp_log.debug(f"did not get task {task_id}; skip ")
         except Exception as e:
-            err_str = "failed to run, skipped. {0} : {1}".format(e.__class__.__name__, e)
+            err_str = f"failed to run, skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # done

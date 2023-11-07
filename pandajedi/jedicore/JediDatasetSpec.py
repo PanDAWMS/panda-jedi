@@ -14,9 +14,9 @@ class JediDatasetSpec(object):
         sb = []
         for key in self.__dict__:
             if key == "Files":
-                sb.append("{key}='{value}'".format(key=key, value=len(self.__dict__[key])))
+                sb.append(f"{key}='{len(self.__dict__[key])}'")
             else:
-                sb.append("{key}='{value}'".format(key=key, value=self.__dict__[key]))
+                sb.append(f"{key}='{self.__dict__[key]}'")
         return ", ".join(sb)
 
     def __repr__(self):
@@ -65,7 +65,7 @@ class JediDatasetSpec(object):
     # attributes to force update
     _forceUpdateAttrs = ("lockedBy", "lockedTime")
     # mapping between sequence and attr
-    _seqAttrMap = {"datasetID": "{0}.JEDI_DATASETS_ID_SEQ.nextval".format(jedi_config.db.schemaJEDI)}
+    _seqAttrMap = {"datasetID": f"{jedi_config.db.schemaJEDI}.JEDI_DATASETS_ID_SEQ.nextval"}
     # token for attributes
     attrToken = {
         "allowNoOutput": "an",
@@ -136,7 +136,7 @@ class JediDatasetSpec(object):
                     val = 0
                 else:
                     val = None
-            ret[":%s" % attr] = val
+            ret[f":{attr}"] = val
         return ret
 
     # pack tuple into FileSpec
@@ -151,8 +151,8 @@ class JediDatasetSpec(object):
         ret = ""
         for attr in cls._attributes:
             if prefix is not None:
-                ret += "{0}.".format(prefix)
-            ret += "{0},".format(attr)
+                ret += f"{prefix}."
+            ret += f"{attr},"
         ret = ret[:-1]
         return ret
 
@@ -163,9 +163,9 @@ class JediDatasetSpec(object):
         ret = "VALUES("
         for attr in cls._attributes:
             if useSeq and attr in cls._seqAttrMap:
-                ret += "%s," % cls._seqAttrMap[attr]
+                ret += f"{cls._seqAttrMap[attr]},"
             else:
-                ret += ":%s," % attr
+                ret += f":{attr},"
         ret = ret[:-1]
         ret += ")"
         return ret
@@ -177,7 +177,7 @@ class JediDatasetSpec(object):
         ret = ""
         for attr in self._attributes:
             if attr in self._changedAttrs:
-                ret += "%s=:%s," % (attr, attr)
+                ret += f"{attr}=:{attr},"
         ret = ret[:-1]
         ret += " "
         return ret
@@ -390,17 +390,17 @@ class JediDatasetSpec(object):
 
     # unique map key for output
     def outputMapKey(self):
-        mapKey = "{0}#{1}".format(self.datasetName, self.provenanceID)
+        mapKey = f"{self.datasetName}#{self.provenanceID}"
         return mapKey
 
     # unique map key
     def uniqueMapKey(self):
-        mapKey = "{0}#{1}".format(self.datasetName, self.datasetID)
+        mapKey = f"{self.datasetName}#{self.datasetID}"
         return mapKey
 
     # set offset
     def setOffset(self, offset):
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["offset"], offset))
+        self.setDatasetAttribute(f"{self.attrToken['offset']}={offset}")
 
     # get offset
     def getOffset(self):
@@ -413,7 +413,7 @@ class JediDatasetSpec(object):
 
     # set number of records
     def setNumRecords(self, n):
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["num_records"], n))
+        self.setDatasetAttribute(f"{self.attrToken['num_records']}={n}")
 
     # get number of records
     def getNumRecords(self):
@@ -427,7 +427,7 @@ class JediDatasetSpec(object):
 
     # set object store
     def setObjectStore(self, objectStore):
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["objectStore"], objectStore))
+        self.setDatasetAttribute(f"{self.attrToken['objectStore']}={objectStore}")
 
     # get object store
     def getObjectStore(self):
@@ -439,7 +439,7 @@ class JediDatasetSpec(object):
 
     # set the number of files per job
     def setNumFilesPerJob(self, num):
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["nFilesPerJob"], num))
+        self.setDatasetAttribute(f"{self.attrToken['nFilesPerJob']}={num}")
 
     # get the number of files per job
     def getNumFilesPerJob(self):
@@ -465,7 +465,7 @@ class JediDatasetSpec(object):
             val = 1
         else:
             val = 0
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["transient"], val))
+        self.setDatasetAttribute(f"{self.attrToken['transient']}={val}")
 
     # get transient
     def getTransient(self):
@@ -518,7 +518,7 @@ class JediDatasetSpec(object):
 
     # set event ratio
     def setEventRatio(self, num):
-        self.setDatasetAttribute("{0}={1}".format(self.attrToken["eventRatio"], num))
+        self.setDatasetAttribute(f"{self.attrToken['eventRatio']}={num}")
 
     # get event ratio
     def getEventRatio(self):

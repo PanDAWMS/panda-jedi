@@ -13,7 +13,7 @@ def launcher(taskBufferIF, ddmIF):
     try:
         jedi_config.daemon.config
     except Exception as e:
-        tmp_log.error("failed to read config json file; should not happen... {0}: {1}".format(e.__class__.__name__, e))
+        tmp_log.error(f"failed to read config json file; should not happen... {e.__class__.__name__}: {e}")
         raise e
     # whether to run daemons
     if not getattr(jedi_config.daemon, "enable", False):

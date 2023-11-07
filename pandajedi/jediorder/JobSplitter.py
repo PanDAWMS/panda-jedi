@@ -22,8 +22,8 @@ class JobSplitter:
         retFatal = self.SC_FATAL, []
         retTmpError = self.SC_FAILED, []
         # make logger
-        tmpLog = MsgWrapper(logger, "< jediTaskID={0} datasetID={1} >".format(taskSpec.jediTaskID, inputChunk.masterIndexName))
-        tmpLog.debug("--- start chunk_size_limit={}".format(allow_chunk_size_limit))
+        tmpLog = MsgWrapper(logger, f"< jediTaskID={taskSpec.jediTaskID} datasetID={inputChunk.masterIndexName} >")
+        tmpLog.debug(f"--- start chunk_size_limit={allow_chunk_size_limit}")
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
             maxNumFiles = taskSpec.getMaxNumFilesPerJob()
@@ -97,10 +97,10 @@ class JobSplitter:
         else:
             no_split = False
         # dump
-        tmpLog.debug("maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}".format(maxNumFiles, sizeGradients, sizeIntercepts, useBoundary))
-        tmpLog.debug("walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}".format(walltimeGradient, nFilesPerJob, nEventsPerJob))
-        tmpLog.debug("useScout={} isMerging={}".format(inputChunk.useScout(), inputChunk.isMerging))
-        tmpLog.debug("sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}".format(sizeGradientsPerInSize, maxOutSize, respectLB))
+        tmpLog.debug(f"maxNumFiles={maxNumFiles} sizeGradients={sizeGradients} sizeIntercepts={sizeIntercepts} useBoundary={useBoundary}")
+        tmpLog.debug(f"walltimeGradient={walltimeGradient} nFilesPerJob={nFilesPerJob} nEventsPerJob={nEventsPerJob}")
+        tmpLog.debug(f"useScout={inputChunk.useScout()} isMerging={inputChunk.isMerging}")
+        tmpLog.debug(f"sizeGradientsPerInSize={sizeGradientsPerInSize} maxOutSize={maxOutSize} respectLB={respectLB}")
         tmpLog.debug(
             f"multiplicity={multiplicity} splitByFields={str(splitByFields)} "
             f"nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split} "
@@ -142,7 +142,7 @@ class JobSplitter:
                         gshare = taskSpec.gshare.replace(" ", "_")
                     except Exception:
                         gshare = None
-                    tmpLog.info("split to nJobs=%s at site=%s gshare=%s" % (len(subChunks), siteName, gshare))
+                    tmpLog.info(f"split to nJobs={len(subChunks)} at site={siteName} gshare={gshare}")
                     # checkpoint
                     inputChunk.checkpoint_file_usage()
                     # reset
@@ -157,7 +157,7 @@ class JobSplitter:
                 # new candidate
                 siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, ngSites=ngList, get_msg=True)
                 if siteCandidate is None:
-                    tmpLog.debug("no candidate: {0}".format(getCandidateMsg))
+                    tmpLog.debug(f"no candidate: {getCandidateMsg}")
                     break
                 tmp_ng_list = []
                 siteName = siteCandidate.siteName
@@ -220,15 +220,12 @@ class JobSplitter:
                     dynNumEvents = True
                 else:
                     dynNumEvents = False
+                tmpLog.debug(f"chosen {siteName} : {getCandidateMsg} : nQueue={siteCandidate.nQueuedJobs} nRunCap={siteCandidate.nRunningJobsCap}")
+                tmpLog.debug(f"new weight {siteCandidate.weight}")
                 tmpLog.debug(
-                    "chosen {0} : {1} : nQueue={2} nRunCap={3}".format(siteName, getCandidateMsg, siteCandidate.nQueuedJobs, siteCandidate.nRunningJobsCap)
+                    f"maxSize={maxSize} maxWalltime={maxWalltime} coreCount={coreCount} corePower={corePower} maxDisk={maxDiskSize} dynNumEvents={dynNumEvents}"
                 )
-                tmpLog.debug("new weight {0}".format(siteCandidate.weight))
-                tmpLog.debug(
-                    "maxSize={} maxWalltime={} coreCount={} corePower={} "
-                    "maxDisk={} dynNumEvents={}".format(maxSize, maxWalltime, coreCount, corePower, maxDiskSize, dynNumEvents)
-                )
-                tmpLog.debug("useDirectIO={0} label={1}".format(useDirectIO, taskSpec.prodSourceLabel))
+                tmpLog.debug(f"useDirectIO={useDirectIO} label={taskSpec.prodSourceLabel}")
             # get sub chunk
             subChunk = inputChunk.getSubChunk(
                 siteName,
@@ -268,8 +265,7 @@ class JobSplitter:
                         if tmp_dataset.isDistributed() and not siteCandidate.isAvailableFile(tmp_files[-1]) and siteCandidate.isAvailableFile(tmp_files[0]):
                             change_site_for_dist_dataset = True
                             tmpLog.debug(
-                                "change site since the last file in distributed sub-dataset "
-                                "was unavailable at {} while the first file was available".format(siteName)
+                                f"change site since the last file in distributed sub-dataset was unavailable at {siteName} while the first file was available"
                             )
                         break
             else:
@@ -281,7 +277,7 @@ class JobSplitter:
         if subChunks != []:
             # skip if chunk size is not enough
             if allow_chunk_size_limit and strict_chunkSize and len(subChunks) < nSubChunks:
-                tmpLog.debug("skip splitting since chunk size {} is less than chunk size limit {} at {}".format(len(subChunks), nSubChunks, siteName))
+                tmpLog.debug(f"skip splitting since chunk size {len(subChunks)} is less than chunk size limit {nSubChunks} at {siteName}")
                 inputChunk.rollback_file_usage()
                 isSkipped = True
             else:
@@ -299,7 +295,7 @@ class JobSplitter:
                     gshare = taskSpec.gshare.replace(" ", "_")
                 except Exception:
                     gshare = None
-                tmpLog.info("split to nJobs=%s at site=%s gshare=%s" % (len(subChunks), siteName, gshare))
+                tmpLog.info(f"split to nJobs={len(subChunks)} at site={siteName} gshare={gshare}")
         # return
         tmpLog.debug("--- done")
         return self.SC_SUCCEEDED, returnList, isSkipped

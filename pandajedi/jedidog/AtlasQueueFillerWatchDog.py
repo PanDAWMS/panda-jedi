@@ -16,10 +16,7 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock
 from pandaserver.dataservice import DataServiceUtils
-
-# from pandaserver.dataservice.Activator import Activator
 from pandaserver.taskbuffer import JobUtils
-from six import iteritems
 
 from .WatchDogBase import WatchDogBase
 
@@ -41,7 +38,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         WatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         # self.cronActions = {'forPrestage': 'atlas_prs'}
         self.vo = "atlas"
         self.prodSourceLabelList = ["managed"]
@@ -62,7 +59,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
         # all sites
         allSiteList = []
-        for siteName, tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
+        for siteName, tmpSiteSpec in self.siteMapper.siteSpecList.items():
             # if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
             allSiteList.append(siteName)
         self.allSiteList = allSiteList
@@ -246,7 +243,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         # log message
         for reason, sites_set in excluded_sites_dict.items():
             excluded_sites_str = ",".join(sorted(sites_set))
-            tmp_log.debug("excluded sites due to {reason} : {sites}".format(reason=reason, sites=excluded_sites_str))
+            tmp_log.debug(f"excluded sites due to {reason} : {excluded_sites_str}")
         included_sites_str = ",".join(sorted([x[0] for x in available_sites_list]))
         tmp_log.debug("included sites : {sites}".format(reason=reason, sites=included_sites_str))
         # return
@@ -311,13 +308,13 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # site-rse map
             site_rse_map = self.get_site_rse_map(prod_source_label)
             # parameters from GDP config
-            max_preassigned_tasks = self.taskBufferIF.getConfigValue("queue_filler", "MAX_PREASSIGNED_TASKS_{0}".format(prod_source_label), "jedi", self.vo)
+            max_preassigned_tasks = self.taskBufferIF.getConfigValue("queue_filler", f"MAX_PREASSIGNED_TASKS_{prod_source_label}", "jedi", self.vo)
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
-            min_files_ready = self.taskBufferIF.getConfigValue("queue_filler", "MIN_FILES_READY_{0}".format(prod_source_label), "jedi", self.vo)
+            min_files_ready = self.taskBufferIF.getConfigValue("queue_filler", f"MIN_FILES_READY_{prod_source_label}", "jedi", self.vo)
             if min_files_ready is None:
                 min_files_ready = 50
-            min_files_remaining = self.taskBufferIF.getConfigValue("queue_filler", "MIN_FILES_REMAINING_{0}".format(prod_source_label), "jedi", self.vo)
+            min_files_remaining = self.taskBufferIF.getConfigValue("queue_filler", f"MIN_FILES_REMAINING_{prod_source_label}", "jedi", self.vo)
             if min_files_remaining is None:
                 min_files_remaining = 100
             # load site empty-since map from cache
@@ -352,7 +349,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 try:
                     available_rses.update(set(site_rse_map[site]))
                 except KeyError:
-                    tmp_log.debug("skipped {site} since no good RSE".format(site=site))
+                    tmp_log.debug(f"skipped {site} since no good RSE")
                     continue
                 # do not consider TAPE rses
                 for rse in set(available_rses):
@@ -360,32 +357,30 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         available_rses.remove(rse)
                 # skip if no rse for available site
                 if not available_rses:
-                    tmp_log.debug("skipped {site} since no available RSE".format(site=site))
+                    tmp_log.debug(f"skipped {site} since no available RSE")
                     continue
                 # skip if no coreCount set
                 if not tmpSiteSpec.coreCount or not tmpSiteSpec.coreCount > 0:
-                    tmp_log.debug("skipped {site} since coreCount is not set".format(site=site))
+                    tmp_log.debug(f"skipped {site} since coreCount is not set")
                     continue
                 # now timestamp
                 now_time = datetime.datetime.utcnow()
                 now_time_ts = int(now_time.timestamp())
                 # skip if not empty for long enough
                 if site not in site_empty_since_map:
-                    tmp_log.error("skipped {site} since not in empty-since map (should not happen)".format(site=site))
+                    tmp_log.error(f"skipped {site} since not in empty-since map (should not happen)")
                     continue
                 empty_duration = now_time_ts - site_empty_since_map[site]
                 tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
                 if empty_duration < empty_duration_threshold and not tmp_num_slots:
-                    tmp_log.debug(
-                        "skipped {site} since not empty for enough time ({ed}s < {edt}s)".format(site=site, ed=empty_duration, edt=empty_duration_threshold)
-                    )
+                    tmp_log.debug(f"skipped {site} since not empty for enough time ({empty_duration}s < {empty_duration_threshold}s)")
                     continue
                 # only simul tasks if site has fairsharePolicy setup
                 processing_type_constraint = ""
                 if tmpSiteSpec.fairsharePolicy not in ("NULL", None):
                     if "type=simul:0%" in tmpSiteSpec.fairsharePolicy:
                         # skip if zero share of simul
-                        tmp_log.debug("skipped {site} since with fairshare but zero for simul".format(site=site))
+                        tmp_log.debug(f"skipped {site} since with fairshare but zero for simul")
                         continue
                     else:
                         processing_type_constraint = "AND t.processingType='simul' "
@@ -398,7 +393,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 rse_params_list = []
                 rse_params_map = {}
                 for j, rse in enumerate(available_rses):
-                    rse_param = ":rse_{0}".format(j + 1)
+                    rse_param = f":rse_{j + 1}"
                     rse_params_list.append(rse_param)
                     rse_params_map[rse_param] = rse
                 rse_params_str = ",".join(rse_params_list)
@@ -430,7 +425,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 # loop over resource type
                 for resource_type in resource_type_list:
                     # key name for preassigned_tasks_map = site + resource_type
-                    key_name = "{0}|{1}".format(site, resource_type)
+                    key_name = f"{site}|{resource_type}"
                     # skip if not match with site capability
                     if site_capability == "score" and not resource_type.startswith("SCORE"):
                         continue
@@ -457,11 +452,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     n_tasks_to_preassign = max(max_preassigned_tasks - n_preassigned_tasks, 0)
                     # preassign
                     if n_tasks_to_preassign <= 0:
-                        tmp_log.debug(
-                            "{key_name:<64} already has enough preassigned tasks ({n_tasks:>3}) ; skipped ".format(
-                                key_name=key_name, n_tasks=n_preassigned_tasks
-                            )
-                        )
+                        tmp_log.debug(f"{key_name:<64} already has enough preassigned tasks ({n_preassigned_tasks:>3}) ; skipped ")
                     elif DRY_RUN:
                         dry_sql_query = (
                             "SELECT t.jediTaskID, t.workQueue_ID "
@@ -492,12 +483,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         if n_tasks > 0:
                             result = [x[0] for x in res if x[0] not in preassigned_tasks_cached]
                             updated_tasks = result[:n_tasks_to_preassign]
-                            tmp_log.debug(
-                                "[dry run] {key_name:<64} {n_tasks:>3} tasks would be preassigned ".format(key_name=key_name, n_tasks=n_tasks_to_preassign)
-                            )
+                            tmp_log.debug(f"[dry run] {key_name:<64} {n_tasks_to_preassign:>3} tasks would be preassigned ")
                             # update preassigned_tasks_map into cache
                             preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
-                            tmp_log.debug("{} ; {}".format(str(updated_tasks), str(preassigned_tasks_map[key_name])))
+                            tmp_log.debug(f"{str(updated_tasks)} ; {str(preassigned_tasks_map[key_name])}")
                             self._update_to_pt_cache(preassigned_tasks_map)
                     else:
                         updated_tasks_orig_attr = self.taskBufferIF.queryTasksToPreassign_JEDI(
@@ -505,16 +494,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         )
                         if updated_tasks_orig_attr is None:
                             # dbproxy method failed
-                            tmp_log.error("{key_name:<64} failed to preassign tasks ".format(key_name=key_name))
+                            tmp_log.error(f"{key_name:<64} failed to preassign tasks ")
                         else:
                             n_tasks = len(updated_tasks_orig_attr)
                             if n_tasks > 0:
                                 updated_tasks = [x[0] for x in updated_tasks_orig_attr]
-                                tmp_log.info(
-                                    "{key_name:<64} {n_tasks:>3} tasks preassigned : {updated_tasks}".format(
-                                        key_name=key_name, n_tasks=str(n_tasks), updated_tasks=updated_tasks
-                                    )
-                                )
+                                tmp_log.info(f"{key_name:<64} {str(n_tasks):>3} tasks preassigned : {updated_tasks}")
                                 # update preassigned_tasks_map into cache
                                 preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                                 self._update_to_pt_cache(preassigned_tasks_map)
@@ -529,17 +514,13 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 self._update_to_attr_cache(task_orig_attr_map)
                                 # Kibana log
                                 for taskid in updated_tasks:
-                                    tmp_log.debug(
-                                        "#ATM #KV jediTaskID={taskid} action=do_preassign site={site} rtype={rtype} preassigned ".format(
-                                            taskid=taskid, site=site, rtype=resource_type
-                                        )
-                                    )
+                                    tmp_log.debug(f"#ATM #KV jediTaskID={taskid} action=do_preassign site={site} rtype={resource_type} preassigned ")
                             else:
-                                tmp_log.debug("{key_name:<64} found no proper task to preassign".format(key_name=key_name))
+                                tmp_log.debug(f"{key_name:<64} found no proper task to preassign")
         # total preassigned tasks
         preassigned_tasks_map = self._get_from_pt_cache()
         n_pt_tot = sum([len(pt_list) for pt_list in preassigned_tasks_map.values()])
-        tmp_log.debug("now {n_pt_tot} tasks preassigned in total".format(n_pt_tot=n_pt_tot))
+        tmp_log.debug(f"now {n_pt_tot} tasks preassigned in total")
         # return
         return ret_map
 
@@ -553,13 +534,13 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         # loop to undo preassignment
         for prod_source_label in self.prodSourceLabelList:
             # parameter from GDP config
-            max_preassigned_tasks = self.taskBufferIF.getConfigValue("queue_filler", "MAX_PREASSIGNED_TASKS_{0}".format(prod_source_label), "jedi", self.vo)
+            max_preassigned_tasks = self.taskBufferIF.getConfigValue("queue_filler", f"MAX_PREASSIGNED_TASKS_{prod_source_label}", "jedi", self.vo)
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
-            min_files_ready = self.taskBufferIF.getConfigValue("queue_filler", "MIN_FILES_READY_{0}".format(prod_source_label), "jedi", self.vo)
+            min_files_ready = self.taskBufferIF.getConfigValue("queue_filler", f"MIN_FILES_READY_{prod_source_label}", "jedi", self.vo)
             if min_files_ready is None:
                 min_files_ready = 50
-            min_files_remaining = self.taskBufferIF.getConfigValue("queue_filler", "MIN_FILES_REMAINING_{0}".format(prod_source_label), "jedi", self.vo)
+            min_files_remaining = self.taskBufferIF.getConfigValue("queue_filler", f"MIN_FILES_REMAINING_{prod_source_label}", "jedi", self.vo)
             if min_files_remaining is None:
                 min_files_remaining = 100
             # clean up outdated blacklist
@@ -576,7 +557,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             self._update_to_bt_cache(blacklisted_tasks_map)
             n_bt_old = sum([len(bt_list) for bt_list in blacklisted_tasks_map_orig.values()])
             n_bt = sum([len(bt_list) for bt_list in blacklisted_tasks_map.values()])
-            tmp_log.debug("done cleanup blacklist; before {n_bt_old} , now {n_bt} tasks in blacklist".format(n_bt_old=n_bt_old, n_bt=n_bt))
+            tmp_log.debug(f"done cleanup blacklist; before {n_bt_old} , now {n_bt} tasks in blacklist")
             # get a copy of preassigned_tasks_map from cache
             preassigned_tasks_map_orig = self._get_from_pt_cache()
             preassigned_tasks_map = copy.deepcopy(preassigned_tasks_map_orig)
@@ -620,7 +601,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         preassigned_tasks_list = []
                         preassigned_tasks_params_map = {}
                         for j, taskid in enumerate(preassigned_tasks_cached):
-                            pt_param = ":pt_{0}".format(j + 1)
+                            pt_param = f":pt_{j + 1}"
                             preassigned_tasks_list.append(pt_param)
                             preassigned_tasks_params_map[pt_param] = taskid
                         if not preassigned_tasks_list:
@@ -647,33 +628,23 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     # tmp_log.debug('[dry run] {} {} force={}'.format(key_name, str(updated_tasks), force_undo))
                     had_undo = True
                     if n_tasks > 0:
-                        tmp_log.debug(
-                            "[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks would be undone ({reason_str}) ".format(
-                                key_name=key_name, n_tasks=n_tasks, reason_str=reason_str
-                            )
-                        )
+                        tmp_log.debug(f"[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks would be undone ({reason_str}) ")
                 else:
                     updated_tasks = self.taskBufferIF.undoPreassignedTasks_JEDI(
                         preassigned_tasks_cached, task_orig_attr_map=task_orig_attr_map, params_map=params_map, force=force_undo
                     )
                     if updated_tasks is None:
                         # dbproxy method failed
-                        tmp_log.error("{key_name:<64} failed to undo preassigned tasks (force={force_undo})".format(key_name=key_name, force_undo=force_undo))
+                        tmp_log.error(f"{key_name:<64} failed to undo preassigned tasks (force={force_undo})")
                     else:
                         had_undo = True
                         n_tasks = len(updated_tasks)
                         if n_tasks > 0:
-                            tmp_log.info(
-                                "{key_name:<64} {n_tasks:>3} preassigned tasks undone ({reason_str}) : {updated_tasks} ".format(
-                                    key_name=key_name, n_tasks=str(n_tasks), reason_str=reason_str, updated_tasks=updated_tasks
-                                )
-                            )
+                            tmp_log.info(f"{key_name:<64} {str(n_tasks):>3} preassigned tasks undone ({reason_str}) : {updated_tasks} ")
                             # Kibana log
                             for taskid in updated_tasks:
                                 tmp_log.debug(
-                                    "#ATM #KV jediTaskID={taskid} action=undo_preassign site={site} rtype={rtype} un-preassinged since {reason_str}".format(
-                                        taskid=taskid, site=site, rtype=resource_type, reason_str=reason_str
-                                    )
+                                    f"#ATM #KV jediTaskID={taskid} action=undo_preassign site={site} rtype={resource_type} un-preassinged since {reason_str}"
                                 )
                 # update preassigned_tasks_map into cache
                 if had_undo:
@@ -711,9 +682,9 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # reassign
             n_jobs_closed = self.taskBufferIF.reassignJobsInPreassignedTask_JEDI(jedi_taskid, site, n_jobs_to_close)
             if n_jobs_closed is None:
-                tmp_log.debug("jediTaskID={0} no longer ready/running or not assigned to {1} , skipped".format(jedi_taskid, site))
+                tmp_log.debug(f"jediTaskID={jedi_taskid} no longer ready/running or not assigned to {site} , skipped")
             else:
-                tmp_log.debug("jediTaskID={0} to {1} , closed {2} jobs".format(jedi_taskid, site, n_jobs_closed))
+                tmp_log.debug(f"jediTaskID={jedi_taskid} to {site} , closed {n_jobs_closed} jobs")
 
     # main
     def doAction(self):
@@ -738,14 +709,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             to_reassign_map = ret_map["to_reassign"]
             if to_reassign_map:
                 # wait some minutes so that preassigned tasks can be brokered, before reassigning jobs
-                origTmpLog.debug("wait {0}s before reassigning jobs".format(reassign_jobs_wait_time))
+                origTmpLog.debug(f"wait {reassign_jobs_wait_time}s before reassigning jobs")
                 time.sleep(reassign_jobs_wait_time)
                 # reassign jobs of preassigned tasks
                 self.reassign_jobs(to_reassign_map)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             err_str = traceback.format_exc()
-            origTmpLog.error("failed with {0} {1} ; {2}".format(errtype, errvalue, err_str))
+            origTmpLog.error(f"failed with {errtype} {errvalue} ; {err_str}")
         # return
         origTmpLog.debug("done")
         return self.SC_SUCCEEDED

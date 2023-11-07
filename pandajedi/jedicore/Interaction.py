@@ -5,17 +5,11 @@ import os
 import signal
 import sys
 import time
-import types
 
 try:
     from multiprocessing.connection import reduce_connection
 except ImportError:
     from multiprocessing.reduction import reduce_connection
-
-from six import iteritems
-
-# patch multiprocessing
-from . import JediPatch
 
 # import multiprocessing
 # logger = multiprocessing.log_to_stderr()
@@ -33,7 +27,7 @@ class StatusCode(object):
         self.value = value
 
     def __str__(self):
-        return "%s" % self.value
+        return f"{self.value}"
 
     # comparator
     def __eq__(self, other):
@@ -59,7 +53,7 @@ statusCodeMap = {
 
 # install the list of status codes to a class
 def installSC(cls):
-    for sc, val in iteritems(statusCodeMap):
+    for sc, val in statusCodeMap.items():
         setattr(cls, sc, val)
 
 
@@ -76,7 +70,7 @@ installSC(sys.modules[__name__])
 # log message with timestamp
 def dumpStdOut(sender, message):
     timeNow = datetime.datetime.utcnow()
-    print("{0} {1}: INFO    {2}".format(str(timeNow), sender, message))
+    print(f"{str(timeNow)} {sender}: INFO    {message}")
 
 
 # object class for command
@@ -123,7 +117,7 @@ class ProcessClass(object):
         if self.nused % self.nMemLookup == 0:
             try:
                 # read memory info from /proc
-                t = open("/proc/{0}/status".format(self.pid))
+                t = open(f"/proc/{self.pid}/status")
                 v = t.read()
                 t.close()
                 value = 0
@@ -174,7 +168,7 @@ class MethodClass(object):
                 stepIdx = 2
                 timeoutPeriodACK = 30
                 if not pipe.poll(timeoutPeriodACK):
-                    raise JEDITimeoutError("did not get ACK for %ssec" % timeoutPeriodACK)
+                    raise JEDITimeoutError(f"did not get ACK for {timeoutPeriodACK}sec")
                 ack = pipe.recv()
                 # send command
                 stepIdx = 3
@@ -184,14 +178,12 @@ class MethodClass(object):
                 timeoutPeriod = 600
                 timeNow = datetime.datetime.utcnow()
                 if not pipe.poll(timeoutPeriod):
-                    raise JEDITimeoutError("did not get response for %ssec" % timeoutPeriod)
+                    raise JEDITimeoutError(f"did not get response for {timeoutPeriod}sec")
                 regTime = datetime.datetime.utcnow() - timeNow
                 if regTime > datetime.timedelta(seconds=60):
                     dumpStdOut(
                         self.className,
-                        "methodName={} took {}.{:03d} sec in pid={}".format(
-                            self.methodName, regTime.seconds, int(regTime.microseconds / 1000), child_process.pid
-                        ),
+                        f"methodName={self.methodName} took {regTime.seconds}.{int(regTime.microseconds / 1000):03d} sec in pid={child_process.pid}",
                     )
                 # get response
                 stepIdx = 5
@@ -205,23 +197,15 @@ class MethodClass(object):
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
                 retException = errtype
-                argStr = "args=%s kargs=%s" % (str(args), str(kwargs))
-                strException = "VO=%s type=%s stepIdx=%s : %s.%s %s %s" % (
-                    self.vo,
-                    errtype.__name__,
-                    stepIdx,
-                    self.className,
-                    self.methodName,
-                    errvalue,
-                    argStr[:200],
-                )
+                argStr = f"args={str(args)} kargs={str(kwargs)}"
+                strException = f"VO={self.vo} type={errtype.__name__} stepIdx={stepIdx} : {self.className}.{self.methodName} {errvalue} {argStr[:200]}"
             # increment nused
             child_process.nused += 1
             # memory check
             largeMemory = False
             memUsed = child_process.getMemUsage()
             if memUsed is not None:
-                memStr = "pid={0} memory={1}MB".format(child_process.pid, memUsed)
+                memStr = f"pid={child_process.pid} memory={memUsed}MB"
                 if memUsed > 1.5 * 1024:
                     largeMemory = True
                     memStr += " exceeds memory limit"
@@ -230,9 +214,7 @@ class MethodClass(object):
             if child_process.nused > 1000 or retException not in [None, JEDITemporaryError, JEDIFatalError] or largeMemory:
                 dumpStdOut(
                     self.className,
-                    "methodName={0} ret={1} nused={2} {3} in pid={4}".format(
-                        self.methodName, retException, child_process.nused, strException, child_process.pid
-                    ),
+                    f"methodName={self.methodName} ret={retException} nused={child_process.nused} {strException} in pid={child_process.pid}",
                 )
                 # close connection
                 try:
@@ -241,15 +223,15 @@ class MethodClass(object):
                     pass
                 # terminate child process
                 try:
-                    dumpStdOut(self.className, "killing pid={0}".format(child_process.pid))
+                    dumpStdOut(self.className, f"killing pid={child_process.pid}")
                     os.kill(child_process.pid, signal.SIGKILL)
-                    dumpStdOut(self.className, "waiting pid={0}".format(child_process.pid))
+                    dumpStdOut(self.className, f"waiting pid={child_process.pid}")
                     os.waitpid(child_process.pid, 0)
-                    dumpStdOut(self.className, "terminated pid={0}".format(child_process.pid))
+                    dumpStdOut(self.className, f"terminated pid={child_process.pid}")
                 except Exception:
                     errtype, errvalue = sys.exc_info()[:2]
                     if "No child processes" not in str(errvalue):
-                        dumpStdOut(self.className, "failed to terminate {0} with {1}:{2}".format(child_process.pid, errtype, errvalue))
+                        dumpStdOut(self.className, f"failed to terminate {child_process.pid} with {errtype}:{errvalue}")
                 # make new child process
                 self.voIF.launchChild()
             else:
@@ -264,13 +246,13 @@ class MethodClass(object):
         # raise exception
         if retException is not None:
             if strException is None:
-                strException = "VO={0} {1}".format(self.vo, ret.errorValue)
+                strException = f"VO={self.vo} {ret.errorValue}"
             raise retException(strException)
         # return
         if ret.statusCode == SC_SUCCEEDED:
             return ret.returnValue
         else:
-            raise retException("VO=%s %s" % (self.vo, ret.errorValue))
+            raise retException(f"VO={self.vo} {ret.errorValue}")
 
 
 # interface class to send command
@@ -296,14 +278,14 @@ class CommandSendInterface(object):
         # get class
         cls = getattr(mod, self.className)
         # start child process
-        msg = "start {0} with pid={1}".format(self.className, os.getpid())
+        msg = f"start {self.className} with pid={os.getpid()}"
         dumpStdOut(self.moduleName, msg)
         timeNow = datetime.datetime.utcnow()
         try:
             cls(channel).start()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            dumpStdOut(self.className, "launcher crashed with {0}:{1}".format(errtype, errvalue))
+            dumpStdOut(self.className, f"launcher crashed with {errtype}:{errvalue}")
 
     # launch child processes to interact with DDM
     def launchChild(self):
@@ -339,11 +321,11 @@ class CommandReceiveInterface(object):
     # make key for cache
     def makeKey(self, className, methodName, argList, argMap):
         try:
-            tmpKey = "{0}:{1}:".format(className, methodName)
+            tmpKey = f"{className}:{methodName}:"
             for argItem in argList:
-                tmpKey += "{0}:".format(str(argItem))
-            for argKey, argVal in iteritems(argMap):
-                tmpKey += "{0}={1}:".format(argKey, str(argVal))
+                tmpKey += f"{str(argItem)}:"
+            for argKey, argVal in argMap.items():
+                tmpKey += f"{argKey}={str(argVal)}:"
             tmpKey = tmpKey[:-1]
             return tmpKey
         except Exception:
@@ -367,7 +349,7 @@ class CommandReceiveInterface(object):
             if not hasattr(self, commandObj.methodName):
                 # method not found
                 retObj.statusCode = self.SC_FATAL
-                retObj.errorValue = "type=AttributeError : %s instance has no attribute %s" % (className, commandObj.methodName)
+                retObj.errorValue = f"type=AttributeError : {className} instance has no attribute {commandObj.methodName}"
             else:
                 try:
                     # use cache
@@ -419,7 +401,7 @@ class CommandReceiveInterface(object):
                     errtype, errvalue = sys.exc_info()[:2]
                     # failed
                     retObj.statusCode = self.SC_FATAL
-                    retObj.errorValue = "type=%s : %s.%s : %s" % (errtype.__name__, className, commandObj.methodName, errvalue)
+                    retObj.errorValue = f"type={errtype.__name__} : {className}.{commandObj.methodName} : {errvalue}"
                 # cache
                 if useCache and doExec and retObj.statusCode == self.SC_SUCCEEDED:
                     self.cacheMap[tmpCacheKey] = {"utime": datetime.datetime.utcnow(), "value": tmpRet}

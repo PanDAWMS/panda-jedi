@@ -46,7 +46,7 @@ class FactoryBase:
                 except Exception:
                     subTypes = ["any"]
             except Exception:
-                self.logger.error("wrong config definition : {0}".format(configStr))
+                self.logger.error(f"wrong config definition : {configStr}")
                 continue
             # loop over all VOs
             for vo in vos:
@@ -67,13 +67,13 @@ class FactoryBase:
                         # import
                         try:
                             # import module
-                            self.logger.info("vo={0} label={1} subtype={2}".format(vo, sourceLabel, subType))
-                            self.logger.info("importing {0}".format(moduleName))
+                            self.logger.info(f"vo={vo} label={sourceLabel} subtype={subType}")
+                            self.logger.info(f"importing {moduleName}")
                             mod = __import__(moduleName)
                             for subModuleName in moduleName.split(".")[1:]:
                                 mod = getattr(mod, subModuleName)
                             # get class
-                            self.logger.info("getting class {0}".format(className))
+                            self.logger.info(f"getting class {className}")
                             cls = getattr(mod, className)
                             # instantiate
                             self.logger.info("instantiating")
@@ -90,7 +90,7 @@ class FactoryBase:
                                 self.classMap[vo][sourceLabel] = {}
                             self.implMap[vo][sourceLabel][subType] = impl
                             self.classMap[vo][sourceLabel][subType] = cls
-                            self.logger.info("{0} is ready for {1}:{2}:{3}".format(cls, vo, sourceLabel, subType))
+                            self.logger.info(f"{cls} is ready for {vo}:{sourceLabel}:{subType}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             self.logger.error(
@@ -98,7 +98,7 @@ class FactoryBase:
                                     et=errtype.__name__, ev=errvalue, st=subType, vo=vo, lb=sourceLabel, cn=className, mn=moduleName
                                 )
                             )
-                            raise ImportError("failed to import {0}.{1}".format(moduleName, className))
+                            raise ImportError(f"failed to import {moduleName}.{className}")
         # return
         return True
 

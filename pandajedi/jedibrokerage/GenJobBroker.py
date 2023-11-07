@@ -1,9 +1,6 @@
 import random
 import re
 
-import six
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore import Interaction, JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -25,7 +22,7 @@ class GenJobBroker(JobBrokerBase):
     # main
     def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap):
         # make logger
-        tmpLog = MsgWrapper(logger, "<jediTaskID={0}>".format(taskSpec.jediTaskID))
+        tmpLog = MsgWrapper(logger, f"<jediTaskID={taskSpec.jediTaskID}>")
         tmpLog.debug("start")
         # return for failure
         retFatal = self.SC_FATAL, inputChunk
@@ -42,7 +39,7 @@ class GenJobBroker(JobBrokerBase):
         # get sites in the cloud
         site_preassigned = True
         if taskSpec.site not in ["", None]:
-            tmpLog.debug("site={0} is pre-assigned".format(taskSpec.site))
+            tmpLog.debug(f"site={taskSpec.site} is pre-assigned")
             if self.siteMapper.checkSite(taskSpec.site):
                 scanSiteList = [taskSpec.site]
             else:
@@ -51,20 +48,20 @@ class GenJobBroker(JobBrokerBase):
                     if re.search(taskSpec.site, tmpSite):
                         scanSiteList.append(tmpSite)
                 if not scanSiteList:
-                    tmpLog.error("unknown site={}".format(taskSpec.site))
+                    tmpLog.error(f"unknown site={taskSpec.site}")
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
         elif inputChunk.getPreassignedSite() is not None:
             scanSiteList = [inputChunk.getPreassignedSite()]
-            tmpLog.debug("site={0} is pre-assigned in masterDS".format(inputChunk.getPreassignedSite()))
+            tmpLog.debug(f"site={inputChunk.getPreassignedSite()} is pre-assigned in masterDS")
         else:
             site_preassigned = False
             scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)["sites"]
             # remove NA
             if "NA" in scanSiteList:
                 scanSiteList.remove("NA")
-            tmpLog.debug("cloud=%s has %s candidates" % (taskSpec.cloud, len(scanSiteList)))
-        tmpLog.debug("initial {0} candidates".format(len(scanSiteList)))
+            tmpLog.debug(f"cloud={taskSpec.cloud} has {len(scanSiteList)} candidates")
+        tmpLog.debug(f"initial {len(scanSiteList)} candidates")
         ######################################
         # selection for status and PandaSite
         newScanSiteList = []
@@ -72,16 +69,16 @@ class GenJobBroker(JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             if tmpSiteSpec.status != "online" and not site_preassigned:
-                tmpLog.debug("  skip %s due to status=%s" % (tmpSiteName, tmpSiteSpec.status))
+                tmpLog.debug(f"  skip {tmpSiteName} due to status={tmpSiteSpec.status}")
                 continue
             # check PandaSite
             if "PandaSite" in taskParamMap and taskParamMap["PandaSite"]:
                 if tmpSiteSpec.pandasite != taskParamMap["PandaSite"]:
-                    tmpLog.debug("  skip %s due to wrong PandaSite=%s <> %s" % (tmpSiteName, tmpSiteSpec.pandasite, taskParamMap["PandaSite"]))
+                    tmpLog.debug(f"  skip {tmpSiteName} due to wrong PandaSite={tmpSiteSpec.pandasite} <> {taskParamMap['PandaSite']}")
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.debug("{0} candidates passed site status check".format(len(scanSiteList)))
+        tmpLog.debug(f"{len(scanSiteList)} candidates passed site status check")
         if scanSiteList == []:
             tmpLog.error("no candidates")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -106,11 +103,11 @@ class GenJobBroker(JobBrokerBase):
                 else:
                     minDiskCount = minDiskCountS
                 if minDiskCount > tmpSiteSpec.maxwdir:
-                    tmpLog.debug("  skip {0} due to small scratch disk={1} < {2}".format(tmpSiteName, tmpSiteSpec.maxwdir, minDiskCount))
+                    tmpLog.debug(f"  skip {tmpSiteName} due to small scratch disk={tmpSiteSpec.maxwdir} < {minDiskCount}")
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.debug("{0} candidates passed scratch disk check".format(len(scanSiteList)))
+        tmpLog.debug(f"{len(scanSiteList)} candidates passed scratch disk check")
         if scanSiteList == []:
             tmpLog.error("no candidates")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -125,11 +122,11 @@ class GenJobBroker(JobBrokerBase):
             diskThreshold = 200
             tmpSpaceSize = tmpSiteSpec.space
             if tmpSiteSpec.space and tmpSpaceSize < diskThreshold:
-                tmpLog.debug("  skip {0} due to disk shortage in SE = {1} < {2}GB".format(tmpSiteName, tmpSiteSpec.space, diskThreshold))
+                tmpLog.debug(f"  skip {tmpSiteName} due to disk shortage in SE = {tmpSiteSpec.space} < {diskThreshold}GB")
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.debug("{0} candidates passed SE space check".format(len(scanSiteList)))
+        tmpLog.debug(f"{len(scanSiteList)} candidates passed SE space check")
         if not scanSiteList:
             tmpLog.error("no candidates")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -143,14 +140,14 @@ class GenJobBroker(JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxtime != 0 and minWalltime > tmpSiteSpec.maxtime:
-                    tmpLog.debug("  skip {0} due to short site walltime={1}(site upper limit) < {2}".format(tmpSiteName, tmpSiteSpec.maxtime, minWalltime))
+                    tmpLog.debug(f"  skip {tmpSiteName} due to short site walltime={tmpSiteSpec.maxtime}(site upper limit) < {minWalltime}")
                     continue
                 if tmpSiteSpec.mintime != 0 and minWalltime < tmpSiteSpec.mintime:
-                    tmpLog.debug("  skip {0} due to short job walltime={1}(site lower limit) > {2}".format(tmpSiteName, tmpSiteSpec.mintime, minWalltime))
+                    tmpLog.debug(f"  skip {tmpSiteName} due to short job walltime={tmpSiteSpec.mintime}(site lower limit) > {minWalltime}")
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.debug("{0} candidates passed walltime check ={1}{2}".format(len(scanSiteList), minWalltime, taskSpec.walltimeUnit))
+            tmpLog.debug(f"{len(scanSiteList)} candidates passed walltime check ={minWalltime}{taskSpec.walltimeUnit}")
             if not scanSiteList:
                 tmpLog.error("no candidates")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -181,11 +178,10 @@ class GenJobBroker(JobBrokerBase):
                         newScanSiteList.append(tmpSiteName)
                     else:
                         tmpLog.info(
-                            "  skip site=%s due to core mismatch site:%s <> task:%s criteria=-cpucore"
-                            % (tmpSiteName, tmpSiteSpec.coreCount, taskSpec.coreCount)
+                            f"  skip site={tmpSiteName} due to core mismatch site:{tmpSiteSpec.coreCount} <> task:{taskSpec.coreCount} criteria=-cpucore"
                         )
                 scanSiteList = newScanSiteList
-                tmpLog.info("{0} candidates passed for core count check".format(len(scanSiteList)))
+                tmpLog.info(f"{len(scanSiteList)} candidates passed for core count check")
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
                     tmpLog.error("no candidates")
@@ -211,20 +207,18 @@ class GenJobBroker(JobBrokerBase):
                 site_maxmemory = tmpSiteSpec.maxrss if tmpSiteSpec.maxrss else 0
                 # check at the site
                 if site_maxmemory and minRamCount and minRamCount > site_maxmemory:
-                    tmpMsg = "  skip site={0} due to site RAM shortage. {1} (site upper limit) less than {2} ".format(tmpSiteName, site_maxmemory, minRamCount)
+                    tmpMsg = f"  skip site={tmpSiteName} due to site RAM shortage. {site_maxmemory} (site upper limit) less than {minRamCount} "
                     tmpLog.debug(tmpMsg)
                     continue
                 # site min memory requirement
                 site_minmemory = tmpSiteSpec.minrss if tmpSiteSpec.minrss else 0
                 if site_minmemory and minRamCount and minRamCount < site_minmemory:
-                    tmpMsg = "  skip site={0} due to job RAM shortage. {1} (site lower limit) greater than {2} ".format(
-                        tmpSiteName, site_minmemory, minRamCount
-                    )
+                    tmpMsg = f"  skip site={tmpSiteName} due to job RAM shortage. {site_minmemory} (site lower limit) greater than {minRamCount} "
                     tmpLog.info(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.debug("{0} candidates passed memory check".format(len(scanSiteList)))
+            tmpLog.debug(f"{len(scanSiteList)} candidates passed memory check")
             if not scanSiteList:
                 tmpLog.error("no candidates")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -239,11 +233,11 @@ class GenJobBroker(JobBrokerBase):
             if tmpSiteName in nWNmap:
                 nPilot = nWNmap[tmpSiteName]["getJob"] + nWNmap[tmpSiteName]["updateJob"]
             if nPilot == 0 and taskSpec.prodSourceLabel not in ["test"]:
-                tmpLog.debug("  skip %s due to no pilot" % tmpSiteName)
+                tmpLog.debug(f"  skip {tmpSiteName} due to no pilot")
                 # continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.debug("{0} candidates passed pilot activity check".format(len(scanSiteList)))
+        tmpLog.debug(f"{len(scanSiteList)} candidates passed pilot activity check")
         if scanSiteList == []:
             tmpLog.error("no candidates")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -261,7 +255,7 @@ class GenJobBroker(JobBrokerBase):
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # get list of site to be scanned
-                tmpLog.debug("getting the list of available files for {0}".format(datasetSpec.datasetName))
+                tmpLog.debug(f"getting the list of available files for {datasetSpec.datasetName}")
                 fileScanSiteList = []
                 for tmpPseudoSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -294,7 +288,7 @@ class GenJobBroker(JobBrokerBase):
                     raise Interaction.JEDITemporaryError("ddmIF.getAvailableFiles failed")
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except Exception as e:
-                tmpLog.error("failed to get available files with {}".format(e))
+                tmpLog.error(f"failed to get available files with {e}")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
@@ -306,7 +300,7 @@ class GenJobBroker(JobBrokerBase):
             return retTmpError
         ######################################
         # final procedure
-        tmpLog.debug("final {0} candidates".format(len(scanSiteList)))
+        tmpLog.debug(f"final {len(scanSiteList)} candidates")
         weightMap = {}
         candidateSpecList = []
         preSiteCandidateSpec = None
@@ -321,7 +315,7 @@ class GenJobBroker(JobBrokerBase):
             # set weight
             siteCandidateSpec.weight = weight
             # files
-            for tmpDatasetName, availableFiles in six.iteritems(availableFileMap):
+            for tmpDatasetName, availableFiles in availableFileMap.items():
                 if tmpSiteName in availableFiles:
                     siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]["localdisk"])
             # append
@@ -351,9 +345,7 @@ class GenJobBroker(JobBrokerBase):
             # append
             inputChunk.addSiteCandidate(siteCandidateSpec)
             newScanSiteList.append(siteCandidateSpec.siteName)
-            tmpLog.debug(
-                "  use {} with weight={} nFiles={}".format(siteCandidateSpec.siteName, siteCandidateSpec.weight, len(siteCandidateSpec.localDiskFiles))
-            )
+            tmpLog.debug(f"  use {siteCandidateSpec.siteName} with weight={siteCandidateSpec.weight} nFiles={len(siteCandidateSpec.localDiskFiles)}")
         scanSiteList = newScanSiteList
         if scanSiteList == []:
             tmpLog.error("no candidates")

@@ -1,15 +1,12 @@
 import json
 import re
 
-import six
-from six import iteritems
-
 
 # convert UTF-8 to ASCII in json dumps
 def unicodeConvert(input):
     if isinstance(input, dict):
         retMap = {}
-        for tmpKey, tmpVal in iteritems(input):
+        for tmpKey, tmpVal in input.items():
             retMap[unicodeConvert(tmpKey)] = unicodeConvert(tmpVal)
         return retMap
     elif isinstance(input, list):
@@ -17,8 +14,7 @@ def unicodeConvert(input):
         for tmpItem in input:
             retList.append(unicodeConvert(tmpItem))
         return retList
-    elif six.PY2 and isinstance(input, unicode):
-        return input.encode("ascii", "ignore")
+
     return input
 
 
@@ -47,7 +43,7 @@ def extractStreamName(valStr):
 def extractReplaceOutFileTemplate(valStr, streamName):
     outFileTempl = valStr.split("=")[-1]
     outFileTempl = outFileTempl.replace("'", "")
-    valStr = valStr.replace(outFileTempl, "${{{0}}}".format(streamName))
+    valStr = valStr.replace(outFileTempl, f"${{{streamName}}}")
     return outFileTempl, valStr
 
 

@@ -13,17 +13,17 @@ class TypicalWatchDogBase(WatchDogBase):
     # pre-action
     def pre_action(self, tmpLog, vo, prodSourceLabel, pid, *args, **kwargs):
         # rescue picked files
-        tmpLog.info("rescue tasks with picked files for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"rescue tasks with picked files for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.rescuePickedFiles_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForPicked)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to rescue")
         else:
-            tmpLog.info("rescued {0} tasks".format(tmpRet))
+            tmpLog.info(f"rescued {tmpRet} tasks")
 
         # reactivate pending tasks
-        tmpLog.info("reactivate pending tasks for vo={0} label={1}".format(vo, prodSourceLabel))
-        timeoutForPending = self.taskBufferIF.getConfigValue("watchdog", "PENDING_TIMEOUT_{}".format(prodSourceLabel), "jedi", vo)
+        tmpLog.info(f"reactivate pending tasks for vo={vo} label={prodSourceLabel}")
+        timeoutForPending = self.taskBufferIF.getConfigValue("watchdog", f"PENDING_TIMEOUT_{prodSourceLabel}", "jedi", vo)
         if timeoutForPending is None:
             if hasattr(jedi_config.watchdog, "timeoutForPendingVoLabel"):
                 timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel, vo, prodSourceLabel)
@@ -35,41 +35,41 @@ class TypicalWatchDogBase(WatchDogBase):
             # failed
             tmpLog.error("failed to reactivate")
         else:
-            tmpLog.info("reactivated {0} tasks".format(tmpRet))
+            tmpLog.info(f"reactivated {tmpRet} tasks")
         # unlock tasks
-        tmpLog.info("unlock tasks for vo={0} label={1} host={2} pgid={3}".format(vo, prodSourceLabel, socket.getfqdn().split(".")[0], os.getpgrp()))
+        tmpLog.info(f"unlock tasks for vo={vo} label={prodSourceLabel} host={socket.getfqdn().split('.')[0]} pgid={os.getpgrp()}")
         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo, prodSourceLabel, 10, socket.getfqdn().split(".")[0], os.getpgrp())
         if tmpRet is None:
             # failed
             tmpLog.error("failed to unlock")
         else:
-            tmpLog.info("unlock {0} tasks".format(tmpRet))
+            tmpLog.info(f"unlock {tmpRet} tasks")
         # unlock tasks
-        tmpLog.info("unlock tasks for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"unlock tasks for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForLocked)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to unlock")
         else:
-            tmpLog.info("unlock {0} tasks".format(tmpRet))
+            tmpLog.info(f"unlock {tmpRet} tasks")
         # restart contents update
-        tmpLog.info("restart contents update for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"restart contents update for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo, prodSourceLabel)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to restart")
         else:
-            tmpLog.info("restarted {0} tasks".format(tmpRet))
+            tmpLog.info(f"restarted {tmpRet} tasks")
         # kick exhausted tasks
-        tmpLog.info("kick exhausted tasks for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"kick exhausted tasks for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.kickExhaustedTasks_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForExhausted)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to kick")
         else:
-            tmpLog.info("kicked {0} tasks".format(tmpRet))
+            tmpLog.info(f"kicked {tmpRet} tasks")
         # finish tasks when goal is reached
-        tmpLog.info("finish achieved tasks for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"finish achieved tasks for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.getAchievedTasks_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForAchieved)
         if tmpRet is None:
             # failed
@@ -77,15 +77,15 @@ class TypicalWatchDogBase(WatchDogBase):
         else:
             for jediTaskID in tmpRet:
                 self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "JEDI. Goal reached", True, "finish", comQualifier="soft")
-            tmpLog.info("finished {0} tasks".format(tmpRet))
+            tmpLog.info(f"finished {tmpRet} tasks")
         # rescue unlocked tasks with picked files
-        tmpLog.info("rescue unlocked tasks with picked files for vo={0} label={1}".format(vo, prodSourceLabel))
+        tmpLog.info(f"rescue unlocked tasks with picked files for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.rescueUnLockedTasksWithPicked_JEDI(vo, prodSourceLabel, 60, pid)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to rescue unlocked tasks")
         else:
-            tmpLog.info("rescue unlocked {0} tasks".format(tmpRet))
+            tmpLog.info(f"rescue unlocked {tmpRet} tasks")
 
 
 Interaction.installSC(TypicalWatchDogBase)

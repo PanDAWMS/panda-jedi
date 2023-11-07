@@ -14,14 +14,14 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
         # parse
         if decoded_data is None:
             # json decode
             try:
                 msg_dict = json.loads(msg_obj.data)
             except Exception as e:
-                err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+                err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
                 tmp_log.error(err_str)
                 raise
         else:
@@ -38,11 +38,11 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
             elif msg_type == "work_stagein":
                 pass
             else:
-                raise ValueError("invalid msg_type value: {0}".format(msg_type))
+                raise ValueError(f"invalid msg_type value: {msg_type}")
             # relation type
             relation_type = msg_dict.get("relation_type")
         except Exception as e:
-            err_str = "failed to parse message object dict {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_dict)
+            err_str = f"failed to parse message object dict {msg_dict} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # run
@@ -69,58 +69,50 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                         scope_name_dict_map[scope][name] = (datasetid, fileid)
                     else:
                         # got target in bad attributes, do nothing
-                        tmp_log.debug(
-                            "jeditaskid={jeditaskid}, scope={scope}, msg_type={msg_type}, status={status}, did nothing for bad target".format(
-                                jeditaskid=jeditaskid, scope=scope, msg_type=msg_type, status=target["status"]
-                            )
-                        )
+                        tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, msg_type={msg_type}, status={target['status']}, did nothing for bad target")
                         pass
                 # run by each scope
                 for scope, name_dict in scope_name_dict_map.items():
                     # about files or datasets in good status
                     if msg_type == "file_stagein":
-                        tmp_log.debug("jeditaskid={0}, scope={1}, update about files...".format(jeditaskid, scope))
+                        tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, update about files...")
                         res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
                         if res is None:
                             # got error and rollback in dbproxy
-                            err_str = "jeditaskid={0}, scope={1}, failed to update files".format(jeditaskid, scope)
+                            err_str = f"jeditaskid={jeditaskid}, scope={scope}, failed to update files"
                             raise RuntimeError(err_str)
-                        tmp_log.info("jeditaskid={0}, scope={1}, updated {2} files".format(jeditaskid, scope, res))
+                        tmp_log.info(f"jeditaskid={jeditaskid}, scope={scope}, updated {res} files")
                     elif msg_type == "collection_stagein":
-                        tmp_log.debug("jeditaskid={0}, scope={1}, update about datasets...".format(jeditaskid, scope))
+                        tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, update about datasets...")
                         res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
                         if res is None:
                             # got error and rollback in dbproxy
-                            err_str = "jeditaskid={0}, scope={1}, failed to update datasets".format(jeditaskid, scope)
+                            err_str = f"jeditaskid={jeditaskid}, scope={scope}, failed to update datasets"
                             raise RuntimeError(err_str)
-                        tmp_log.info("jeditaskid={0}, scope={1}, updated {2} datasets".format(jeditaskid, scope, res))
+                        tmp_log.info(f"jeditaskid={jeditaskid}, scope={scope}, updated {res} datasets")
                     # send message to contents feeder if new files are staged
                     if res > 0 or msg_type == "collection_stagein":
                         tmp_s, task_spec = self.tbIF.getTaskWithID_JEDI(jeditaskid)
                         if tmp_s and task_spec.is_msg_driven():
                             push_ret = self.tbIF.push_task_trigger_message("jedi_contents_feeder", jeditaskid)
                             if push_ret:
-                                tmp_log.debug("pushed trigger message to jedi_contents_feeder for jeditaskid={0}".format(jeditaskid))
+                                tmp_log.debug(f"pushed trigger message to jedi_contents_feeder for jeditaskid={jeditaskid}")
                             else:
-                                tmp_log.warning("failed to push trigger message to jedi_contents_feeder for jeditaskid={0}".format(jeditaskid))
+                                tmp_log.warning(f"failed to push trigger message to jedi_contents_feeder for jeditaskid={jeditaskid}")
                     # check if all ok
                     if res == len(target_list):
-                        tmp_log.debug("jeditaskid={0}, scope={1}, all OK".format(jeditaskid, scope))
+                        tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, all OK")
                     elif res < len(target_list):
-                        tmp_log.warning("jeditaskid={0}, scope={1}, only {2} out of {3} done...".format(jeditaskid, scope, res, len(target_list)))
+                        tmp_log.warning(f"jeditaskid={jeditaskid}, scope={scope}, only {res} out of {len(target_list)} done...")
                     elif res > len(target_list):
-                        tmp_log.warning("jeditaskid={0}, scope={1}, strangely, {2} out of {3} done...".format(jeditaskid, scope, res, len(target_list)))
+                        tmp_log.warning(f"jeditaskid={jeditaskid}, scope={scope}, strangely, {res} out of {len(target_list)} done...")
                     else:
-                        tmp_log.warning("jeditaskid={0}, scope={1}, something unwanted happened...".format(jeditaskid, scope))
+                        tmp_log.warning(f"jeditaskid={jeditaskid}, scope={scope}, something unwanted happened...")
             else:
                 # do nothing
-                tmp_log.debug(
-                    "jeditaskid={jeditaskid}, msg_type={msg_type}, relation_type={relation_type}, nothing done".format(
-                        jeditaskid=jeditaskid, msg_type=msg_type, relation_type=relation_type
-                    )
-                )
+                tmp_log.debug(f"jeditaskid={jeditaskid}, msg_type={msg_type}, relation_type={relation_type}, nothing done")
         except Exception as e:
-            err_str = "failed to process the message, skipped. {0} : {1}".format(e.__class__.__name__, e)
+            err_str = f"failed to process the message, skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # done

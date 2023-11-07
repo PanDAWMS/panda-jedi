@@ -6,7 +6,6 @@ import traceback
 
 from pandajedi.jedicore import JediException
 from pandaserver.dataservice import DataServiceUtils
-from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
 
@@ -40,8 +39,8 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                     taskParamMap["vo"], taskParamMap["prodSourceLabel"], {"eventService": 1}, {"gshare": "Validation"}
                 )
                 tmpStr = "check for ES "
-                tmpStr += "tot_num_unprocessed_events_AES={0} target_num_events_AES={1} last_AES_task_time={2} ".format(nEvents, minNumEvents, lastTaskTime)
-                tmpStr += "num_pending_tasks_AES={0} max_pending_tasks_AES={1} ".format(nPendingTasks, maxPending)
+                tmpStr += f"tot_num_unprocessed_events_AES={nEvents} target_num_events_AES={minNumEvents} last_AES_task_time={lastTaskTime} "
+                tmpStr += f"num_pending_tasks_AES={nPendingTasks} max_pending_tasks_AES={maxPending} "
                 tmpLog.info(tmpStr)
                 # not chane many tasks at once
                 if lastTaskTime is None or (lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5)):
@@ -83,7 +82,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
     def doRefine(self, jediTaskID, taskParamMap):
         # make logger
         tmpLog = self.tmpLog
-        tmpLog.debug("start taskType={0}".format(self.taskSpec.taskType))
+        tmpLog.debug(f"start taskType={self.taskSpec.taskType}")
         try:
             # basic refine
             self.doBasicRefine(taskParamMap)
@@ -97,7 +96,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                     if datasetSpec.isMaster() and datasetSpec.type == "input":
                         datasetSpec.enableCheckConsistency()
             # append attempt number
-            for tmpKey, tmpOutTemplateMapList in iteritems(self.outputTemplateMap):
+            for tmpKey, tmpOutTemplateMapList in self.outputTemplateMap.items():
                 for tmpOutTemplateMap in tmpOutTemplateMapList:
                     outFileTemplate = tmpOutTemplateMap["filenameTemplate"]
                     if re.search("\.\d+$", outFileTemplate) is None and not outFileTemplate.endswith(".panda.um"):
@@ -135,17 +134,17 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                                         str(metaData), self.taskSpec.parent_tid, datasetSpec.datasetID, datasetSpec.datasetName
                                     )
                                 )
-                                for metadataName, metadaValue in iteritems(metaData):
+                                for metadataName, metadaValue in metaData.items():
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName, metadataName, metadaValue)
             # input prestaging
             if self.taskSpec.inputPreStaging():
                 # set first contents feed flag
                 self.taskSpec.set_first_contents_feed(True)
         except JediException.UnknownDatasetError as e:
-            tmpLog.debug("in doRefine. {0}".format(str(e)))
+            tmpLog.debug(f"in doRefine. {str(e)}")
             raise e
         except Exception as e:
-            tmpLog.error("doRefine failed with {0} {1}".format(str(e), traceback.format_exc()))
+            tmpLog.error(f"doRefine failed with {str(e)} {traceback.format_exc()}")
             raise e
         tmpLog.debug("done")
         return self.SC_SUCCEEDED

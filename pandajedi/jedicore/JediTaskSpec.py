@@ -2,8 +2,6 @@ import enum
 import math
 import re
 
-from six import iteritems
-
 """
 task specification for JEDI
 
@@ -342,7 +340,7 @@ class JediTaskSpec(object):
             if attr in self._limitLength:
                 if val is not None:
                     val = val[: self._limitLength[attr]]
-            ret[":%s" % attr] = val
+            ret[f":{attr}"] = val
         return ret
 
     # pack tuple into TaskSpec
@@ -357,8 +355,8 @@ class JediTaskSpec(object):
         ret = ""
         for attr in cls.attributes:
             if prefix is not None:
-                ret += "{0}.".format(prefix)
-            ret += "{0},".format(attr)
+                ret += f"{prefix}."
+            ret += f"{attr},"
         ret = ret[:-1]
         return ret
 
@@ -369,9 +367,9 @@ class JediTaskSpec(object):
         ret = "VALUES("
         for attr in cls.attributes:
             if useSeq and attr in cls._seqAttrMap:
-                ret += "%s," % cls._seqAttrMap[attr]
+                ret += f"{cls._seqAttrMap[attr]},"
             else:
-                ret += ":%s," % attr
+                ret += f":{attr},"
         ret = ret[:-1]
         ret += ")"
         return ret
@@ -383,7 +381,7 @@ class JediTaskSpec(object):
         ret = ""
         for attr in self.attributes:
             if attr in self._changedAttrs:
-                ret += "%s=:%s," % (attr, attr)
+                ret += f"{attr}=:{attr},"
         ret = ret[:-1]
         ret += " "
         return ret
@@ -600,7 +598,7 @@ class JediTaskSpec(object):
     # set limited sites
     def setLimitedSites(self, policy):
         tag = None
-        for tmpIdx, tmpPolicy in iteritems(self.enum_limitedSites):
+        for tmpIdx, tmpPolicy in self.enum_limitedSites.items():
             if policy == tmpPolicy:
                 tag = tmpIdx
                 break
@@ -868,9 +866,9 @@ class JediTaskSpec(object):
         # set error dialog
         if append is True and self.errorDialog is not None:
             if not prepend:
-                self.errorDialog = "{0} {1}".format(self.errorDialog, diag)
+                self.errorDialog = f"{self.errorDialog} {diag}"
             else:
-                self.errorDialog = "{0} {1}".format(diag, self.errorDialog)
+                self.errorDialog = f"{diag} {self.errorDialog}"
         elif append is None:
             # keep old log
             if self.errorDialog is None:
@@ -886,10 +884,10 @@ class JediTaskSpec(object):
     def makeFQANs(self):
         # no working group
         if self.workingGroup is not None:
-            fqan = "/{0}/{1}/Role=production".format(self.vo, self.workingGroup)
+            fqan = f"/{self.vo}/{self.workingGroup}/Role=production"
         else:
             if self.vo is not None:
-                fqan = "/{0}/Role=NULL".format(self.vo)
+                fqan = f"/{self.vo}/Role=NULL"
             else:
                 return []
         # return
@@ -1087,13 +1085,13 @@ class JediTaskSpec(object):
 
     # check attribute length
     def checkAttrLength(self):
-        for attrName, attrLength in iteritems(self._attrLength):
+        for attrName, attrLength in self._attrLength.items():
             attrVal = getattr(self, attrName)
             if attrVal is None:
                 continue
             if len(attrVal) > attrLength:
                 setattr(self, attrName, None)
-                self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName, len(attrVal), attrLength)
+                self.errorDialog = f"{attrName} is too long (actual: {len(attrVal)}, maximum: {attrLength})"
                 return False
         return True
 
@@ -1106,14 +1104,14 @@ class JediTaskSpec(object):
             return
         ipConnectivity = values[0]
         if ipConnectivity in self.enum_ipConnectivity.values():
-            for tmpKey, tmpVal in iteritems(self.enum_ipConnectivity):
+            for tmpKey, tmpVal in self.enum_ipConnectivity.items():
                 if ipConnectivity == tmpVal:
                     self.setSplitRule("ipConnectivity", tmpKey)
                     break
         if len(values) > 1:
             ipStack = values[1]
             if ipStack in self.enum_ipStack.values():
-                for tmpKey, tmpVal in iteritems(self.enum_ipStack):
+                for tmpKey, tmpVal in self.enum_ipStack.items():
                     if ipStack == tmpVal:
                         self.setSplitRule("ipStack", tmpKey)
                         break
@@ -1196,7 +1194,7 @@ class JediTaskSpec(object):
     # set alternative stage-out
     def setAltStageOut(self, value):
         if value in self.enum_altStageOut.values():
-            for tmpKey, tmpVal in iteritems(self.enum_altStageOut):
+            for tmpKey, tmpVal in self.enum_altStageOut.items():
                 if value == tmpVal:
                     self.setSplitRule("altStageOut", tmpKey)
                     break
@@ -1216,7 +1214,7 @@ class JediTaskSpec(object):
     # set mode for input LAN access
     def setAllowInputLAN(self, value):
         if value in self.enum_inputLAN.values():
-            for tmpKey, tmpVal in iteritems(self.enum_inputLAN):
+            for tmpKey, tmpVal in self.enum_inputLAN.items():
                 if value == tmpVal:
                     self.setSplitRule("allowInputLAN", tmpKey)
                     break
