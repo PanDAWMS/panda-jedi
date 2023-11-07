@@ -14,5 +14,5 @@ class JediDBSchemaInfo:
 
     def method(self):
         schema_version = "0.0.12"
-        _logger.debug("PanDA schema version required for JEDI is : %s" % schema_version)
+        _logger.debug(f"PanDA schema version required for JEDI is : {schema_version}")
         return schema_version

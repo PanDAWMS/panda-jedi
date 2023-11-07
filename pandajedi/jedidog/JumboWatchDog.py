@@ -4,7 +4,6 @@ import sys
 import traceback
 
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from six import iteritems
 
 
 # watchdog to take actions for jumbo jobs
@@ -13,7 +12,7 @@ class JumboWatchDog:
     def __init__(self, taskBufferIF, ddmIF, log, vo, prodSourceLabel):
         self.taskBufferIF = taskBufferIF
         self.ddmIF = ddmIF
-        self.pid = "{0}-{1}_{2}-jumbo".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-jumbo"
         self.log = log
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
@@ -35,10 +34,10 @@ class JumboWatchDog:
                 timeLimit=10,
             )
             if not locked:
-                self.log.debug("component={0} skipped since locked by another".format(self.component))
+                self.log.debug(f"component={self.component} skipped since locked by another")
                 return
             # get parameters for conversion
-            self.log.debug("component={0} start".format(self.component))
+            self.log.debug(f"component={self.component} start")
             maxTasks = self.taskBufferIF.getConfigValue(self.component, "JUMBO_MAX_TASKS", "jedi", self.vo)
             if maxTasks is None:
                 maxTasks = 1
@@ -75,7 +74,7 @@ class JumboWatchDog:
             totEvents = 0
             doneEvents = 0
             nTasks = 0
-            for jediTaskID, taskData in iteritems(tasksWithJumbo):
+            for jediTaskID, taskData in tasksWithJumbo.items():
                 # disable jumbo
                 if taskData["useJumbo"] != JediTaskSpec.enum_useJumbo["disabled"] and taskData["site"] is None:
                     if taskData["nEvents"] - taskData["nEventsDone"] < nEventsToDisable:
@@ -99,9 +98,7 @@ class JumboWatchDog:
                 # increase priority for jumbo disabled
                 if taskData["useJumbo"] == JediTaskSpec.enum_useJumbo["disabled"] and taskData["currentPriority"] < prioWhenDisabled:
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
-                    self.log.info(
-                        "component={0} priority boost to {1} after disabing jumbo in in jediTaskID={2}".format(self.component, prioWhenDisabled, jediTaskID)
-                    )
+                    self.log.info(f"component={self.component} priority boost to {prioWhenDisabled} after disabing jumbo in in jediTaskID={jediTaskID}")
                 # increase priority when close to completion
                 if (
                     taskData["nEvents"] > 0
@@ -113,7 +110,7 @@ class JumboWatchDog:
                     tmpStr = "component={0} priority boost to {5} for jediTaskID={1} due to n_events_done={2} > {3}*{4}% ".format(
                         self.component, jediTaskID, taskData["nEventsDone"], taskData["nEvents"], progressToBoost, prioToBoost
                     )
-                    tmpStr += "n_files_remaining={0} < {1}".format(taskData["nFiles"] - taskData["nFilesDone"], maxFilesToBoost)
+                    tmpStr += f"n_files_remaining={taskData['nFiles'] - taskData['nFilesDone']} < {maxFilesToBoost}"
                     self.log.info(tmpStr)
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
                 # kick pending
@@ -122,33 +119,29 @@ class JumboWatchDog:
                     JediTaskSpec.enum_useJumbo["running"],
                 ]:
                     nActiveJumbo = 0
-                    for computingSite, jobStatusMap in iteritems(taskData["jumboJobs"]):
-                        for jobStatus, nJobs in iteritems(jobStatusMap):
+                    for computingSite, jobStatusMap in taskData["jumboJobs"].items():
+                        for jobStatus, nJobs in jobStatusMap.items():
                             if jobStatus in ["defined", "assigned", "activated", "sent", "starting", "running", "transferring", "holding"]:
                                 nActiveJumbo += nJobs
                     if nActiveJumbo == 0:
-                        self.log.info("component={0} kick jumbo in {2} jediTaskID={1}".format(self.component, jediTaskID, taskData["taskStatus"]))
+                        self.log.info(f"component={self.component} kick jumbo in {taskData['taskStatus']} jediTaskID={jediTaskID}")
                         self.taskBufferIF.kickPendingTasksWithJumbo_JEDI(jediTaskID)
                 # reset input to re-generate co-jumbo
                 if taskData["currentPriority"] >= prioToBoost:
                     nReset = self.taskBufferIF.resetInputToReGenCoJumbo_JEDI(jediTaskID)
                     if nReset is not None and nReset > 0:
-                        self.log.info("component={0} reset {1} inputs to regenerate co-jumbo for jediTaskID={2}".format(self.component, nReset, jediTaskID))
+                        self.log.info(f"component={self.component} reset {nReset} inputs to regenerate co-jumbo for jediTaskID={jediTaskID}")
                     else:
-                        self.log.debug(
-                            "component={0} tried to reset inputs to regenerate co-jumbo with {1} for jediTaskID={2}".format(self.component, nReset, jediTaskID)
-                        )
+                        self.log.debug(f"component={self.component} tried to reset inputs to regenerate co-jumbo with {nReset} for jediTaskID={jediTaskID}")
             self.log.info(
-                "component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo".format(
-                    self.component, totEvents, totEvents - doneEvents, nTasks
-                )
+                f"component={self.component} total_events={totEvents} n_events_to_process={totEvents - doneEvents} n_tasks={nTasks} available for jumbo"
             )
 
-            self.log.debug("component={0} done".format(self.component))
+            self.log.debug(f"component={self.component} done")
         except Exception:
             # error
             errtype, errvalue = sys.exc_info()[:2]
-            errStr = ": %s %s" % (errtype.__name__, errvalue)
+            errStr = f": {errtype.__name__} {errvalue}"
             errStr.strip()
             errStr += traceback.format_exc()
             self.log.error(errStr)

@@ -10,7 +10,6 @@ from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils
-from six import iteritems
 
 from .JumboWatchDog import JumboWatchDog
 from .TypicalWatchDogBase import TypicalWatchDogBase
@@ -23,7 +22,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
 
     # main
     def doAction(self):
@@ -63,7 +62,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
 
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            tmpLog.error("failed with {0}:{1} {2}".format(errtype.__name__, errvalue, traceback.format_exc()))
+            tmpLog.error(f"failed with {errtype.__name__}:{errvalue} {traceback.format_exc()}")
         # return
         tmpLog.debug("done")
         return self.SC_SUCCEEDED
@@ -79,7 +78,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         for workQueue in workQueueList:
             break_loop = False  # for special workqueues we only need to iterate once
             for resource_type in resource_types:
-                gTmpLog.debug("start workQueue={0}".format(workQueue.queue_name))
+                gTmpLog.debug(f"start workQueue={workQueue.queue_name}")
                 # get tasks to be boosted
                 if workQueue.is_global_share:
                     task_criteria = {"gshare": workQueue.queue_name, "resource_type": resource_type.resource_name}
@@ -114,9 +113,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                         parentState = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
                         if parentState != "completed":
                             gTmpLog.info(
-                                "#ATM #KV label=managed jediTaskID={0} skip prio boost since parent_id={1} has parent_status={2}".format(
-                                    jediTaskID, parent_tid, parentState
-                                )
+                                f"#ATM #KV label=managed jediTaskID={jediTaskID} skip prio boost since parent_id={parent_tid} has parent_status={parentState}"
                             )
                             continue
                     nFiles = datasetParam["nFiles"]
@@ -130,17 +127,15 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                             nRemJobs = int(float(nFiles - nFilesFinished - nFilesFailed) * float(nJobs) / float(nFiles))
                         except Exception:
                             pass
-                    tmpStr = "jediTaskID={0} nFiles={1} nFilesFinishedFailed={2} ".format(jediTaskID, nFiles, nFilesFinished + nFilesFailed)
-                    tmpStr += "nJobs={0} nRemJobs={1} parent_tid={2} parentStatus={3}".format(nJobs, nRemJobs, parent_tid, parentState)
+                    tmpStr = f"jediTaskID={jediTaskID} nFiles={nFiles} nFilesFinishedFailed={nFilesFinished + nFilesFailed} "
+                    tmpStr += f"nJobs={nJobs} nRemJobs={nRemJobs} parent_tid={parent_tid} parentStatus={parentState}"
                     gTmpLog.debug(tmpStr)
 
                     try:
                         if nRemJobs is not None and float(nFilesFinished + nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
                             # skip high enough
                             if currentPriority < boostedPrio:
-                                gTmpLog.info(
-                                    " >>> action=priority_boosting of jediTaskID={0} to priority={1} #ATM #KV label=managed ".format(jediTaskID, boostedPrio)
-                                )
+                                gTmpLog.info(f" >>> action=priority_boosting of jediTaskID={jediTaskID} to priority={boostedPrio} #ATM #KV label=managed ")
                                 self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, boostedPrio)
 
                             # skip express or non global share
@@ -153,7 +148,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                                     )
                                 )
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
-                            gTmpLog.info(">>> done jediTaskID={0}".format(jediTaskID))
+                            gTmpLog.info(f">>> done jediTaskID={jediTaskID}")
                     except Exception:
                         pass
 
@@ -169,9 +164,9 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         # get tasks to get reassigned
         taskList = self.taskBufferIF.getTasksToReassign_JEDI(self.vo, self.prodSourceLabel)
 
-        gTmpLog.debug("got {0} tasks to reassign".format(len(taskList)))
+        gTmpLog.debug(f"got {len(taskList)} tasks to reassign")
         for taskSpec in taskList:
-            tmpLog = MsgWrapper(logger, "< jediTaskID={0} >".format(taskSpec.jediTaskID))
+            tmpLog = MsgWrapper(logger, f"< jediTaskID={taskSpec.jediTaskID} >")
             tmpLog.debug("start to reassign")
             # DDM backend
             ddmBackEnd = taskSpec.getDdmBackEnd()
@@ -189,7 +184,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                     continue
                 # check cloud
                 if not siteMapper.checkCloud(taskSpec.cloud):
-                    tmpLog.error("cloud={0} doesn't exist".format(taskSpec.cloud))
+                    tmpLog.error(f"cloud={taskSpec.cloud} doesn't exist")
                     continue
             else:
                 # re-run task brokerage
@@ -198,13 +193,13 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                     taskSpec.oldStatus = None
                     taskSpec.setToRegisterDatasets()
                     self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, setOldModTime=True)
-                    tmpLog.debug("#ATM #KV label=managed action=trigger_new_brokerage by setting task_status={0}".format(taskSpec.status))
+                    tmpLog.debug(f"#ATM #KV label=managed action=trigger_new_brokerage by setting task_status={taskSpec.status}")
                     continue
 
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
                 if nucleusSpec is None:
-                    tmpLog.error("nucleus={0} doesn't exist".format(taskSpec.nucleus))
+                    tmpLog.error(f"nucleus={taskSpec.nucleus} doesn't exist")
                     continue
 
                 # set nucleus
@@ -221,9 +216,9 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # loop over all datasets
             isOK = True
             for datasetSpec in datasetSpecList:
-                tmpLog.debug("dataset={0}".format(datasetSpec.datasetName))
+                tmpLog.debug(f"dataset={datasetSpec.datasetName}")
                 if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
-                    tmpLog.debug("skip {0} is distributed".format(datasetSpec.datasetName))
+                    tmpLog.debug(f"skip {datasetSpec.datasetName} is distributed")
                     continue
                 # get location
                 location = siteMapper.getDdmEndpoint(
@@ -231,7 +226,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                 )
                 # make subscription
                 try:
-                    tmpLog.debug("registering subscription to {0} with backend={1}".format(location, ddmBackEnd))
+                    tmpLog.debug(f"registering subscription to {location} with backend={ddmBackEnd}")
                     tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName, location, "Production Output", asynchronous=True)
                     if tmpStat is not True:
                         tmpLog.error("failed to make subscription")
@@ -239,7 +234,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                         break
                 except Exception:
                     errtype, errvalue = sys.exc_info()[:2]
-                    tmpLog.warning("failed to make subscription with {0}:{1}".format(errtype.__name__, errvalue))
+                    tmpLog.warning(f"failed to make subscription with {errtype.__name__}:{errvalue}")
                     isOK = False
                     break
             # succeeded
@@ -257,11 +252,11 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
     def doActionForThrottled(self, gTmpLog):
         # release tasks
         nTasks = self.taskBufferIF.releaseThrottledTasks_JEDI(self.vo, self.prodSourceLabel)
-        gTmpLog.debug("released {0} tasks".format(nTasks))
+        gTmpLog.debug(f"released {nTasks} tasks")
 
         # throttle tasks
         nTasks = self.taskBufferIF.throttleTasks_JEDI(self.vo, self.prodSourceLabel, jedi_config.watchdog.waitForThrottled)
-        gTmpLog.debug("throttled {0} tasks".format(nTasks))
+        gTmpLog.debug(f"throttled {nTasks} tasks")
 
     # action for high priority pending tasks
     def doActionForHighPrioPending(self, gTmpLog, minPriority, timeoutVal):
@@ -275,9 +270,9 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo, self.prodSourceLabel, timeoutVal, timeoutForPending, minPriority=minPriority)
         if tmpRet is None:
             # failed
-            gTmpLog.error("failed to reactivate high priority (>{0}) tasks".format(minPriority))
+            gTmpLog.error(f"failed to reactivate high priority (>{minPriority}) tasks")
         else:
-            gTmpLog.info("reactivated high priority (>{0}) {1} tasks".format(minPriority, tmpRet))
+            gTmpLog.info(f"reactivated high priority (>{minPriority}) {tmpRet} tasks")
 
     # action to set scout job data w/o scouts
     def doActionToSetScoutJobData(self, gTmpLog):
@@ -295,10 +290,10 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # failed
             gTmpLog.error("failed to thottle jobs in paused tasks")
         else:
-            for jediTaskID, pandaIDs in iteritems(tmpRet):
-                gTmpLog.info("throttled jobs in paused jediTaskID={0} successfully".format(jediTaskID))
+            for jediTaskID, pandaIDs in tmpRet.items():
+                gTmpLog.info(f"throttled jobs in paused jediTaskID={jediTaskID} successfully")
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs, "reassign", "51", True)
-                gTmpLog.info("reassigned {0} jobs in paused jediTaskID={1} with {2}".format(len(pandaIDs), jediTaskID, tmpRet))
+                gTmpLog.info(f"reassigned {len(pandaIDs)} jobs in paused jediTaskID={jediTaskID} with {tmpRet}")
 
     # action to provoke (mark files ready) data carousel tasks to start if DDM rules of input DS are done
     def doActionToProvokeDCTasks(self, gTmpLog):

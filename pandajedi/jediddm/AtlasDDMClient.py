@@ -8,11 +8,6 @@ import traceback
 import requests
 
 try:
-    from urllib.request import urlopen
-except ImportError:
-    from urllib2 import urlopen
-
-try:
     import urllib3
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -34,7 +29,6 @@ from rucio.common.exception import (
     InvalidObject,
     UnsupportedOperation,
 )
-from six import iteritems
 
 from .DDMClientBase import DDMClientBase
 
@@ -67,8 +61,8 @@ class AtlasDDMClient(DDMClientBase):
     # get files in dataset
     def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True, ignoreUnknown=False, longFormat=False, lfn_only=False):
         methodName = "getFilesInDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -101,7 +95,7 @@ class AtlasDDMClient(DDMClientBase):
                 attrs["events"] = str(x["events"])
                 if longFormat:
                     attrs["lumiblocknr"] = str(x["lumiblocknr"])
-                guid = str("%s-%s-%s-%s-%s" % (x["guid"][0:8], x["guid"][8:12], x["guid"][12:16], x["guid"][16:20], x["guid"][20:32]))
+                guid = str(f"{x['guid'][0:8]}-{x['guid'][8:12]}-{x['guid'][12:16]}-{x['guid'][16:20]}-{x['guid'][20:32]}")
                 attrs["guid"] = guid
                 # skip duplicated files
                 if skipDuplicate:
@@ -132,9 +126,9 @@ class AtlasDDMClient(DDMClientBase):
                 return_list = fileSet
             else:
                 return_list = fileMap
-            tmpLog.debug("done len={} meta={}".format(len(return_list), tmpMeta["length"]))
+            tmpLog.debug(f"done len={len(return_list)} meta={tmpMeta['length']}")
             if tmpMeta["length"] and tmpMeta["length"] > len(return_list):
-                errMsg = "file list length mismatch len={} != meta={}".format(len(return_list), tmpMeta["length"])
+                errMsg = f"file list length mismatch len={len(return_list)} != meta={tmpMeta['length']}"
                 tmpLog.error(errMsg)
                 return self.SC_FAILED, errMsg
             return self.SC_SUCCEEDED, return_list
@@ -146,13 +140,13 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
         errCode, errMsg = self.checkError(errType)
         tmpLog.error(errMsg)
-        return errCode, "{0} : {1}".format(methodName, errMsg)
+        return errCode, f"{methodName} : {errMsg}"
 
     # list dataset replicas
     def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False, skip_incomplete_element=False, use_deep=False, element_list=None):
         methodName = "listDatasetReplicas"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -177,7 +171,7 @@ class AtlasDDMClient(DDMClientBase):
                     tmpLog.debug(tmpName)
                     tmp_status, tmp_output = self.getDatasetMetaData(tmpName)
                     if tmp_status != self.SC_SUCCEEDED:
-                        raise RuntimeError("failed to get metadata with {0}".format(tmp_output))
+                        raise RuntimeError(f"failed to get metadata with {tmp_output}")
                     try:
                         totalFiles = tmp_output["length"]
                         if not totalFiles:
@@ -187,7 +181,7 @@ class AtlasDDMClient(DDMClientBase):
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, usefileLookup=use_deep, use_vp=use_vp, skip_incomplete_element=skip_incomplete_element)
                     detailedRetMap[tmpName] = tmpRet
                     # loop over all sites
-                    for tmpSite, tmpValMap in iteritems(tmpRet):
+                    for tmpSite, tmpValMap in tmpRet.items():
                         # add site
                         retMap.setdefault(tmpSite, [{"found": 0}])
                         # sum
@@ -215,16 +209,16 @@ class AtlasDDMClient(DDMClientBase):
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg + traceback.format_exc())
             if detailed:
-                return errCode, "{0} : {1}".format(methodName, errMsg), None
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+                return errCode, f"{methodName} : {errMsg}", None
+            return errCode, f"{methodName} : {errMsg}"
 
     # list replicas per dataset
     def listReplicasPerDataset(self, datasetName, deepScan=False):
         methodName = "listReplicasPerDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start with deepScan={0}".format(deepScan))
+        tmpLog.debug(f"start with deepScan={deepScan}")
         try:
             # get rucio API
             client = RucioClient()
@@ -246,12 +240,12 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # get site property
     def getSiteProperty(self, seName, attribute):
         methodName = "getSiteProperty"
-        methodName += " pid={0}".format(self.pid)
+        methodName += f" pid={self.pid}"
         self.updateEndPointDict()
         try:
             retVal = self.endPointDict[seName][attribute]
@@ -259,7 +253,7 @@ class AtlasDDMClient(DDMClientBase):
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # get site alternateName
     def getSiteAlternateName(self, se_name):
@@ -272,7 +266,7 @@ class AtlasDDMClient(DDMClientBase):
     def getAssociatedEndpoints(self, altName):
         self.updateEndPointDict()
         epList = []
-        for seName, seVal in iteritems(self.endPointDict):
+        for seName, seVal in self.endPointDict.items():
             if seVal["site"] == altName:
                 epList.append(seName)
         return epList
@@ -283,7 +277,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName is not None:
-                for seName, seVal in iteritems(self.endPointDict):
+                for seName, seVal in self.endPointDict.items():
                     if seVal["site"] == altName:
                         # space token
                         if seVal["token"] == token:
@@ -359,8 +353,8 @@ class AtlasDDMClient(DDMClientBase):
         """
         # make logger
         method_name = "getAvailableFiles"
-        method_name += " pid={0}".format(self.pid)
-        method_name += " < jediTaskID={0} datasetID={1} >".format(dataset_spec.jediTaskID, dataset_spec.datasetID)
+        method_name += f" pid={self.pid}"
+        method_name += f" < jediTaskID={dataset_spec.jediTaskID} datasetID={dataset_spec.datasetID} >"
         tmp_log = MsgWrapper(logger, method_name)
         loopStart = datetime.datetime.utcnow()
         try:
@@ -375,7 +369,7 @@ class AtlasDDMClient(DDMClientBase):
             tmp_status, tmp_output = self.getDatasetMetaData(dataset_spec.datasetName)
             if tmp_status != self.SC_SUCCEEDED:
                 regTime = datetime.datetime.utcnow() - loopStart
-                tmp_log.error("failed in {} sec to get metadata with {}".format(regTime.seconds, tmp_output))
+                tmp_log.error(f"failed in {regTime.seconds} sec to get metadata with {tmp_output}")
                 return tmp_status, tmp_output
             total_files_in_dataset = tmp_output["length"]
             if total_files_in_dataset is None:
@@ -391,7 +385,7 @@ class AtlasDDMClient(DDMClientBase):
             )
             if tmp_status != self.SC_SUCCEEDED:
                 regTime = datetime.datetime.utcnow() - loopStart
-                tmp_log.error("failed in {} sec to get dataset replicas with {}".format(regTime.seconds, tmp_output))
+                tmp_log.error(f"failed in {regTime.seconds} sec to get dataset replicas with {tmp_output}")
                 return tmp_status, tmp_output
             dataset_replica_map = tmp_output
 
@@ -410,7 +404,7 @@ class AtlasDDMClient(DDMClientBase):
             rse_list = []
 
             # figure out complete replicas and storage types
-            for site_name, endpoint_list in iteritems(site_endpoint_map):
+            for site_name, endpoint_list in site_endpoint_map.items():
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 has_complete = False
@@ -449,9 +443,9 @@ class AtlasDDMClient(DDMClientBase):
 
             # get the file locations from Rucio
             if len(rse_list) > 0:
-                tmp_log.debug("lookup file replicas in Rucio for RSEs: {0}".format(rse_list))
+                tmp_log.debug(f"lookup file replicas in Rucio for RSEs: {rse_list}")
                 tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
-                tmp_log.debug("lookup file replicas return status: {0}".format(str(tmp_status)))
+                tmp_log.debug(f"lookup file replicas return status: {str(tmp_status)}")
                 if tmp_status != self.SC_SUCCEEDED:
                     raise RuntimeError(rucio_lfn_to_rse_map)
             else:
@@ -459,9 +453,9 @@ class AtlasDDMClient(DDMClientBase):
                 if not file_scan_in_container and is_container:
                     # remove incomplete
                     detailed_comp_replica_map = dict()
-                    for tmp_ds_name, tmp_ds_value in iteritems(detailed_replica_map):
+                    for tmp_ds_name, tmp_ds_value in detailed_replica_map.items():
                         new_map = {}
-                        for tmp_k, tmp_v in iteritems(tmp_ds_value):
+                        for tmp_k, tmp_v in tmp_ds_value.items():
                             if tmp_v[0]["total"] and tmp_v[0]["total"] == tmp_v[0]["found"]:
                                 new_map[tmp_k] = tmp_v
                         if new_map:
@@ -481,7 +475,7 @@ class AtlasDDMClient(DDMClientBase):
             # initialize the return map and add complete/cached replicas
             return_map = {}
             checked_dst = set()
-            for site_name, tmp_endpoints in iteritems(site_endpoint_map):
+            for site_name, tmp_endpoints in site_endpoint_map.items():
                 return_map.setdefault(site_name, {"localdisk": [], "localtape": [], "cache": [], "remote": []})
                 tmp_site_spec = site_mapper.getSite(site_name)
 
@@ -513,19 +507,19 @@ class AtlasDDMClient(DDMClientBase):
                             break
 
             # aggregate all types of storage types into the 'all' key
-            for site, storage_type_files in iteritems(return_map):
+            for site, storage_type_files in return_map.items():
                 site_all_file_list = set()
-                for storage_type, file_list in iteritems(storage_type_files):
+                for storage_type, file_list in storage_type_files.items():
                     for tmp_file_spec in file_list:
                         site_all_file_list.add(tmp_file_spec)
                 storage_type_files["all"] = site_all_file_list
 
             # dump for logging
             logging_str = ""
-            for site, storage_type_file in iteritems(return_map):
-                logging_str += "{0}:(".format(site)
-                for storage_type, file_list in iteritems(storage_type_file):
-                    logging_str += "{0}:{1},".format(storage_type, len(file_list))
+            for site, storage_type_file in return_map.items():
+                logging_str += f"{site}:("
+                for storage_type, file_list in storage_type_file.items():
+                    logging_str += f"{storage_type}:{len(file_list)},"
                 logging_str = logging_str[:-1]
                 logging_str += ") "
             logging_str = logging_str[:-1]
@@ -533,18 +527,18 @@ class AtlasDDMClient(DDMClientBase):
 
             # return
             regTime = datetime.datetime.utcnow() - loopStart
-            tmp_log.debug("done in {} sec".format(regTime.seconds))
+            tmp_log.debug(f"done in {regTime.seconds} sec")
             return self.SC_SUCCEEDED, return_map
         except Exception as e:
             regTime = datetime.datetime.utcnow() - loopStart
-            error_message = "failed in {} sec with {} {} ".format(regTime.seconds, str(e), traceback.format_exc())
+            error_message = f"failed in {regTime.seconds} sec with {str(e)} {traceback.format_exc()} "
             tmp_log.error(error_message)
-            return self.SC_FAILED, "{0}.{1} {2}".format(self.__class__.__name__, method_name, error_message)
+            return self.SC_FAILED, f"{self.__class__.__name__}.{method_name} {error_message}"
 
     def jedi_list_replicas(self, files, storages, scopes={}):
         try:
             method_name = "jedi_list_replicas"
-            method_name += " pid={0}".format(self.pid)
+            method_name += f" pid={self.pid}"
             tmp_log = MsgWrapper(logger, method_name)
             client = RucioClient()
             i_guid = 0
@@ -554,17 +548,17 @@ class AtlasDDMClient(DDMClientBase):
             i_loop = 0
             startTime = datetime.datetime.utcnow()
             tmp_log.debug("start")
-            for guid, lfn in iteritems(files):
+            for guid, lfn in files.items():
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({"scope": scope, "name": lfn})
                 if len(dids) % max_guid == 0 or i_guid == len(files):
                     i_loop += 1
-                    tmp_log.debug("lookup {} start".format(i_loop))
+                    tmp_log.debug(f"lookup {i_loop} start")
                     loopStart = datetime.datetime.utcnow()
                     x = client.list_replicas(dids, ["srm", "gsiftp"], resolve_archives=True)
                     regTime = datetime.datetime.utcnow() - loopStart
-                    tmp_log.info("rucio.list_replicas took {0} sec for {1} files".format(regTime.seconds, len(dids)))
+                    tmp_log.info(f"rucio.list_replicas took {regTime.seconds} sec for {len(dids)} files")
                     loopStart = datetime.datetime.utcnow()
                     for tmp_dict in x:
                         try:
@@ -575,13 +569,13 @@ class AtlasDDMClient(DDMClientBase):
                     # reset the dids list for the next bulk for Rucio
                     dids = []
                     regTime = datetime.datetime.utcnow() - loopStart
-                    tmp_log.debug("lookup {} end in {} sec".format(i_loop, regTime.seconds))
+                    tmp_log.debug(f"lookup {i_loop} end in {regTime.seconds} sec")
             regTime = datetime.datetime.utcnow() - startTime
-            tmp_log.debug("end in {} sec".format(regTime.seconds))
+            tmp_log.debug(f"end in {regTime.seconds} sec")
         except Exception as e:
             regTime = datetime.datetime.utcnow() - startTime
-            tmp_log.error("failed in {} sec".format(regTime.seconds))
-            return self.SC_FAILED, "file lookup failed with {} {}".format(str(e), traceback.format_exc())
+            tmp_log.error(f"failed in {regTime.seconds} sec")
+            return self.SC_FAILED, f"file lookup failed with {str(e)} {traceback.format_exc()}"
 
         return self.SC_SUCCEEDED, lfn_to_rses_map
 
@@ -601,15 +595,15 @@ class AtlasDDMClient(DDMClientBase):
                 lfn_to_rses_map[tmp_LFN] = tmp_dict["rses"]
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
+            return self.SC_FAILED, f"file lookup failed with {err_type}:{err_value} {traceback.format_exc()}"
         return self.SC_SUCCEEDED, lfn_to_rses_map
 
     # get dataset metadata
     def getDatasetMetaData(self, datasetName, ignore_missing=False):
         # make logger
         methodName = "getDatasetMetaData"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1}".format(methodName, datasetName)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -640,11 +634,11 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
         tmpLog.error(errMsg)
-        return errCode, "{0} : {1}".format(methodName, errMsg)
+        return errCode, f"{methodName} : {errMsg}"
 
     # check error
     def checkError(self, errType):
-        errMsg = "{} : {}".format(str(type(errType)), str(errType))
+        errMsg = f"{str(type(errType))} : {str(errType)}"
         if type(errType) in self.fatalErrors:
             # fatal error
             return self.SC_FATAL, errMsg
@@ -655,8 +649,8 @@ class AtlasDDMClient(DDMClientBase):
     # list dataset/container
     def listDatasets(self, datasetName, ignorePandaDS=True):
         methodName = "listDatasets"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -670,9 +664,9 @@ class AtlasDDMClient(DDMClientBase):
             filters["name"] = dsn
             dsList = set()
             for name in client.list_dids(scope, filters, "dataset"):
-                dsList.add("%s:%s" % (scope, name))
+                dsList.add(f"{scope}:{name}")
             for name in client.list_dids(scope, filters, "container"):
-                dsList.add("%s:%s/" % (scope, name))
+                dsList.add(f"{scope}:{name}/")
             dsList = list(dsList)
             # ignore panda internal datasets
             if ignorePandaDS:
@@ -688,15 +682,15 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # register new dataset/container
     def registerNewDataset(self, datasetName, backEnd="rucio", location=None, lifetime=None, metaData=None, resurrect=False):
         methodName = "registerNewDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start location={0} lifetime={1}".format(location, lifetime))
+        tmpLog.debug(f"start location={location} lifetime={lifetime}")
         try:
             # get rucio API
             client = RucioClient()
@@ -717,9 +711,9 @@ class AtlasDDMClient(DDMClientBase):
         except DataIdentifierAlreadyExists:
             pass
         except InvalidObject as e:
-            errMsg = "{} : {}".format(InvalidObject, str(e))
+            errMsg = f"{InvalidObject} : {str(e)}"
             tmpLog.error(errMsg)
-            return self.SC_FATAL, "{0} : {1}".format(methodName, errMsg)
+            return self.SC_FATAL, f"{methodName} : {errMsg}"
         except Exception as e:
             errType = e
             resurrected = False
@@ -733,7 +727,7 @@ class AtlasDDMClient(DDMClientBase):
             if not resurrected:
                 errCode, errMsg = self.checkError(errType)
                 tmpLog.error(errMsg)
-                return errCode, "{0} : {1}".format(methodName, errMsg)
+                return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
@@ -747,7 +741,7 @@ class AtlasDDMClient(DDMClientBase):
             if data["type"] == "CONTAINER":
                 retList += self.wp_list_content(client, data["scope"], data["name"])
             elif data["type"] == "DATASET":
-                retList.append("{0}:{1}".format(data["scope"], data["name"]))
+                retList.append(f"{data['scope']}:{data['name']}")
             else:
                 pass
         return retList
@@ -755,8 +749,8 @@ class AtlasDDMClient(DDMClientBase):
     # list datasets in container
     def listDatasetsInContainer(self, containerName):
         methodName = "listDatasetsInContainer"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <containerName={0}>".format(containerName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <containerName={containerName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -772,13 +766,13 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # expand Container
     def expandContainer(self, containerName):
         methodName = "expandContainer"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <contName={0}>".format(containerName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <contName={containerName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -795,7 +789,7 @@ class AtlasDDMClient(DDMClientBase):
                     # get contents
                     tmpS, tmpO = self.listDatasetsInContainer(tmpRealName)
                     if tmpS != self.SC_SUCCEEDED:
-                        tmpLog.error("failed to get datasets in {0}".format(tmpRealName))
+                        tmpLog.error(f"failed to get datasets in {tmpRealName}")
                         return tmpS, tmpO
                 else:
                     tmpO = [tmpRealName]
@@ -805,19 +799,19 @@ class AtlasDDMClient(DDMClientBase):
                         dsList.append(tmpStr)
             dsList.sort()
             # return
-            tmpLog.debug("got {0}".format(str(dsList)))
+            tmpLog.debug(f"got {str(dsList)}")
             return self.SC_SUCCEEDED, dsList
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # add dataset to container
     def addDatasetsToContainer(self, containerName, datasetNames, backEnd="rucio"):
         methodName = "addDatasetsToContainer"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <contName={0}>".format(containerName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <contName={containerName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -845,14 +839,14 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
     # get latest DBRelease
     def getLatestDBRelease(self):
         methodName = "getLatestDBRelease"
-        methodName += " pid={0}".format(self.pid)
+        methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("trying to get the latest version number of DBR")
         # get ddo datasets
@@ -881,7 +875,7 @@ class AtlasDDMClient(DDMClientBase):
                 continue
             match = re.search("\.v(\d+)(_*[^\.]*)$", tmpName)
             if match is None:
-                tmpLog.warning("cannot extract version number from %s" % tmpName)
+                tmpLog.warning(f"cannot extract version number from {tmpName}")
                 continue
             # ignore special DBRs
             if match.group(2) != "":
@@ -936,14 +930,14 @@ class AtlasDDMClient(DDMClientBase):
         if latestDBR == "":
             tmpLog.error("failed to get the latest version of DBRelease dataset from DDM")
             return self.SC_FAILED, None
-        tmpLog.debug("use {0}".format(latestDBR))
+        tmpLog.debug(f"use {latestDBR}")
         return self.SC_SUCCEEDED, latestDBR
 
     # freeze dataset
     def freezeDataset(self, datasetName, ignoreUnknown=False):
         methodName = "freezeDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1}".format(methodName, datasetName)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -975,13 +969,13 @@ class AtlasDDMClient(DDMClientBase):
         else:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # finger
     def finger(self, dn):
         methodName = "finger"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} userName={1}".format(methodName, dn)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} userName={dn}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -1024,15 +1018,15 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done with " + str(tmpRet))
         return self.SC_SUCCEEDED, tmpRet
 
     # set dataset metadata
     def setDatasetMetadata(self, datasetName, metadataName, metadaValue):
         methodName = "setDatasetMetadata"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1} metadataName={2} metadaValue={3}".format(methodName, datasetName, metadataName, metadaValue)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName} metadataName={metadataName} metadaValue={metadaValue}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -1048,7 +1042,7 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
@@ -1057,8 +1051,8 @@ class AtlasDDMClient(DDMClientBase):
         self, datasetName, location, lifetime=None, owner=None, backEnd="rucio", activity=None, grouping=None, weight=None, copies=1, ignore_availability=True
     ):
         methodName = "registerDatasetLocation"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1} location={2}".format(methodName, datasetName, location)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName} location={location}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -1075,7 +1069,7 @@ class AtlasDDMClient(DDMClientBase):
             if owner is not None:
                 tmpStat, userInfo = self.finger(owner)
                 if tmpStat != self.SC_SUCCEEDED:
-                    raise RuntimeError("failed to get nickname for {0}".format(owner))
+                    raise RuntimeError(f"failed to get nickname for {owner}")
                 owner = userInfo["nickname"]
             else:
                 owner = client.account
@@ -1106,15 +1100,15 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
-        tmpLog.debug("done for owner={}".format(owner))
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"done for owner={owner}")
         return self.SC_SUCCEEDED, True
 
     # delete dataset
     def deleteDataset(self, datasetName, emptyOnly, ignoreUnknown=False):
         methodName = "deleteDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1}".format(methodName, datasetName)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1133,9 +1127,9 @@ class AtlasDDMClient(DDMClientBase):
             # erase
             if not emptyOnly or nFiles == 0:
                 client.set_metadata(scope=scope, name=dsn, key="lifetime", value=0.0001)
-                retStr = "deleted {0}".format(datasetName)
+                retStr = f"deleted {datasetName}"
             else:
-                retStr = "keep {0} where {1} files are available".format(datasetName, nFiles)
+                retStr = f"keep {datasetName} where {nFiles} files are available"
         except DataIdentifierNotFound as e:
             errType = e
             if ignoreUnknown:
@@ -1151,13 +1145,13 @@ class AtlasDDMClient(DDMClientBase):
         else:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # register subscription
     def registerDatasetSubscription(self, datasetName, location, activity, lifetime=None, asynchronous=False):
         methodName = "registerDatasetSubscription"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1} location={2} activity={3} asyn={4}".format(methodName, datasetName, location, activity, asynchronous)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName} location={location} activity={activity} asyn={asynchronous}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1197,22 +1191,22 @@ class AtlasDDMClient(DDMClientBase):
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
     # find lost files
     def findLostFiles(self, datasetName, fileMap):
         methodName = "findLostFiles"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
             # get replicas
             tmpStat, tmpOut = self.listDatasetReplicas(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error("faild to get dataset replicas with {0}".format(tmpOut))
+                tmpLog.error(f"faild to get dataset replicas with {tmpOut}")
                 return tmpStat, tmpOut
             # check if complete replica is available
             hasCompReplica = False
@@ -1240,11 +1234,11 @@ class AtlasDDMClient(DDMClientBase):
             seList = list(datasetReplicaMap.keys())
             tmpStat, tmpRetMap = self.jedi_list_replicas_with_dataset(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error("failed to get SURLs with {0}".format(tmpRetMap))
+                tmpLog.error(f"failed to get SURLs with {tmpRetMap}")
                 return tmpStat, tmpRetMap
             # look for missing files
             lfnMap = {}
-            for tmpGUID, tmpLFN in iteritems(lfnMap):
+            for tmpGUID, tmpLFN in lfnMap.items():
                 if tmpLFN not in tmpRetMap:
                     lfnMap[tmpGUID] = tmpLFN
 
@@ -1254,7 +1248,7 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
 
     # convert output of listDatasetReplicas
     def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False, skip_incomplete_element=False):
@@ -1313,8 +1307,8 @@ class AtlasDDMClient(DDMClientBase):
     # delete files from dataset
     def deleteFilesFromDataset(self, datasetName, filesToDelete):
         methodName = "deleteFilesFromDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1336,7 +1330,7 @@ class AtlasDDMClient(DDMClientBase):
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
@@ -1354,8 +1348,8 @@ class AtlasDDMClient(DDMClientBase):
     # open dataset
     def openDataset(self, datasetName):
         methodName = "openDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1375,14 +1369,14 @@ class AtlasDDMClient(DDMClientBase):
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
     # update backlist
     def updateBlackList(self):
         methodName = "updateBlackList"
-        methodName += " pid={0}".format(self.pid)
+        methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
         # check freashness
         timeNow = datetime.datetime.utcnow()
@@ -1395,19 +1389,19 @@ class AtlasDDMClient(DDMClientBase):
             with open("/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmblacklisting.json") as f:
                 ddd = json.load(f)
                 self.blackListEndPoints = [k for k in ddd if "write_wan" in ddd[k] and ddd[k]["write_wan"]["status"]["value"] == "OFF"]
-            tmpLog.debug("{0} endpoints blacklisted".format(len(self.blackListEndPoints)))
+            tmpLog.debug(f"{len(self.blackListEndPoints)} endpoints blacklisted")
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         return
 
     # check if the endpoint is backlisted
     def isBlackListedEP(self, endPoint):
         methodName = "isBlackListedEP"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <endPoint={0}>".format(endPoint)
+        methodName += f" pid={self.pid}"
+        methodName += f" <endPoint={endPoint}>"
         tmpLog = MsgWrapper(logger, methodName)
         try:
             # update BL
@@ -1421,8 +1415,8 @@ class AtlasDDMClient(DDMClientBase):
     # get disk usage at RSE
     def getRseUsage(self, rse, src="srm"):
         methodName = "getRseUsage"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <rse={0}>".format(rse)
+        methodName += f" pid={self.pid}"
+        methodName += f" <rse={rse}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retMap = {}
@@ -1452,14 +1446,14 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
-        tmpLog.debug("done {0}".format(str(retMap)))
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"done {str(retMap)}")
         return self.SC_SUCCEEDED, retMap
 
     # update endpoint dict
     def updateEndPointDict(self):
         methodName = "updateEndPointDict"
-        methodName += " pid={0}".format(self.pid)
+        methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
         # check freshness
         timeNow = datetime.datetime.utcnow()
@@ -1479,17 +1473,17 @@ class AtlasDDMClient(DDMClientBase):
                 with open(tmp_path) as f:
                     ddd = json.load(f)
             self.endPointDict = {k: ddd[k] for k in ddd if ddd[k]["state"] == "ACTIVE"}
-            tmpLog.debug("got {0} endpoints ".format(len(self.endPointDict)))
+            tmpLog.debug(f"got {len(self.endPointDict)} endpoints ")
         except Exception as e:
-            errStr = "failed to update EP with {0}".format(str(e))
+            errStr = f"failed to update EP with {str(e)}"
             tmpLog.error(errStr)
         return
 
     # check if the dataset is distributed
     def isDistributedDataset(self, datasetName):
         methodName = "isDistributedDataset"
-        methodName += " pid={0}".format(self.pid)
-        methodName += " <datasetName={0}>".format(datasetName)
+        methodName += f" pid={self.pid}"
+        methodName += f" <datasetName={datasetName}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isDDS = None
@@ -1515,15 +1509,15 @@ class AtlasDDMClient(DDMClientBase):
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
-        tmpLog.debug("done with {0}".format(isDDS))
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"done with {isDDS}")
         return self.SC_SUCCEEDED, isDDS
 
     # update replication rules
     def updateReplicationRules(self, datasetName, dataMap):
         methodName = "updateReplicationRules"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} datasetName={1}".format(methodName, datasetName)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={datasetName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1534,9 +1528,9 @@ class AtlasDDMClient(DDMClientBase):
             scope, dsn = self.extract_scope(datasetName)
             # get rules
             for rule in client.list_did_rules(scope=scope, name=dsn):
-                for dataKey, data in iteritems(dataMap):
+                for dataKey, data in dataMap.items():
                     if rule["rse_expression"] == dataKey or re.search(dataKey, rule["rse_expression"]) is not None:
-                        tmpLog.debug("set data={0} on {1}".format(str(data), rule["rse_expression"]))
+                        tmpLog.debug(f"set data={str(data)} on {rule['rse_expression']}")
                         client.update_replication_rule(rule["id"], data)
         except DataIdentifierNotFound:
             pass
@@ -1546,14 +1540,14 @@ class AtlasDDMClient(DDMClientBase):
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
     # get active staging rule
     def getActiveStagingRule(self, dataset_name):
         methodName = "getActiveStagingRule"
-        methodName += " datasetName={0}".format(dataset_name)
+        methodName += f" datasetName={dataset_name}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         ruleID = None
@@ -1571,15 +1565,15 @@ class AtlasDDMClient(DDMClientBase):
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
-        tmpLog.debug("got ruleID={0}".format(ruleID))
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got ruleID={ruleID}")
         return self.SC_SUCCEEDED, ruleID
 
     # check quota
     def check_quota(self, userName):
         methodName = "check_quota"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{0} userName={1}".format(methodName, userName)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} userName={userName}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         retVal = True, None
@@ -1594,10 +1588,10 @@ class AtlasDDMClient(DDMClientBase):
                 quota_info = client.get_global_account_usage(owner)
                 for info in quota_info:
                     if info["bytes"] >= info["bytes_limit"]:
-                        retVal = False, "exceeded quota on {}".format(info["rse_expression"])
+                        retVal = False, f"exceeded quota on {info['rse_expression']}"
                         break
         except Exception as e:
-            errMsg = "failed to get quota info with {}".format(str(e))
+            errMsg = f"failed to get quota info with {str(e)}"
             tmpLog.error(errMsg)
             retVal = False, errMsg
         tmpLog.debug("done {} {}".format(*retVal))
@@ -1606,8 +1600,8 @@ class AtlasDDMClient(DDMClientBase):
     # make staging rule
     def make_staging_rule(self, dataset_name, expression, activity, lifetime=None):
         methodName = "make_staging_rule"
-        methodName += " pid={0}".format(self.pid)
-        methodName = "{} datasetName={} expression={} activity={} lifetime={}".format(methodName, dataset_name, expression, activity, lifetime)
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} datasetName={dataset_name} expression={expression} activity={activity} lifetime={lifetime}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         isOK = True
@@ -1625,7 +1619,7 @@ class AtlasDDMClient(DDMClientBase):
                 for rule in client.list_did_rules(scope=scope, name=dsn):
                     if rule["rse_expression"] == expression and rule["account"] == client.account and rule["activity"] == activity:
                         ruleID = rule["id"]
-                        tmpLog.debug("rule already exists: ID={}".format(ruleID))
+                        tmpLog.debug(f"rule already exists: ID={ruleID}")
                         break
             # make new rule
             if ruleID is None:
@@ -1644,14 +1638,14 @@ class AtlasDDMClient(DDMClientBase):
                     asynchronous=False,
                 )
                 ruleID = rule["id"]
-                tmpLog.debug("made new rule : ID={}".format(ruleID))
+                tmpLog.debug(f"made new rule : ID={ruleID}")
         except Exception as e:
             isOK = False
             errType = e
         if not isOK:
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode, "{0} : {1}".format(methodName, errMsg)
+            return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, ruleID
 

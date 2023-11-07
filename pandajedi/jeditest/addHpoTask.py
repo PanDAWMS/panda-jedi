@@ -1,9 +1,5 @@
 import uuid
-
-try:
-    from urllib.parse import quote
-except ImportError:
-    from urllib import quote
+from urllib.parse import quote
 
 from userinterface import Client
 
@@ -32,8 +28,8 @@ taskParamMap["site"] = "BNL_PROD_UCORE"
 taskParamMap["nucleus"] = "CERN-PROD"
 taskParamMap["cloud"] = "WORLD"
 
-logDatasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
-outDatasetName = "panda.jeditest.HPO.{0}".format(uuid.uuid4())
+logDatasetName = f"panda.jeditest.log.{uuid.uuid4()}"
+outDatasetName = f"panda.jeditest.HPO.{uuid.uuid4()}"
 
 taskParamMap["log"] = {
     "dataset": logDatasetName,
@@ -42,7 +38,7 @@ taskParamMap["log"] = {
     "token": "ddd:.*DATADISK",
     "destination": "(type=DATADISK)\(dontkeeplog=True)",
     "offset": 1000,
-    "value": "{0}.${{SN}}.log.tgz".format(logDatasetName),
+    "value": f"{logDatasetName}.${{SN}}.log.tgz",
 }
 
 taskParamMap["hpoRequestData"] = {
@@ -57,7 +53,7 @@ taskParamMap["hpoRequestData"] = {
 taskParamMap["container_name"] = "docker://gitlab-registry.cern.ch/zhangruihpc/evaluationcontainer:mlflow"
 
 taskParamMap["jobParameters"] = [
-    {"type": "constant", "value": '-o out.json -j "" -p "{0}"'.format(quote("bash ./exec_in_container.sh"))},
+    {"type": "constant", "value": f"-o out.json -j \"\" -p \"{quote('bash ./exec_in_container.sh')}\""},
     {"type": "constant", "value": "--writeInputToTxt IN_DATA:input_ds.json --inSampleFile input_sample.json"},
     {"type": "constant", "value": "-a aaa.tgz --sourceURL https://aipanda048.cern.ch:25443"},
     {"type": "constant", "value": "--inMap \"{'IN_DATA': ${IN_DATA/T}}\""},

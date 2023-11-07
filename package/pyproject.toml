@@ -13,7 +13,6 @@ authors = [
 ]
 
 dependencies = [
-    'six',
     'panda-common>=0.0.38',
     'panda-server>=0.0.37',
     'python-daemon',
@@ -84,3 +83,6 @@ disable = [
 
 [tool.isort]
 profile = "black"
+
+[tool.flynt]
+line-length = 160

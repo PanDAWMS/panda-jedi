@@ -21,7 +21,7 @@ jediTaskID = int(sys.argv[1])
 
 # get task attributes
 s, taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
-pid = "{0}-{1}_{2}-sgen".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-sgen"
 vo = taskSpec.vo
 prodSourceLabel = taskSpec.prodSourceLabel
 workQueue = tbIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)

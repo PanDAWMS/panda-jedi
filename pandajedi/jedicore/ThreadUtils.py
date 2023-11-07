@@ -3,8 +3,6 @@ import sys
 import threading
 import time
 
-from six import iteritems
-
 
 # list with lock
 class ListWithLock:
@@ -108,7 +106,7 @@ class MapWithLock:
         return self.dataMap[item]
 
     def items(self):
-        return iteritems(self.dataMap)
+        return self.dataMap.items()
 
     def iteritems(self):
         return self.items()
@@ -160,7 +158,7 @@ class ThreadPool:
         for thr in thrlist:
             if thr.is_alive():
                 nActv += 1
-        return "nActive={0}".format(nActv)
+        return f"nActive={nActv}"
 
 
 # thread class working with semaphore and thread pool
@@ -184,7 +182,7 @@ class WorkerThread(threading.Thread):
             self.runImpl()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % (self.__class__.__name__, errtype.__name__, errvalue))
+            self.logger.error(f"{self.__class__.__name__} crashed in WorkerThread.run() with {errtype.__name__}:{errvalue}")
         # remove self from thread pool
         if self.threadPool is not None:
             self.threadPool.remove(self)

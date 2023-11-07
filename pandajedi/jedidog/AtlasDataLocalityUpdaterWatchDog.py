@@ -20,7 +20,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         WatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = "{0}-{1}-dog".format(socket.getfqdn().split(".")[0], os.getpid())
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         self.vo = "atlas"
         self.ddmIF = ddmIF.getInterface(self.vo)
 
@@ -53,7 +53,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             tmpLog.debug("got lock")
             # get list of datasets
             datasets_list = self.get_datasets_list()
-            tmpLog.debug("got {0} datasets to update".format(len(datasets_list)))
+            tmpLog.debug(f"got {len(datasets_list)} datasets to update")
             # make thread pool
             thread_pool = ThreadPool()
             # make workers
@@ -63,14 +63,14 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
                     taskDsList=datasets_list, threadPool=thread_pool, taskbufferIF=self.taskBufferIF, ddmIF=self.ddmIF, pid=self.pid, loggerObj=tmpLog
                 )
                 thr.start()
-            tmpLog.debug("started {0} updater workers".format(n_workers))
+            tmpLog.debug(f"started {n_workers} updater workers")
             # join
             thread_pool.join()
             # done
             tmpLog.debug("done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            tmpLog.error("failed with {0} {1} {2}".format(errtype, errvalue, traceback.format_exc()))
+            tmpLog.error(f"failed with {errtype} {errvalue} {traceback.format_exc()}")
 
     # clean up old data locality records in DB table
     def doCleanDataLocality(self):
@@ -98,12 +98,12 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             now_timestamp = datetime.datetime.utcnow()
             before_timestamp = now_timestamp - datetime.timedelta(hours=record_lifetime_hours)
             n_rows = self.taskBufferIF.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
-            tmpLog.info("cleaned up {0} records".format(n_rows))
+            tmpLog.info(f"cleaned up {n_rows} records")
             # done
             tmpLog.debug("done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            tmpLog.error("failed with {0} {1} {2}".format(errtype, errvalue, traceback.format_exc()))
+            tmpLog.error(f"failed with {errtype} {errvalue} {traceback.format_exc()}")
 
     # main
     def doAction(self):
@@ -117,7 +117,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             self.doUpdateDataLocality()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            origTmpLog.error("failed with {0} {1}".format(errtype, errvalue))
+            origTmpLog.error(f"failed with {errtype} {errvalue}")
         # return
         origTmpLog.debug("done")
         return self.SC_SUCCEEDED
@@ -146,7 +146,7 @@ class DataLocalityUpdaterThread(WorkerThread):
                 taskDsList = self.taskDsList.get(nDatasets)
                 if len(taskDsList) == 0:
                     # no more datasets, quit
-                    self.logger.debug("{0} terminating since no more items".format(self.name))
+                    self.logger.debug(f"{self.name} terminating since no more items")
                     return
                 # loop over these datasets
                 for item in taskDsList:
@@ -162,5 +162,5 @@ class DataLocalityUpdaterThread(WorkerThread):
                         # update dataset locality table
                         self.taskBufferIF.updateDatasetLocality_JEDI(jedi_taskid=jediTaskID, datasetid=datasetID, rse=tmpRSE)
             except Exception as e:
-                self.logger.error("{0} failed in runImpl() with {1}: {2}".format(self.__class__.__name__, str(e), traceback.format_exc()))
+                self.logger.error(f"{self.__class__.__name__} failed in runImpl() with {str(e)}: {traceback.format_exc()}")
                 return

@@ -27,24 +27,24 @@ class JediContentsFeederMsgProcPlugin(BaseMsgProcPlugin):
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
-        tmp_log.debug("sub_id={0} ; msg_id={1}".format(msg_obj.sub_id, msg_obj.msg_id))
+        tmp_log.debug(f"sub_id={msg_obj.sub_id} ; msg_id={msg_obj.msg_id}")
         # parse json
         try:
             msg_dict = json.loads(msg_obj.data)
         except Exception as e:
-            err_str = "failed to parse message json {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_obj.data)
+            err_str = f"failed to parse message json {msg_obj.data} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # sanity check
         try:
             msg_type = msg_dict["msg_type"]
         except Exception as e:
-            err_str = "failed to parse message object dict {2} , skipped. {0} : {1}".format(e.__class__.__name__, e, msg_dict)
+            err_str = f"failed to parse message object dict {msg_dict} , skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         if msg_type != "jedi_contents_feeder":
             # FIXME
-            err_str = "got unknown msg_type {0} , skipped ".format(msg_type)
+            err_str = f"got unknown msg_type {msg_type} , skipped "
             tmp_log.error(err_str)
             raise
         # run
@@ -53,11 +53,11 @@ class JediContentsFeederMsgProcPlugin(BaseMsgProcPlugin):
             task_ds_list = self.tbIF.getDatasetsToFeedContents_JEDI(vo=None, prodSourceLabel=None, task_id=task_id)
             if task_ds_list:
                 self.contents_feeder_thread_obj.feed_contents_to_tasks(task_ds_list)
-                tmp_log.info("fed datasets to task {0}".format(task_id))
+                tmp_log.info(f"fed datasets to task {task_id}")
             else:
-                tmp_log.debug("got empty list of datasets to feed to task {0}; skipped ".format(task_id))
+                tmp_log.debug(f"got empty list of datasets to feed to task {task_id}; skipped ")
         except Exception as e:
-            err_str = "failed to run, skipped. {0} : {1}".format(e.__class__.__name__, e)
+            err_str = f"failed to run, skipped. {e.__class__.__name__} : {e}"
             tmp_log.error(err_str)
             raise
         # done

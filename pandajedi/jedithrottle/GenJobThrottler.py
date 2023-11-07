@@ -18,7 +18,7 @@ class GenJobThrottler(JobThrottlerBase):
     def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, resourceType):
         # make logger
         tmpLog = MsgWrapper(logger)
-        tmpLog.debug("start vo={0} label={1} cloud={2} workQueue={3}".format(vo, prodSourceLabel, cloudName, workQueue.queue_name))
+        tmpLog.debug(f"start vo={vo} label={prodSourceLabel} cloud={cloudName} workQueue={workQueue.queue_name}")
         # check if unthrottled
         if workQueue.queue_share is None:
             tmpLog.debug("  done : unthrottled since share=None")

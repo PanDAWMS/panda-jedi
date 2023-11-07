@@ -5,7 +5,7 @@ from userinterface import Client
 
 inFileList = ["file1", "file2", "file3"]
 
-logDatasetName = "panda.jeditest.log.{0}".format(uuid.uuid4())
+logDatasetName = f"panda.jeditest.log.{uuid.uuid4()}"
 
 taskParamMap = {}
 

@@ -12,7 +12,7 @@ class MsgWrapper:
         self.logger = logger
         # use timestamp as token if undefined
         if token is None:
-            self.token = "<{0}>".format(datetime.datetime.utcnow().isoformat("/"))
+            self.token = f"<{datetime.datetime.utcnow().isoformat('/')}>"
         else:
             self.token = token
         # token for http logger
@@ -36,7 +36,7 @@ class MsgWrapper:
             self.msgBuffer.pop(0)
             self.bareMsg.pop(0)
         timeNow = datetime.datetime.utcnow()
-        self.msgBuffer.append("{0} : {1}".format(timeNow.isoformat(" "), msg))
+        self.msgBuffer.append(f"{timeNow.isoformat(' ')} : {msg}")
         self.bareMsg.append(msg)
 
     def info(self, msg):
@@ -70,9 +70,9 @@ class MsgWrapper:
         strMsg = self.dumpToString()
         s, o = Client.uploadLog(strMsg, id)
         if s != 0:
-            return "failed to upload log with {0}.".format(s)
+            return f"failed to upload log with {s}."
         if o.startswith("http"):
-            return '<a href="{0}">log</a> : {1}.'.format(o, ". ".join(self.bareMsg[-2:]))
+            return f"<a href=\"{o}\">log</a> : {'. '.join(self.bareMsg[-2:])}."
         return o
 
     # send message to logger

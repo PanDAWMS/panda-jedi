@@ -63,9 +63,9 @@ class PostProcessorBase(object):
             # set dialog for preprocess
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag("Preprocessing step failed", True)
-        tmpMsg = "set task_status={0}".format(taskSpec.status)
+        tmpMsg = f"set task_status={taskSpec.status}"
         tmpLog.info(tmpMsg)
-        tmpLog.sendMsg("set task_status={0}".format(taskSpec.status), self.msgType)
+        tmpLog.sendMsg(f"set task_status={taskSpec.status}", self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ["failed", "broken", "aborted"]:
@@ -97,7 +97,7 @@ class PostProcessorBase(object):
             self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID, taskSpec.status)
         else:
             self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
-        tmpLog.debug("doBasicPostProcess done with taskStatus={0}".format(taskSpec.status))
+        tmpLog.debug(f"doBasicPostProcess done with taskStatus={taskSpec.status}")
         return
 
     # final procedure
@@ -106,7 +106,7 @@ class PostProcessorBase(object):
 
     # send mail
     def sendMail(self, jediTaskID, fromAdd, toAdd, msgBody, nTry, fileBackUp, tmpLog):
-        tmpLog.debug("sending notification to {0}\n{1}".format(toAdd, msgBody))
+        tmpLog.debug(f"sending notification to {toAdd}\n{msgBody}")
         for iTry in range(nTry):
             try:
                 stderrLog = StderrLogger(tmpLog)
@@ -123,10 +123,10 @@ class PostProcessorBase(object):
             except Exception as e:
                 if iTry + 1 < nTry:
                     # sleep for retry
-                    tmpLog.debug("sleep {0} due to {1}".format(iTry, str(e)))
+                    tmpLog.debug(f"sleep {iTry} due to {str(e)}")
                     time.sleep(30)
                 else:
-                    tmpLog.error("failed to send notification with {0}".format(str(e)))
+                    tmpLog.error(f"failed to send notification with {str(e)}")
                     if fileBackUp:
                         # write to file which is processed in add.py
                         mailFile = "{0}/jmail_{1}_{2}" % (panda_config.logdir, jediTaskID, uuid.uuid4())
@@ -252,7 +252,7 @@ class PostProcessorBase(object):
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
             # update task
-            tmpLog.info("set task_status={0}".format(taskSpec.status))
+            tmpLog.info(f"set task_status={taskSpec.status}")
             self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, updateDEFT=True)
             # kick child tasks
             self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)

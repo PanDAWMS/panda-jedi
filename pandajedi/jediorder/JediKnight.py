@@ -32,7 +32,7 @@ class JediKnight(Interaction.CommandReceiveInterface):
             Interaction.CommandReceiveInterface.start(self)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            self.logger.error("crashed in JediKnight.startImpl() with %s %s" % (errtype.__name__, errvalue))
+            self.logger.error(f"crashed in JediKnight.startImpl() with {errtype.__name__} {errvalue}")
 
     # parse init params
     def parseInit(self, par):

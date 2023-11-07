@@ -20,8 +20,8 @@ class AtlasTaskSetupper(TaskSetupperBase):
     # main to setup task
     def doSetup(self, taskSpec, datasetToRegister, pandaJobs):
         # make logger
-        tmpLog = MsgWrapper(logger, "< jediTaskID={0} >".format(taskSpec.jediTaskID))
-        tmpLog.info("start label={0} taskType={1}".format(taskSpec.prodSourceLabel, taskSpec.taskType))
+        tmpLog = MsgWrapper(logger, f"< jediTaskID={taskSpec.jediTaskID} >")
+        tmpLog.info(f"start label={taskSpec.prodSourceLabel} taskType={taskSpec.taskType}")
         # returns
         retFatal = self.SC_FATAL
         retTmpError = self.SC_FAILED
@@ -42,7 +42,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                 if tmpFileSpec.type in ["output", "log"]:
                                     if tmpFileSpec.datasetID not in datasetToRegister:
                                         datasetToRegister.append(tmpFileSpec.datasetID)
-                tmpLog.info("datasetToRegister={0}".format(str(datasetToRegister)))
+                tmpLog.info(f"datasetToRegister={str(datasetToRegister)}")
                 # get site mapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
 
@@ -51,7 +51,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                 cnDatasetMap = {}
                 for datasetID in datasetToRegister:
                     # get output and log datasets
-                    tmpLog.info("getting datasetSpec with datasetID={0}".format(datasetID))
+                    tmpLog.info(f"getting datasetSpec with datasetID={datasetID}")
                     tmpStat, datasetSpec = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID, datasetID)
                     if not tmpStat:
                         tmpLog.error("failed to get output and log datasets")
@@ -61,7 +61,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                         continue
                     # DDM backend
                     ddmBackEnd = taskSpec.getDdmBackEnd()
-                    tmpLog.info("checking {0}".format(datasetSpec.datasetName))
+                    tmpLog.info(f"checking {datasetSpec.datasetName}")
                     # secondary nucleus
                     nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
                     secNucleusSpecBase = None
@@ -105,7 +105,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                                 JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType),
                                             )
                                     else:
-                                        tmpLog.info("site={0} token={1}".format(datasetSpec.site, datasetSpec.storageToken))
+                                        tmpLog.info(f"site={datasetSpec.site} token={datasetSpec.storageToken}")
                                         location = siteMapper.getDdmEndpoint(
                                             datasetSpec.site,
                                             datasetSpec.storageToken,
@@ -135,14 +135,10 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                 else:
                                     secNucleusSpec = None
                                 # register dataset/container
-                                tmpLog.info(
-                                    "registering {0} with location={1} backend={2} lifetime={3} meta={4}".format(
-                                        targetName, location, ddmBackEnd, lifetime, str(metaData)
-                                    )
-                                )
+                                tmpLog.info(f"registering {targetName} with location={location} backend={ddmBackEnd} lifetime={lifetime} meta={str(metaData)}")
                                 tmpStat = ddmIF.registerNewDataset(targetName, backEnd=ddmBackEnd, location=location, lifetime=lifetime, metaData=metaData)
                                 if not tmpStat:
-                                    tmpLog.error("failed to register {0}".format(targetName))
+                                    tmpLog.error(f"failed to register {targetName}")
                                     return retFatal
                                 # procedures for user
                                 if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None or secNucleusSpec:
@@ -180,33 +176,27 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                             targetName, locForRule, owner=userName, lifetime=lifetime, backEnd=ddmBackEnd, activity=activity, grouping=grouping
                                         )
                                         if not tmpStat:
-                                            tmpLog.error("failed to register location {0} for {1}".format(locForRule, targetName))
+                                            tmpLog.error(f"failed to register location {locForRule} for {targetName}")
                                             return retFatal
                                         # double copy
                                         if userSetup and datasetSpec.type == "output":
                                             if datasetSpec.destination != datasetSpec.site:
-                                                tmpLog.info(
-                                                    "skip making double copy as destination={0} is not site={1}".format(
-                                                        datasetSpec.destination, datasetSpec.site
-                                                    )
-                                                )
+                                                tmpLog.info(f"skip making double copy as destination={datasetSpec.destination} is not site={datasetSpec.site}")
                                             else:
                                                 second_copy = True
                                                 try:
                                                     if taskSpec.site:
                                                         panda_site = siteMapper.getSite(taskSpec.site)
                                                         if panda_site.catchall and "skip_2nd_copy" in panda_site.catchall:
-                                                            tmpLog.info("skip making double copy as specified in {0} catchall".format(panda_site))
+                                                            tmpLog.info(f"skip making double copy as specified in {panda_site} catchall")
                                                             second_copy = False
                                                 except Exception:
                                                     second_copy = True
 
                                                 if second_copy:
-                                                    locForDouble = "(type=SCRATCHDISK)\\notforextracopy=True\\{}".format(locForRule)
+                                                    locForDouble = f"(type=SCRATCHDISK)\\notforextracopy=True\\{locForRule}"
                                                     tmpMsg = "registering double copy "
-                                                    tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(
-                                                        locForDouble, lifetime, activity, targetName
-                                                    )
+                                                    tmpMsg += f'location="{locForDouble}" lifetime={lifetime}days activity={activity} for dataset={targetName}'
                                                     tmpLog.info(tmpMsg)
                                                     tmpStat = ddmIF.registerDatasetLocation(
                                                         targetName,
@@ -220,11 +210,11 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                                         ignore_availability=False,
                                                     )
                                                     if not tmpStat:
-                                                        tmpLog.error("failed to register double copylocation {0} for {1}".format(locForDouble, targetName))
+                                                        tmpLog.error(f"failed to register double copylocation {locForDouble} for {targetName}")
                                                         return retFatal
                                 avDatasetList.append(targetName)
                             else:
-                                tmpLog.info("{0} already registered".format(targetName))
+                                tmpLog.info(f"{targetName} already registered")
                     # check if dataset is in the container
                     if datasetSpec.containerName is not None and datasetSpec.containerName != datasetSpec.datasetName:
                         # get list of constituent datasets in the container
@@ -232,14 +222,14 @@ class AtlasTaskSetupper(TaskSetupperBase):
                             cnDatasetMap[datasetSpec.containerName] = ddmIF.listDatasetsInContainer(datasetSpec.containerName)
                         # add dataset
                         if datasetSpec.datasetName not in cnDatasetMap[datasetSpec.containerName]:
-                            tmpLog.info("adding {0} to {1}".format(datasetSpec.datasetName, datasetSpec.containerName))
+                            tmpLog.info(f"adding {datasetSpec.datasetName} to {datasetSpec.containerName}")
                             tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName, [datasetSpec.datasetName], backEnd=ddmBackEnd)
                             if not tmpStat:
-                                tmpLog.error("failed to add {0} to {1}".format(datasetSpec.datasetName, datasetSpec.containerName))
+                                tmpLog.error(f"failed to add {datasetSpec.datasetName} to {datasetSpec.containerName}")
                                 return retFatal
                             cnDatasetMap[datasetSpec.containerName].append(datasetSpec.datasetName)
                         else:
-                            tmpLog.info("{0} already in {1}".format(datasetSpec.datasetName, datasetSpec.containerName))
+                            tmpLog.info(f"{datasetSpec.datasetName} already in {datasetSpec.containerName}")
                     # update dataset
                     datasetSpec.status = "registered"
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec, {"jediTaskID": taskSpec.jediTaskID, "datasetID": datasetID})
@@ -250,19 +240,19 @@ class AtlasTaskSetupper(TaskSetupperBase):
                 metaData = {}
                 metaData["task_id"] = taskSpec.jediTaskID
                 metaData["hidden"] = True
-                tmpLog.info("registering ES dataset {0} with location={1} meta={2}".format(targetName, location, str(metaData)))
+                tmpLog.info(f"registering ES dataset {targetName} with location={location} meta={str(metaData)}")
                 tmpStat = ddmIF.registerNewDataset(targetName, location=location, metaData=metaData, resurrect=True)
                 if not tmpStat:
-                    tmpLog.error("failed to register ES dataset {0}".format(targetName))
+                    tmpLog.error(f"failed to register ES dataset {targetName}")
                     return retFatal
                 # register rule
                 location = "type=DATADISK"
                 activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
                 grouping = "NONE"
-                tmpLog.info("registering location={0} activity={1} grouping={2}".format(location, activity, grouping))
+                tmpLog.info(f"registering location={location} activity={activity} grouping={grouping}")
                 tmpStat = ddmIF.registerDatasetLocation(targetName, location, activity=activity, grouping=grouping)
                 if not tmpStat:
-                    tmpLog.error("failed to register location {0} with {2} for {1}".format(location, targetName, activity))
+                    tmpLog.error(f"failed to register location {location} with {activity} for {targetName}")
                     return retFatal
             # open datasets
             if taskSpec.prodSourceLabel in ["managed", "test"]:
@@ -275,7 +265,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                 outDatasetList.append(tmpFileSpec.destinationDBlock)
                 # open datasets
                 for outDataset in outDatasetList:
-                    tmpLog.info("open {0}".format(outDataset))
+                    tmpLog.info(f"open {outDataset}")
                     ddmIF.openDataset(outDataset)
                     # unset lifetime
                     ddmIF.setDatasetMetadata(outDataset, "lifetime", None)
@@ -283,7 +273,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
             tmpLog.info("done")
             return retOK
         except Exception as e:
-            tmpLog.error("doSetup failed with {}".format(str(e)))
+            tmpLog.error(f"doSetup failed with {str(e)}")
             tb = traceback.format_exc()
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             tmpLog.error(tb)

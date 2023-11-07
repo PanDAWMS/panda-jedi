@@ -44,7 +44,7 @@ from pandaserver.dataservice import DataServiceUtils  # noqa: E402
 
 sites = sorted(site_mapper.getCloud("WORLD")["sites"])
 for tmp_site_name in sites:
-    print("tmp_site_name: {0}".format(tmp_site_name))
+    print(f"tmp_site_name: {tmp_site_name}")
 
     tmp_site_spec = site_mapper.getSite(tmp_site_name)
 
@@ -55,7 +55,7 @@ for tmp_site_name in sites:
     for tmp_ddm_endpoint in [tmp_site_spec.ddm_input] + list(tmp_site_spec.setokens_input.values()):
         try:
             tmp_prefix = DataServiceUtils.getDQ2Prefix(tmp_ddm_endpoint)
-            print("prefix: {0}".format(tmp_prefix))
+            print(f"prefix: {tmp_prefix}")
         except TypeError:
             print("excepted!")
 
