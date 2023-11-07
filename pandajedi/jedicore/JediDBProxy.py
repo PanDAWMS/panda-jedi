@@ -13721,7 +13721,9 @@ class DBProxy(OraDBProxy.DBProxy):
                 mb_proxy.send(msg)
         except Exception:
             self.dumpErrorMessage(tmpLog)
+            return
         tmpLog.debug("done")
+        return True
 
     # task attempt start logging
     def log_task_attempt_start(self, jedi_task_id):
