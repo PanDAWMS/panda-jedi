@@ -9659,7 +9659,10 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":jediTaskID"] = jediTaskID
                                 varMap[":datasetID"] = datasetID
                                 varMap[":oldStatus1"] = "picked"
-                                varMap[":oldStatus2"] = "dummy"
+                                if taskOldStatus == "exhausted":
+                                    varMap[":oldStatus2"] = "dummy"
+                                else:
+                                    varMap[":oldStatus2"] = "running"
                                 varMap[":newStatus"] = "ready"
                                 varMap[":proc_status"] = "ready"
                                 varMap[":keepTrack"] = 1
@@ -9751,7 +9754,10 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":jediTaskID"] = jediTaskID
                                 varMap[":datasetID"] = datasetID
                                 varMap[":oldStatus1"] = "picked"
-                                varMap[":oldStatus2"] = "dummy"
+                                if taskOldStatus == "exhausted":
+                                    varMap[":oldStatus2"] = "dummy"
+                                else:
+                                    varMap[":oldStatus2"] = "running"
                                 varMap[":newStatus"] = "ready"
                                 varMap[":proc_status"] = "ready"
                                 varMap[":keepTrack"] = 1
