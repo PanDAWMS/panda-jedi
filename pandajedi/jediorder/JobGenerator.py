@@ -1921,7 +1921,8 @@ class JobGeneratorThread(WorkerThread):
                 streamName = "IN"
                 tmpPFNs = []
                 for tmpLFN in tmpLFNs:
-                    tmpPFN = taskParamMap["pfnList"][int(tmpLFN.split(":")[0])]
+                    # remove serial number and num events
+                    tmpPFN = taskParamMap["pfnList"][int(tmpLFN.split(":")[0])].split("^")[0]
                     tmpPFNs.append(tmpPFN)
                 tmpLFNs = tmpPFNs
             # add to map
