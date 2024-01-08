@@ -1892,7 +1892,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     elif (cloudName is None or (useWorldCloud and (nUnassignedDSs > 0 or nucleus in ["", None]))) and prodSourceLabel in ["managed", "test"]:
                         # set assigning for TaskBrokerage
                         varMap[":status"] = "assigning"
-                        varMap[":frozenTime"] = None
+                        varMap[":frozenTime"] = timeNow
                         # set old update time to trigger TaskBrokerage immediately
                         varMap[":updateTime"] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     else:
@@ -1988,6 +1988,9 @@ class DBProxy(OraDBProxy.DBProxy):
             if taskSpec.status == "pending" and setFrozenTime:
                 if frozenTime is None:
                     taskSpec.frozenTime = timeNow
+            elif taskSpec.status == "assigning":
+                # keep original frozen time for assigning tasks
+                pass
             else:
                 if frozenTime is not None:
                     taskSpec.frozenTime = None
@@ -8602,15 +8605,15 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to update tasks
             sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET status=oldStatus,oldStatus=NULL,modificationtime=CURRENT_DATE "
-            sqlTU += "WHERE jediTaskID=:jediTaskID AND oldStatus IS NOT NULL "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND oldStatus IS NOT NULL AND status=:oldStatus "
             # sql to timeout tasks
             sqlTO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
-            sqlTO += "WHERE jediTaskID=:jediTaskID "
+            sqlTO += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # sql to keep pending
             sqlTK = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTK += "SET modificationtime=CURRENT_DATE,frozenTime=CURRENT_DATE "
-            sqlTK += "WHERE jediTaskID=:jediTaskID "
+            sqlTK += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # sql to check the number of finished files
             sqlND = f"SELECT SUM(nFilesFinished) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlND += "WHERE jediTaskID=:jediTaskID AND type IN ("
@@ -8630,6 +8633,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 keepFlag = False
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
+                varMap[":oldStatus"] = "pending"
                 # check parent
                 parentRunning = False
                 if parent_tid not in [None, jediTaskID]:
@@ -8665,13 +8669,14 @@ class DBProxy(OraDBProxy.DBProxy):
                     else:
                         sql = sqlTU
                 self.cur.execute(sql + comment, varMap)
-                if timeoutFlag:
-                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} timeout")
-                elif keepFlag:
-                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=keep_pending")
-                else:
-                    tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=reactivate")
                 tmpRow = self.cur.rowcount
+                if tmpRow > 0:
+                    if timeoutFlag:
+                        tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} timeout")
+                    elif keepFlag:
+                        tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=keep_pending")
+                    else:
+                        tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=reactivate")
                 nRow += tmpRow
                 if tmpRow > 0 and not keepFlag:
                     self.record_task_status_change(jediTaskID)
