@@ -372,14 +372,16 @@ class DBProxy(OraDBProxy.DBProxy):
         harmlessRet = None, 0, None, diagMap
         regStart = datetime.datetime.utcnow()
         # mutable
+        fake_mutable_for_skip_short_output = False
         if (noWaitParent or inputPreStaging) and datasetState == "mutable":
             isMutableDataset = True
         elif skip_short_output:
             # treat as mutable to skip short output by using the SR mechanism
             isMutableDataset = True
+            fake_mutable_for_skip_short_output = True
         else:
             isMutableDataset = False
-        tmpLog.debug(f"isMutableDataset={isMutableDataset} respectSplitRule={taskSpec.respectSplitRule()}")
+        tmpLog.debug(f"isMutableDataset={isMutableDataset} (fake={fake_mutable_for_skip_short_output}) respectSplitRule={taskSpec.respectSplitRule()}")
         # event level splitting
         if nEventsPerJob is not None and nFilesPerJob is None:
             isEventSplit = True
@@ -1044,6 +1046,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # respect split rule
                         enoughPendingWithSL = False
                         numFilesWithSL = 0
+                        init_num_files_with_sl = None
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset or datasetSpec.state == "mutable"):
                             tmpDatasetSpecMap = {}
                             # read files
@@ -1083,7 +1086,10 @@ class DBProxy(OraDBProxy.DBProxy):
                                     tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"].append(tmpFileSpec.fileID)
                                     tmpDatasetSpecMap[tmpLumiBlockNr]["datasetSpec"].addFile(tmpFileSpec)
                             # make sub chunks
-                            if taskSpec.status == "running":
+                            if fake_mutable_for_skip_short_output:
+                                # use # of files as max # of chunks for skip_short_output to activate all files in closed datasets
+                                maxNumChunks = len(varMaps)
+                            elif taskSpec.status == "running":
                                 maxNumChunks = 100
                             else:
                                 maxNumChunks = 1
@@ -1155,6 +1161,8 @@ class DBProxy(OraDBProxy.DBProxy):
                                         tmp_nChunksLB += 1
                                         tmp_nChunks += 1
                                         tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                if init_num_files_with_sl is None:
+                                    init_num_files_with_sl = tmp_numFilesWithSL
                                 if tmp_enoughPendingWithSL:
                                     enoughPendingWithSL = True
                                 else:
@@ -1284,7 +1292,10 @@ class DBProxy(OraDBProxy.DBProxy):
                             if set([taskStatus, taskSpec.oldStatus]) & set(["scouting", "ready", "assigning"]):
                                 varMap[":nFilesTobeUsed"] = nFilesToUseDS
                             else:
-                                if isMutableDataset:
+                                if fake_mutable_for_skip_short_output:
+                                    # use num_files_with_sl in the first iteration since numFilesWithSL is too big for scouts
+                                    varMap[":nFilesTobeUsed"] = init_num_files_with_sl + nUsed
+                                elif isMutableDataset:
                                     varMap[":nFilesTobeUsed"] = nReady + nUsed
                                 else:
                                     varMap[":nFilesTobeUsed"] = numFilesWithSL + nUsed
