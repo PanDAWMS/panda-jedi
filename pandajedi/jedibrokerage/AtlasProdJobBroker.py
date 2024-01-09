@@ -109,7 +109,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             tmpLog = MsgWrapper(
                 logger,
                 f"<jediTaskID={taskSpec.jediTaskID}>",
-                monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.utcnow().isoformat('/')}>",
+                monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.now(datetime.UTC).isoformat('/')}>",
             )
         else:
             tmpLog = glLog
@@ -122,7 +122,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             tmpLog.debug("Network weights are PASSIVE!")
 
-        timeNow = datetime.datetime.utcnow()
+        timeNow = datetime.datetime.now(datetime.UTC)
 
         # return for failure
         retFatal = self.SC_FATAL, inputChunk

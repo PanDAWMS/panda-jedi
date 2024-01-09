@@ -43,7 +43,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                 tmpStr += f"num_pending_tasks_AES={nPendingTasks} max_pending_tasks_AES={maxPending} "
                 tmpLog.info(tmpStr)
                 # not chane many tasks at once
-                if lastTaskTime is None or (lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5)):
+                if lastTaskTime is None or (lastTaskTime < datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=5)):
                     if minNumEvents is not None and nEvents < minNumEvents and maxPending is not None and (maxPending is None or maxPending > nPendingTasks):
                         autoEsConversion = True
                         tmpLog.info("will be converted to AES unless it goes to pending")
