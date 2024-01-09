@@ -35,7 +35,7 @@ class WatchDog(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.utcnow()
+            startTime = datetime.datetime.now(datetime.UTC)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -62,7 +62,7 @@ class WatchDog(JediKnight, FactoryBase):
                 tmpLog.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = jedi_config.watchdog.loopCycle if self.period is None else self.period
-            timeDelta = datetime.datetime.utcnow() - startTime
+            timeDelta = datetime.datetime.now(datetime.UTC) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

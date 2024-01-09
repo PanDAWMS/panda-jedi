@@ -83,7 +83,7 @@ class TaskRefinerBase(object):
         taskSpec.processingType = taskParamMap["processingType"]
         taskSpec.taskType = taskParamMap["taskType"]
         taskSpec.splitRule = splitRule
-        taskSpec.startTime = datetime.datetime.utcnow()
+        taskSpec.startTime = datetime.datetime.now(datetime.UTC)
         if "workingGroup" in taskParamMap:
             taskSpec.workingGroup = taskParamMap["workingGroup"]
         if "countryGroup" in taskParamMap:
