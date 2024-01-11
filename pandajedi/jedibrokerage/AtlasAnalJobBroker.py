@@ -45,7 +45,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             msg_tag = f"<jediTaskID={taskSpec.jediTaskID} datasetID={inputChunk.masterDataset.datasetID}>"
         else:
             msg_tag = f"<jediTaskID={taskSpec.jediTaskID}>"
-        tmpLog = MsgWrapper(logger, msg_tag, monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.now(datetime.UTC).isoformat('/')}>")
+        tmpLog = MsgWrapper(logger, msg_tag, monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.now(datetime.timezone.utc).isoformat('/')}>")
         tmpLog.debug("start")
         # return for failure
         retFatal = self.SC_FATAL, inputChunk
@@ -363,7 +363,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             elif (
                 loc_check_timeout_val
                 and taskSpec.frozenTime
-                and datetime.datetime.now(datetime.UTC) - taskSpec.frozenTime > datetime.timedelta(hours=loc_check_timeout_val)
+                and datetime.datetime.now(datetime.timezone.utc) - taskSpec.frozenTime > datetime.timedelta(hours=loc_check_timeout_val)
             ):
                 to_ignore_data_loc = True
                 tmp_msg += "check timeout (last successful cycle at {} was more than {} ({}hrs) ago)".format(

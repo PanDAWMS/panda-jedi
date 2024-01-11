@@ -26,7 +26,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         # site mapper
         self.siteMapper = SiteMapper(self)
         # update time for site mapper
-        self.dateTimeForSM = datetime.datetime.now(datetime.UTC)
+        self.dateTimeForSM = datetime.datetime.now(datetime.timezone.utc)
         logger.debug("__init__")
 
     # query an SQL
@@ -36,8 +36,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
     # get SiteMapper
     def getSiteMapper(self):
-        timeNow = datetime.datetime.now(datetime.UTC)
-        if datetime.datetime.now(datetime.UTC) - self.dateTimeForSM > datetime.timedelta(minutes=10):
+        timeNow = datetime.datetime.now(datetime.timezone.utc)
+        if datetime.datetime.now(datetime.timezone.utc) - self.dateTimeForSM > datetime.timedelta(minutes=10):
             self.siteMapper = SiteMapper(self)
             self.dateTimeForSM = timeNow
         return self.siteMapper

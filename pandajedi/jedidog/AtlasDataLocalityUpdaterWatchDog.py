@@ -95,7 +95,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             # lifetime of records
             record_lifetime_hours = 24
             # run
-            now_timestamp = datetime.datetime.now(datetime.UTC)
+            now_timestamp = datetime.datetime.now(datetime.timezone.utc)
             before_timestamp = now_timestamp - datetime.timedelta(hours=record_lifetime_hours)
             n_rows = self.taskBufferIF.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
             tmpLog.info(f"cleaned up {n_rows} records")

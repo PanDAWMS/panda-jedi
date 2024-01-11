@@ -35,7 +35,7 @@ class TaskRefiner(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.UTC)
+            startTime = datetime.datetime.now(datetime.timezone.utc)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -70,7 +70,7 @@ class TaskRefiner(JediKnight, FactoryBase):
                 tmpLog.error(f"Traceback: {traceback.format_exc()}")
             # sleep if needed
             loopCycle = jedi_config.taskrefine.loopCycle
-            timeDelta = datetime.datetime.now(datetime.UTC) - startTime
+            timeDelta = datetime.datetime.now(datetime.timezone.utc) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
