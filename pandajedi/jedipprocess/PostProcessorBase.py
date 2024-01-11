@@ -89,7 +89,7 @@ class PostProcessorBase(object):
                 datasetSpec.nFiles = datasetSpec.nFilesFinished
             self.taskBufferIF.updateDataset_JEDI(datasetSpec, {"datasetID": datasetSpec.datasetID, "jediTaskID": datasetSpec.jediTaskID})
         # end time
-        taskSpec.endTime = datetime.datetime.now(datetime.timezone.utc)
+        taskSpec.endTime = datetime.datetime.utcnow()
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, updateDEFT=True)
         # kill or kick child tasks
