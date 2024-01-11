@@ -69,7 +69,7 @@ installSC(sys.modules[__name__])
 
 # log message with timestamp
 def dumpStdOut(sender, message):
-    timeNow = datetime.datetime.now(datetime.UTC)
+    timeNow = datetime.datetime.now(datetime.timezone.utc)
     print(f"{str(timeNow)} {sender}: INFO    {message}")
 
 
@@ -176,10 +176,10 @@ class MethodClass(object):
                 # wait response
                 stepIdx = 4
                 timeoutPeriod = 600
-                timeNow = datetime.datetime.now(datetime.UTC)
+                timeNow = datetime.datetime.now(datetime.timezone.utc)
                 if not pipe.poll(timeoutPeriod):
                     raise JEDITimeoutError(f"did not get response for {timeoutPeriod}sec")
-                regTime = datetime.datetime.now(datetime.UTC) - timeNow
+                regTime = datetime.datetime.now(datetime.timezone.utc) - timeNow
                 if regTime > datetime.timedelta(seconds=60):
                     dumpStdOut(
                         self.className,
@@ -280,7 +280,7 @@ class CommandSendInterface(object):
         # start child process
         msg = f"start {self.className} with pid={os.getpid()}"
         dumpStdOut(self.moduleName, msg)
-        timeNow = datetime.datetime.now(datetime.UTC)
+        timeNow = datetime.datetime.now(datetime.timezone.utc)
         try:
             cls(channel).start()
         except Exception:
@@ -367,7 +367,7 @@ class CommandReceiveInterface(object):
                             # cache is fresh
                             if tmpCacheKey in self.cacheMap and self.cacheMap[tmpCacheKey]["utime"] + datetime.timedelta(
                                 seconds=timeRange
-                            ) > datetime.datetime.now(datetime.UTC):
+                            ) > datetime.datetime.now(datetime.timezone.utc):
                                 tmpRet = self.cacheMap[tmpCacheKey]["value"]
                                 doExec = False
                     # exec
@@ -403,7 +403,7 @@ class CommandReceiveInterface(object):
                     retObj.errorValue = f"type={errtype.__name__} : {className}.{commandObj.methodName} : {errvalue}"
                 # cache
                 if useCache and doExec and retObj.statusCode == self.SC_SUCCEEDED:
-                    self.cacheMap[tmpCacheKey] = {"utime": datetime.datetime.now(datetime.UTC), "value": tmpRet}
+                    self.cacheMap[tmpCacheKey] = {"utime": datetime.datetime.now(datetime.timezone.utc), "value": tmpRet}
             # return
             self.con.send(retObj)
 

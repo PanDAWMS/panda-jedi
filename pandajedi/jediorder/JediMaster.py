@@ -29,7 +29,7 @@ class JediMaster:
         for subModuleName in moduleName.split(".")[1:]:
             mod = getattr(mod, subModuleName)
         # launch
-        timeNow = datetime.datetime.now(datetime.UTC)
+        timeNow = datetime.datetime.now(datetime.timezone.utc)
         print(f"{str(timeNow)} {moduleName}: INFO    start launcher with pid={os.getpid()}")
         mod.launcher(*args, **kwargs)
 
@@ -170,7 +170,7 @@ class JediMaster:
         time.sleep(5)
         for knight in knightList:
             if not knight.is_alive():
-                timeNow = datetime.datetime.now(datetime.UTC)
+                timeNow = datetime.datetime.now(datetime.timezone.utc)
                 print(f"{str(timeNow)} {self.__class__.__name__}: ERROR    pid={knight.pid} died in initialization")
                 os.killpg(os.getpgrp(), signal.SIGKILL)
         # join
@@ -202,7 +202,7 @@ if __name__ == "__main__":
             uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
         if jedi_config.master.gname:
             gid = grp.getgrnam(jedi_config.master.gname).gr_gid
-    timeNow = datetime.datetime.now(datetime.UTC)
+    timeNow = datetime.datetime.now(datetime.timezone.utc)
     print(f"{str(timeNow)} JediMaster: INFO    start")
     # make daemon context
     dc = daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stderr, uid=uid, gid=gid)

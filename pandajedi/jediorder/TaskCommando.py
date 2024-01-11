@@ -33,7 +33,7 @@ class TaskCommando(JediKnight):
         JediKnight.start(self)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.UTC)
+            startTime = datetime.datetime.now(datetime.timezone.utc)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -65,7 +65,7 @@ class TaskCommando(JediKnight):
                 tmpLog.error(f"failed in {self.__class__.__name__}.start() with {str(e)} {traceback.format_exc()}")
             # sleep if needed
             loopCycle = jedi_config.tcommando.loopCycle
-            timeDelta = datetime.datetime.now(datetime.UTC) - startTime
+            timeDelta = datetime.datetime.now(datetime.timezone.utc) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

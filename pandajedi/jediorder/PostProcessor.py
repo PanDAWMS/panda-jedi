@@ -34,7 +34,7 @@ class PostProcessor(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.UTC)
+            startTime = datetime.datetime.now(datetime.timezone.utc)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -76,7 +76,7 @@ class PostProcessor(JediKnight, FactoryBase):
                 tmpLog.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = 60
-            timeDelta = datetime.datetime.now(datetime.UTC) - startTime
+            timeDelta = datetime.datetime.now(datetime.timezone.utc) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

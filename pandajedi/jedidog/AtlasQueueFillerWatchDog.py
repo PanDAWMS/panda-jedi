@@ -322,7 +322,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # available sites
             available_sites_list = self.get_available_sites_list()
             # now timestamp
-            now_time = datetime.datetime.now(datetime.UTC)
+            now_time = datetime.datetime.now(datetime.timezone.utc)
             now_time_ts = int(now_time.timestamp())
             # update site empty-since map
             site_empty_since_map = copy.deepcopy(site_empty_since_map_orig)
@@ -364,7 +364,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     tmp_log.debug(f"skipped {site} since coreCount is not set")
                     continue
                 # now timestamp
-                now_time = datetime.datetime.now(datetime.UTC)
+                now_time = datetime.datetime.now(datetime.timezone.utc)
                 now_time_ts = int(now_time.timestamp())
                 # skip if not empty for long enough
                 if site not in site_empty_since_map:
@@ -547,7 +547,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             blacklist_duration_hours = 12
             blacklisted_tasks_map_orig = self._get_from_bt_cache()
             blacklisted_tasks_map = copy.deepcopy(blacklisted_tasks_map_orig)
-            now_time = datetime.datetime.now(datetime.UTC)
+            now_time = datetime.datetime.now(datetime.timezone.utc)
             min_allowed_time = now_time - datetime.timedelta(hours=blacklist_duration_hours)
             min_allowed_ts = int(min_allowed_time.timestamp())
             for ts_str in blacklisted_tasks_map_orig:
@@ -661,7 +661,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 if had_undo and not force_undo:
                     blacklisted_tasks_map_orig = self._get_from_bt_cache()
                     blacklisted_tasks_map = copy.deepcopy(blacklisted_tasks_map_orig)
-                    now_time = datetime.datetime.now(datetime.UTC)
+                    now_time = datetime.datetime.now(datetime.timezone.utc)
                     now_rounded_ts = int(now_time.replace(minute=0, second=0, microsecond=0).timestamp())
                     ts_str = str(now_rounded_ts)
                     if ts_str in blacklisted_tasks_map_orig:
