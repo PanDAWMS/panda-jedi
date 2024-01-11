@@ -23,10 +23,10 @@ class ProcessWrapper(multiprocessing.Process):
                 try:
                     proc.join(20)
                     if not JediCoreUtils.checkProcess(pid):
-                        timeNow = datetime.datetime.now(datetime.timezone.utc)
+                        timeNow = datetime.datetime.utcnow()
                         print(f"{str(timeNow)} {self.__class__.__name__}: INFO    pid={pid} not exist")
                         break
                 except Exception:
-                    timeNow = datetime.datetime.now(datetime.timezone.utc)
+                    timeNow = datetime.datetime.utcnow()
                     errType, errValue = sys.exc_info()[:2]
                     print(f"{str(timeNow)} {self.__class__.__name__}: INFO    failed to check pid={pid} with {errType} {errValue}")

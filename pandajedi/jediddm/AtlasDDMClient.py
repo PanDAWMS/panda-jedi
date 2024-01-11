@@ -356,7 +356,7 @@ class AtlasDDMClient(DDMClientBase):
         method_name += f" pid={self.pid}"
         method_name += f" < jediTaskID={dataset_spec.jediTaskID} datasetID={dataset_spec.datasetID} >"
         tmp_log = MsgWrapper(logger, method_name)
-        loopStart = datetime.datetime.now(datetime.timezone.utc)
+        loopStart = datetime.datetime.utcnow()
         try:
             tmp_log.debug(
                 "start datasetName={} check_completeness={} nFiles={} nSites={} "
@@ -368,7 +368,7 @@ class AtlasDDMClient(DDMClientBase):
             # get the file map
             tmp_status, tmp_output = self.getDatasetMetaData(dataset_spec.datasetName)
             if tmp_status != self.SC_SUCCEEDED:
-                regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+                regTime = datetime.datetime.utcnow() - loopStart
                 tmp_log.error(f"failed in {regTime.seconds} sec to get metadata with {tmp_output}")
                 return tmp_status, tmp_output
             total_files_in_dataset = tmp_output["length"]
@@ -384,7 +384,7 @@ class AtlasDDMClient(DDMClientBase):
                 dataset_spec.datasetName, use_vp=use_vp, detailed=True, use_deep=use_deep, element_list=element_list
             )
             if tmp_status != self.SC_SUCCEEDED:
-                regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+                regTime = datetime.datetime.utcnow() - loopStart
                 tmp_log.error(f"failed in {regTime.seconds} sec to get dataset replicas with {tmp_output}")
                 return tmp_status, tmp_output
             dataset_replica_map = tmp_output
@@ -526,11 +526,11 @@ class AtlasDDMClient(DDMClientBase):
             tmp_log.debug(logging_str)
 
             # return
-            regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+            regTime = datetime.datetime.utcnow() - loopStart
             tmp_log.debug(f"done in {regTime.seconds} sec")
             return self.SC_SUCCEEDED, return_map
         except Exception as e:
-            regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+            regTime = datetime.datetime.utcnow() - loopStart
             error_message = f"failed in {regTime.seconds} sec with {str(e)} {traceback.format_exc()} "
             tmp_log.error(error_message)
             return self.SC_FAILED, f"{self.__class__.__name__}.{method_name} {error_message}"
@@ -546,7 +546,7 @@ class AtlasDDMClient(DDMClientBase):
             lfn_to_rses_map = {}
             dids = []
             i_loop = 0
-            startTime = datetime.datetime.now(datetime.timezone.utc)
+            startTime = datetime.datetime.utcnow()
             tmp_log.debug("start")
             for guid, lfn in files.items():
                 i_guid += 1
@@ -555,11 +555,11 @@ class AtlasDDMClient(DDMClientBase):
                 if len(dids) % max_guid == 0 or i_guid == len(files):
                     i_loop += 1
                     tmp_log.debug(f"lookup {i_loop} start")
-                    loopStart = datetime.datetime.now(datetime.timezone.utc)
+                    loopStart = datetime.datetime.utcnow()
                     x = client.list_replicas(dids, ["srm", "gsiftp"], resolve_archives=True)
-                    regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+                    regTime = datetime.datetime.utcnow() - loopStart
                     tmp_log.info(f"rucio.list_replicas took {regTime.seconds} sec for {len(dids)} files")
-                    loopStart = datetime.datetime.now(datetime.timezone.utc)
+                    loopStart = datetime.datetime.utcnow()
                     for tmp_dict in x:
                         try:
                             tmp_LFN = str(tmp_dict["name"])
@@ -568,12 +568,12 @@ class AtlasDDMClient(DDMClientBase):
                             pass
                     # reset the dids list for the next bulk for Rucio
                     dids = []
-                    regTime = datetime.datetime.now(datetime.timezone.utc) - loopStart
+                    regTime = datetime.datetime.utcnow() - loopStart
                     tmp_log.debug(f"lookup {i_loop} end in {regTime.seconds} sec")
-            regTime = datetime.datetime.now(datetime.timezone.utc) - startTime
+            regTime = datetime.datetime.utcnow() - startTime
             tmp_log.debug(f"end in {regTime.seconds} sec")
         except Exception as e:
-            regTime = datetime.datetime.now(datetime.timezone.utc) - startTime
+            regTime = datetime.datetime.utcnow() - startTime
             tmp_log.error(f"failed in {regTime.seconds} sec")
             return self.SC_FAILED, f"file lookup failed with {str(e)} {traceback.format_exc()}"
 
@@ -1379,7 +1379,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
         # check freashness
-        timeNow = datetime.datetime.now(datetime.timezone.utc)
+        timeNow = datetime.datetime.utcnow()
         if self.lastUpdateBL is not None and timeNow - self.lastUpdateBL < self.timeIntervalBL:
             return
         self.lastUpdateBL = timeNow
@@ -1456,7 +1456,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
         # check freshness
-        timeNow = datetime.datetime.now(datetime.timezone.utc)
+        timeNow = datetime.datetime.utcnow()
         if self.lastUpdateEP is not None and timeNow - self.lastUpdateEP < self.timeIntervalEP:
             return
         self.lastUpdateEP = timeNow

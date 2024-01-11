@@ -12,7 +12,7 @@ class MsgWrapper:
         self.logger = logger
         # use timestamp as token if undefined
         if token is None:
-            self.token = f"<{datetime.datetime.now(datetime.timezone.utc).isoformat('/')}>"
+            self.token = f"<{datetime.datetime.utcnow().isoformat('/')}>"
         else:
             self.token = token
         # token for http logger
@@ -35,7 +35,7 @@ class MsgWrapper:
         if len(self.msgBuffer) > self.lineLimit:
             self.msgBuffer.pop(0)
             self.bareMsg.pop(0)
-        timeNow = datetime.datetime.now(datetime.timezone.utc)
+        timeNow = datetime.datetime.utcnow()
         self.msgBuffer.append(f"{timeNow.isoformat(' ')} : {msg}")
         self.bareMsg.append(msg)
 
