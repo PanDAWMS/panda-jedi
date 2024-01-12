@@ -1090,7 +1090,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             # make sub chunks
                             if fake_mutable_for_skip_short_output:
                                 # use # of files as max # of chunks for skip_short_output to activate all files in closed datasets
-                                maxNumChunks = len(varMaps)
+                                maxNumChunks = max(len(uniqueFileKeyList), 100)
                             elif taskSpec.status == "running":
                                 maxNumChunks = 100
                             else:
