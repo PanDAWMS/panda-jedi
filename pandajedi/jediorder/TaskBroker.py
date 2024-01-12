@@ -31,7 +31,7 @@ class TaskBroker(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.utcnow()
+            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -103,7 +103,7 @@ class TaskBroker(JediKnight, FactoryBase):
             tmpLog.debug("done")
             # sleep if needed
             loopCycle = jedi_config.taskbroker.loopCycle
-            timeDelta = datetime.datetime.utcnow() - startTime
+            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
