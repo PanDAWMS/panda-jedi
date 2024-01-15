@@ -69,7 +69,7 @@ installSC(sys.modules[__name__])
 
 # log message with timestamp
 def dumpStdOut(sender, message):
-    timeNow = datetime.datetime.utcnow()
+    timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     print(f"{str(timeNow)} {sender}: INFO    {message}")
 
 
@@ -176,10 +176,10 @@ class MethodClass(object):
                 # wait response
                 stepIdx = 4
                 timeoutPeriod = 600
-                timeNow = datetime.datetime.utcnow()
+                timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
                 if not pipe.poll(timeoutPeriod):
                     raise JEDITimeoutError(f"did not get response for {timeoutPeriod}sec")
-                regTime = datetime.datetime.utcnow() - timeNow
+                regTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - timeNow
                 if regTime > datetime.timedelta(seconds=60):
                     dumpStdOut(
                         self.className,
@@ -280,7 +280,7 @@ class CommandSendInterface(object):
         # start child process
         msg = f"start {self.className} with pid={os.getpid()}"
         dumpStdOut(self.moduleName, msg)
-        timeNow = datetime.datetime.utcnow()
+        timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         try:
             cls(channel).start()
         except Exception:
@@ -365,10 +365,9 @@ class CommandReceiveInterface(object):
                         if tmpCacheKey is not None:
                             useCache = True
                             # cache is fresh
-                            if (
-                                tmpCacheKey in self.cacheMap
-                                and self.cacheMap[tmpCacheKey]["utime"] + datetime.timedelta(seconds=timeRange) > datetime.datetime.utcnow()
-                            ):
+                            if tmpCacheKey in self.cacheMap and self.cacheMap[tmpCacheKey]["utime"] + datetime.timedelta(
+                                seconds=timeRange
+                            ) > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None):
                                 tmpRet = self.cacheMap[tmpCacheKey]["value"]
                                 doExec = False
                     # exec
@@ -404,7 +403,7 @@ class CommandReceiveInterface(object):
                     retObj.errorValue = f"type={errtype.__name__} : {className}.{commandObj.methodName} : {errvalue}"
                 # cache
                 if useCache and doExec and retObj.statusCode == self.SC_SUCCEEDED:
-                    self.cacheMap[tmpCacheKey] = {"utime": datetime.datetime.utcnow(), "value": tmpRet}
+                    self.cacheMap[tmpCacheKey] = {"utime": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), "value": tmpRet}
             # return
             self.con.send(retObj)
 

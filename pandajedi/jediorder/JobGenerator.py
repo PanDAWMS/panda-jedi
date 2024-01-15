@@ -65,7 +65,7 @@ class JobGenerator(JediKnight):
         globalThreadPool = ThreadPool()
         # go into main loop
         while True:
-            startTime = datetime.datetime.utcnow()
+            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -333,7 +333,7 @@ class JobGenerator(JediKnight):
                 loopCycle = self.loopCycle_cust
             else:
                 loopCycle = jedi_config.jobgen.loopCycle
-            timeDelta = datetime.datetime.utcnow() - startTime
+            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             tmpLog.debug(f"loopCycle {loopCycle}s; sleeping {sleepPeriod}s")
             if sleepPeriod > 0:
@@ -519,7 +519,7 @@ class JobGeneratorThread(WorkerThread):
                         taskSpec.errorDialog = None
                         # reset map of buildSpec
                         self.buildSpecMap = {}
-                        loopStart = datetime.datetime.utcnow()
+                        loopStart = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
                         # make logger
                         tmpLog = MsgWrapper(
                             self.logger,
@@ -697,7 +697,7 @@ class JobGeneratorThread(WorkerThread):
                             if (
                                 tmpStat == Interaction.SC_FATAL
                                 and taskSpec.frozenTime is not None
-                                and datetime.datetime.utcnow() - taskSpec.frozenTime > datetime.timedelta(days=7)
+                                and datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - taskSpec.frozenTime > datetime.timedelta(days=7)
                             ):
                                 tmpErrStr = "fatal error when setting up task"
                                 tmpLog.error(tmpErrStr)
@@ -847,7 +847,7 @@ class JobGeneratorThread(WorkerThread):
                                 setOldModTime = True
                         else:
                             taskSpec.lockedBy = self.pid
-                            taskSpec.lockedTime = datetime.datetime.utcnow()
+                            taskSpec.lockedTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
                         # update task
                         retDB = self.taskBufferIF.updateTask_JEDI(
                             taskSpec,
@@ -860,7 +860,7 @@ class JobGeneratorThread(WorkerThread):
                             tmpMsg += " " + taskSpec.errorDialog
                         tmpLog.sendMsg(tmpMsg, self.msgType)
                         tmpLog.info(tmpMsg)
-                        regTime = datetime.datetime.utcnow() - loopStart
+                        regTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - loopStart
                         tmpLog.info(f"done. took cycle_t={regTime.seconds} sec")
             except Exception as e:
                 logger.error("%s.runImpl() failed with {} lastJediTaskID={} {}".format(self.__class__.__name__, str(e), lastJediTaskID, traceback.format_exc()))
@@ -1637,7 +1637,7 @@ class JobGeneratorThread(WorkerThread):
                 return failedRet
             # lib.tgz is already available
             if fileSpec is not None:
-                if fileSpec.creationDate > datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
+                if fileSpec.creationDate > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(days=periodToUselibTgz):
                     pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec, setType="input")
                     pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
                     pandaFileSpec.prodDBlockToken = "local"
@@ -1709,11 +1709,11 @@ class JobGeneratorThread(WorkerThread):
                 datasetSpec is None
                 or fileSpec is None
                 or datasetSpec.state == "closed"
-                or datasetSpec.creationTime < datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz)
+                or datasetSpec.creationTime < datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(days=periodToUselibTgz)
             ):
                 # make new libDS
                 reusedDatasetID = None
-                libDsName = f"panda.{time.strftime('%m%d%H%M%S', time.gmtime())}.{datetime.datetime.utcnow().microsecond}.lib._{jobSpec.jediTaskID:06d}"
+                libDsName = f"panda.{time.strftime('%m%d%H%M%S', time.gmtime())}.{datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).microsecond}.lib._{jobSpec.jediTaskID:06d}"
             else:
                 # reuse existing DS
                 reusedDatasetID = datasetSpec.datasetID

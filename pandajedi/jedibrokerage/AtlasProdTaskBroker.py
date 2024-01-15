@@ -505,7 +505,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                             continue
                         ######################################
                         # data locality
-                        time_now = datetime.datetime.utcnow()
+                        time_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
                         if taskSpec.frozenTime and time_now - taskSpec.frozenTime > datetime.timedelta(days=data_location_check_period):
                             tmpLog.info(f"disabled data check since the task was in assigning for " f"{data_location_check_period} days")
                         else:
