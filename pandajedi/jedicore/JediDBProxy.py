@@ -6096,12 +6096,15 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 self.cur.execute(sqlCSSR + comment, varMap)
                 scTotal, scOK, scNG = self.cur.fetchone()
-                tmpLog.debug(f"scout total={scTotal} finished={scOK} failed={scNG} rate={scoutSuccessRate}")
+
                 if scTotal > 0 and scOK + scNG > 0:
                     extraInfo["successRate"] = scOK / (scOK + scNG)
                 else:
                     extraInfo["successRate"] = 0
-                if scoutSuccessRate and scTotal and scOK * 10 < scTotal * scoutSuccessRate:
+                tmpLog.debug(
+                    f"scout total={scTotal} finished={scOK} failed={scNG} target_rate={scoutSuccessRate/10} " f"""actual_rate={extraInfo["successRate"]}"""
+                )
+                if scoutSuccessRate and scTotal and extraInfo["successRate"] < scoutSuccessRate / 10:
                     tmpLog.debug("not enough scouts succeeded")
                     scoutSucceeded = False
         # upper limit
