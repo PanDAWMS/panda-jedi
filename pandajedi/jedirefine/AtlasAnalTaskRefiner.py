@@ -131,6 +131,9 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                             break
             except Exception:
                 pass
+        # message driven
+        if "messageDriven" not in taskParamMap:
+            taskParamMap["messageDriven"] = True
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
