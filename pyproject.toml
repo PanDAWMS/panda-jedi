@@ -7,11 +7,10 @@ name = "panda-jedi"
 dynamic = ["version"]
 description = "PanDA JEDI Package"
 readme = "README.txt"
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 authors = [
     { name = "PanDA Team", email = "panda-support@cern.ch" },
 ]
-
 dependencies = [
     'panda-common>=0.0.38',
     'panda-server>=0.0.37',
@@ -21,6 +20,7 @@ dependencies = [
     'requests',
     'packaging'
 ]
+requires-python = ">=3.8"
 
 [project.optional-dependencies]
 oracle = ['cx_Oracle']
