@@ -361,7 +361,7 @@ class TaskRefinerThread(WorkerThread):
                                 tmpLog.sendMsg(tmpMsg, self.msgType)
                                 # send message to contents feeder if the task is registered
                                 if tmpStat and impl.taskSpec.is_msg_driven():
-                                    push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID)
+                                    push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID, task_spec=impl.taskSpec)
                                     if push_ret:
                                         tmpLog.debug("pushed trigger message to jedi_contents_feeder")
                                     else:

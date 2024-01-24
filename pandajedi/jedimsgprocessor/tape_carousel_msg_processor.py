@@ -94,7 +94,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                     if res > 0 or msg_type == "collection_stagein":
                         tmp_s, task_spec = self.tbIF.getTaskWithID_JEDI(jeditaskid)
                         if tmp_s and task_spec.is_msg_driven():
-                            push_ret = self.tbIF.push_task_trigger_message("jedi_contents_feeder", jeditaskid)
+                            push_ret = self.tbIF.push_task_trigger_message("jedi_contents_feeder", jeditaskid, task_spec=task_spec)
                             if push_ret:
                                 tmp_log.debug(f"pushed trigger message to jedi_contents_feeder for jeditaskid={jeditaskid}")
                             else:

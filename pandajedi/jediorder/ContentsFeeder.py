@@ -670,7 +670,7 @@ class ContentsFeederThread(WorkerThread):
                 tmpLog.debug(f"unlock task with {retUnlock}")
             # send message to job generator if new inputs are ready
             if not taskOnHold and not taskBroken and allUpdated and taskSpec.is_msg_driven():
-                push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jediTaskID)
+                push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jediTaskID, task_spec=taskSpec)
                 if push_ret:
                     tmpLog.debug("pushed trigger message to jedi_job_generator")
                 else:

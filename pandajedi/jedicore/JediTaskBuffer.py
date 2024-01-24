@@ -931,9 +931,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.get_origin_datasets(jedi_task_id, dataset_name, lfns)
 
     # push message to message processors which triggers functions of agents
-    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None, task_spec=None):
         with self.proxyPool.get() as proxy:
-            return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict, priority)
+            return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict, priority, task_spec)
 
     # aggregate carbon footprint of a task
     def get_task_carbon_footprint(self, jedi_task_id, level="global"):

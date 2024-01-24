@@ -13750,7 +13750,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("done")
 
     # push message to message processors which triggers functions of agents
-    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None, task_spec=None):
         comment = " /* JediDBProxy.push_task_trigger_message */"
         methodName = self.getMethodName(comment)
         methodName += f" < msg_type={msg_type} jediTaskID={jedi_task_id} >"
@@ -13760,6 +13760,7 @@ class DBProxy(OraDBProxy.DBProxy):
         try:
             now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             now_ts = int(now_time.timestamp())
+            # get mbproxy
             msg_dict = {}
             if data_dict:
                 msg_dict.update(data_dict)
@@ -13784,8 +13785,22 @@ class DBProxy(OraDBProxy.DBProxy):
                 return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
-            if priority:
-                mb_proxy.send(msg, priority=priority)
+            # message priority
+            msg_priority = None
+            if priority is not None:
+                msg_priority = priority
+            elif task_spec is not None:
+                try:
+                    if task_spec.prodSourceLabel == "user":
+                        if task_spec.gshare in ["User Analysis", "Express Analysis"]:
+                            msg_priority = 2
+                        else:
+                            msg_priority = 1
+                except AttributeError:
+                    pass
+            # send message
+            if msg_priority is not None:
+                mb_proxy.send(msg, priority=msg_priority)
             else:
                 mb_proxy.send(msg)
         except Exception:
