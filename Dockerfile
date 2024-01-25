@@ -26,9 +26,9 @@ RUN  yum clean all && rm -rf /var/cache/yum
 
 # setup venv with pythonX.Y
 RUN python$(echo ${PYTHON_VERSION} | sed -E 's/\.[0-9]+$//') -m venv /opt/panda
-RUN /opt/panda/bin/pip install -U pip
-RUN /opt/panda/bin/pip install -U setuptools
-RUN /opt/panda/bin/pip install -U gnureadline
+RUN /opt/panda/bin/pip install --no-cache-dir -U pip
+RUN /opt/panda/bin/pip install --no-cache-dir -U setuptools
+RUN /opt/panda/bin/pip install --no-cache-dir -U gnureadline
 RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
@@ -36,8 +36,8 @@ RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-server.git
 RUN mkdir /tmp/src
 WORKDIR /tmp/src
 COPY . .
-RUN /opt/panda/bin/python setup.py sdist; /opt/panda/bin/pip install `ls dist/p*.tar.gz`[postgres]
-RUN /opt/panda/bin/pip install rucio-clients
+RUN /opt/panda/bin/pip install --no-cache-dir .[postgres]
+RUN /opt/panda/bin/pip install --no-cache-dir rucio-clients
 
 RUN mkdir -p /etc/panda
 RUN mkdir -p /etc/idds
