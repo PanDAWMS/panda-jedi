@@ -131,9 +131,11 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                             break
             except Exception:
                 pass
-        # message driven
+        # message driven, choose N % of tasks to enable
         if "messageDriven" not in taskParamMap:
-            taskParamMap["messageDriven"] = True
+            analy_md_percent = self.taskBufferIF.getConfigValue("taskrefiner", "USER_TASKS_MESSAGE_DRIVEN_PERCENT", "jedi", "atlas")
+            if analy_md_percent and random.uniform(0, 100) <= analy_md_percent:
+                taskParamMap["messageDriven"] = True
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
