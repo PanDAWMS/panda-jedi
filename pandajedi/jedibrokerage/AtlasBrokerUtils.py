@@ -983,7 +983,7 @@ class JsonSoftwareCheck:
         need_container=False,
         container_name=None,
         only_tags_fc=False,
-        host_cpu_spec=None,
+        host_cpu_specs=None,
         host_gpu_spec=None,
         log_stream=None,
     ):
@@ -1008,7 +1008,7 @@ class JsonSoftwareCheck:
                                 if "excl" in architecture_map["cpu"][k]:
                                     need_cpu = True
                                     break
-                        if need_cpu and host_cpu_spec is None:
+                        if need_cpu and host_cpu_specs is None:
                             continue
                     # check if need GPU
                     if "gpu" in architecture_map:
@@ -1020,46 +1020,52 @@ class JsonSoftwareCheck:
                                     break
                         if need_gpu and host_gpu_spec is None:
                             continue
-                    if host_cpu_spec or host_gpu_spec:
+                    if host_cpu_specs or host_gpu_spec:
                         # skip since the PQ doesn't describe HW spec
                         if not architecture_map:
                             continue
                         # check CPU
-                        if host_cpu_spec:
-                            # CPU not specified
-                            if "cpu" not in architecture_map:
+                        if host_cpu_specs:
+                            host_ok = False
+                            for host_cpu_spec in host_cpu_specs:
+                                # CPU not specified
+                                if "cpu" not in architecture_map:
+                                    continue
+                                # check architecture
+                                if host_cpu_spec["arch"] == "*":
+                                    if "excl" in architecture_map["cpu"]["arch"]:
+                                        continue
+                                else:
+                                    if "any" not in architecture_map["cpu"]["arch"]:
+                                        if host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
+                                            # check with regex
+                                            if not [True for iii in architecture_map["cpu"]["arch"] if re.search("^" + host_cpu_spec["arch"] + "$", iii)]:
+                                                continue
+                                # check vendor
+                                if host_cpu_spec["vendor"] == "*":
+                                    # task doesn't specify a vendor and PQ explicitly requests a specific vendor
+                                    if "vendor" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["vendor"]:
+                                        continue
+                                else:
+                                    # task specifies a vendor and PQ doesn't request any specific vendor
+                                    if "vendor" not in architecture_map["cpu"]:
+                                        continue
+                                    # task specifies a vendor and PQ doesn't accept any vendor or the specific vendor
+                                    if "any" not in architecture_map["cpu"]["vendor"] and host_cpu_spec["vendor"] not in architecture_map["cpu"]["vendor"]:
+                                        continue
+                                # check instruction set
+                                if host_cpu_spec["instr"] == "*":
+                                    if "instr" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["instr"]:
+                                        continue
+                                else:
+                                    if "instr" not in architecture_map["cpu"]:
+                                        continue
+                                    if "any" not in architecture_map["cpu"]["instr"] and host_cpu_spec["instr"] not in architecture_map["cpu"]["instr"]:
+                                        continue
+                                host_ok = True
+                                break
+                            if not host_ok:
                                 continue
-                            # check architecture
-                            if host_cpu_spec["arch"] == "*":
-                                if "excl" in architecture_map["cpu"]["arch"]:
-                                    continue
-                            else:
-                                if "any" not in architecture_map["cpu"]["arch"]:
-                                    if host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
-                                        # check with regex
-                                        if not [True for iii in architecture_map["cpu"]["arch"] if re.search("^" + host_cpu_spec["arch"] + "$", iii)]:
-                                            continue
-                            # check vendor
-                            if host_cpu_spec["vendor"] == "*":
-                                # task doesn't specify a vendor and PQ explicitly requests a specific vendor
-                                if "vendor" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["vendor"]:
-                                    continue
-                            else:
-                                # task specifies a vendor and PQ doesn't request any specific vendor
-                                if "vendor" not in architecture_map["cpu"]:
-                                    continue
-                                # task specifies a vendor and PQ doesn't accept any vendor or the specific vendor
-                                if "any" not in architecture_map["cpu"]["vendor"] and host_cpu_spec["vendor"] not in architecture_map["cpu"]["vendor"]:
-                                    continue
-                            # check instruction set
-                            if host_cpu_spec["instr"] == "*":
-                                if "instr" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["instr"]:
-                                    continue
-                            else:
-                                if "instr" not in architecture_map["cpu"]:
-                                    continue
-                                if "any" not in architecture_map["cpu"]["instr"] and host_cpu_spec["instr"] not in architecture_map["cpu"]["instr"]:
-                                    continue
                         # check GPU
                         if host_gpu_spec:
                             # GPU not specified
@@ -1093,7 +1099,7 @@ class JsonSoftwareCheck:
                 if not go_ahead:
                     continue
                 # only HW check
-                if not (cvmfs_tag or cmt_config or sw_project or sw_version or container_name) and (host_cpu_spec or host_gpu_spec):
+                if not (cvmfs_tag or cmt_config or sw_project or sw_version or container_name) and (host_cpu_specs or host_gpu_spec):
                     okSite.append(tmpSiteName)
                     continue
                 # check for fat container
@@ -1151,7 +1157,7 @@ class JsonSoftwareCheck:
                 # don't pass to subsequent check if AUTO is enabled
                 continue
             # use only AUTO for container or HW
-            if container_name is not None or host_cpu_spec is not None or host_gpu_spec is not None:
+            if container_name is not None or host_cpu_specs is not None or host_gpu_spec is not None:
                 continue
             noAutoSite.append(tmpSiteName)
         return (okSite, noAutoSite)
