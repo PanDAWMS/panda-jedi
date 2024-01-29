@@ -989,8 +989,10 @@ class JobGeneratorThread(WorkerThread):
                         jobSpec.transformation = taskParamMap["mergeSpec"]["transPath"]
                     else:
                         jobSpec.transformation = taskSpec.transPath
-                    jobSpec.cmtConfig = siteCandidate.get_overridden_attribute("cmtconfig")
-                    if not jobSpec.cmtConfig:
+                    cmt_config = siteCandidate.get_overridden_attribute("cmtconfig")
+                    if cmt_config:
+                        jobSpec.cmtConfig = cmt_config
+                    else:
                         jobSpec.cmtConfig = taskSpec.get_platforms()
                     if taskSpec.transHome is not None:
                         jobSpec.homepackage = re.sub("-(?P<dig>\d+\.)", "/\g<dig>", taskSpec.transHome)
@@ -1661,8 +1663,10 @@ class JobGeneratorThread(WorkerThread):
             jobSpec.maxAttempt = 0
             jobSpec.jobName = taskSpec.taskName
             jobSpec.transformation = taskParamMap["buildSpec"]["transPath"]
-            jobSpec.cmtConfig = siteCandidate.get_overridden_attribute("cmtconfig")
-            if not jobSpec.cmtConfig:
+            cmt_config = siteCandidate.get_overridden_attribute("cmtconfig")
+            if cmt_config:
+                jobSpec.cmtConfig = cmt_config
+            else:
                 jobSpec.cmtConfig = taskSpec.get_platforms()
             if taskSpec.transHome is not None:
                 jobSpec.homepackage = re.sub("-(?P<dig>\d+\.)", "/\g<dig>", taskSpec.transHome)
