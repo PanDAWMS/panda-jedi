@@ -11,6 +11,13 @@ import traceback
 from urllib.parse import unquote
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+from pandaserver.taskbuffer.FileSpec import FileSpec
+from pandaserver.taskbuffer.JobSpec import JobSpec
+from pandaserver.userinterface import Client as PandaClient
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediCoreUtils, ParseJobXML
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
@@ -22,12 +29,6 @@ from pandajedi.jedicore.ThreadUtils import (
     WorkerThread,
 )
 from pandajedi.jedirefine import RefinerUtils
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils
-from pandaserver.taskbuffer.FileSpec import FileSpec
-from pandaserver.taskbuffer.JobSpec import JobSpec
-from pandaserver.userinterface import Client as PandaClient
 
 from .JediKnight import JediKnight
 from .JobBroker import JobBroker
@@ -949,7 +950,7 @@ class JobGeneratorThread(WorkerThread):
                 # make build job
                 elif taskSpec.useBuild():
                     tmpStat, buildJobSpec, buildFileSpec, tmpToRegister = self.doGenerateBuild(
-                        taskSpec, cloudName, siteName, siteSpec, taskParamMap, tmpLog, simul
+                        taskSpec, cloudName, siteName, siteSpec, taskParamMap, tmpLog, siteCandidate, simul
                     )
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error("failed to generate build job")
@@ -988,7 +989,9 @@ class JobGeneratorThread(WorkerThread):
                         jobSpec.transformation = taskParamMap["mergeSpec"]["transPath"]
                     else:
                         jobSpec.transformation = taskSpec.transPath
-                    jobSpec.cmtConfig = taskSpec.get_platforms()
+                    jobSpec.cmtConfig = siteCandidate.get_overridden_attribute("cmtconfig")
+                    if not jobSpec.cmtConfig:
+                        jobSpec.cmtConfig = taskSpec.get_platforms()
                     if taskSpec.transHome is not None:
                         jobSpec.homepackage = re.sub("-(?P<dig>\d+\.)", "/\g<dig>", taskSpec.transHome)
                         jobSpec.homepackage = re.sub("\r", "", jobSpec.homepackage)
@@ -1608,7 +1611,7 @@ class JobGeneratorThread(WorkerThread):
             return failedRet
 
     # generate build jobs
-    def doGenerateBuild(self, taskSpec, cloudName, siteName, siteSpec, taskParamMap, tmpLog, simul=False):
+    def doGenerateBuild(self, taskSpec, cloudName, siteName, siteSpec, taskParamMap, tmpLog, siteCandidate, simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED, None, None, None
         periodToUselibTgz = 7
@@ -1658,7 +1661,9 @@ class JobGeneratorThread(WorkerThread):
             jobSpec.maxAttempt = 0
             jobSpec.jobName = taskSpec.taskName
             jobSpec.transformation = taskParamMap["buildSpec"]["transPath"]
-            jobSpec.cmtConfig = taskSpec.get_platforms()
+            jobSpec.cmtConfig = siteCandidate.get_overridden_attribute("cmtconfig")
+            if not jobSpec.cmtConfig:
+                jobSpec.cmtConfig = taskSpec.get_platforms()
             if taskSpec.transHome is not None:
                 jobSpec.homepackage = re.sub("-(?P<dig>\d+\.)", "/\g<dig>", taskSpec.transHome)
                 jobSpec.homepackage = re.sub("\r", "", jobSpec.homepackage)
