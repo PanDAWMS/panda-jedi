@@ -705,7 +705,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 need_container=use_container,
                 container_name=taskSpec.container_name,
                 only_tags_fc=taskSpec.use_only_tags_fc(),
-                host_cpu_spec=host_cpu_spec,
+                host_cpu_specs=host_cpu_spec,
                 host_gpu_spec=host_gpu_spec,
                 log_stream=tmpLog,
             )
