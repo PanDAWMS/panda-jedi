@@ -1895,6 +1895,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # choose basic weight
         _basic_weight_version = "new"
         cmt_config = taskSpec.get_sw_platform()
+        base_platform = taskSpec.get_base_platform()
         # finish computing weight
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -1934,9 +1935,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # override attributes
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
             if cmt_config:
-                resolved_cmt_config = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, self.sw_map)
-                if resolved_cmt_config:
-                    siteCandidateSpec.override_attribute("cmtconfig", resolved_cmt_config)
+                platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                if platforms:
+                    siteCandidateSpec.override_attribute("platforms", platforms)
             # set weight
             siteCandidateSpec.weight = weight
             tmpStr = (

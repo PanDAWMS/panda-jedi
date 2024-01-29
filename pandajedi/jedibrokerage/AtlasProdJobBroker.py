@@ -663,6 +663,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         ######################################
         # selection for release
         cmt_config = taskSpec.get_sw_platform()
+        base_platform = taskSpec.get_base_platform()
         if taskSpec.transHome is not None:
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             unified_site_list = self.get_unified_sites(scanSiteList)
@@ -1712,9 +1713,9 @@ class AtlasProdJobBroker(JobBrokerBase):
             # override attributes
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
             if cmt_config:
-                resolved_cmt_config = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, self.sw_map)
-                if resolved_cmt_config:
-                    siteCandidateSpec.override_attribute("cmtconfig", resolved_cmt_config)
+                platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                if platforms:
+                    siteCandidateSpec.override_attribute("platforms", platforms)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning

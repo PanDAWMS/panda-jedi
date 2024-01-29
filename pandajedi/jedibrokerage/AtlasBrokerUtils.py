@@ -1158,11 +1158,12 @@ class JsonSoftwareCheck:
 
 
 # resolve cmt_config
-def resolve_cmt_config(queue_name: str, cmt_config: str, sw_map: dict) -> str | None:
+def resolve_cmt_config(queue_name: str, cmt_config: str, base_platform, sw_map: dict) -> str | None:
     """
     resolve cmt config at a given queue_name
     :param queue_name: queue name
     :param cmt_config: cmt confing to resolve
+    :param base_platform: base platform
     :param sw_map: software map
     :return: resolved cmt config or None if unavailable or valid
     """
@@ -1175,6 +1176,9 @@ def resolve_cmt_config(queue_name: str, cmt_config: str, sw_map: dict) -> str | 
     # check if cmt_config matches with any of the queue's cmt_configs
     for tmp_cmt_config in sw_map[queue_name]["cmtconfigs"]:
         if re.search("^" + cmt_config + "$", tmp_cmt_config):
+            if base_platform:
+                # add base_platform if necessary
+                tmp_cmt_config = tmp_cmt_config + "@" + base_platform
             return tmp_cmt_config
     # return None if cmt_config is unavailable
     return None
