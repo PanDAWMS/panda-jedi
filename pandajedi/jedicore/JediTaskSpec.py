@@ -1373,6 +1373,11 @@ class JediTaskSpec(object):
             spec_strs = m.group(1)
             if not spec_strs:
                 return None
+            # remove ()
+            if spec_strs.startswith("("):
+                spec_strs = spec_strs[1:]
+            if spec_strs.endswith(")"):
+                spec_strs = spec_strs[:-1]
             specs = []
             for spec_str in spec_strs.split("|"):
                 spec_str += "-*" * (2 - spec_str.count("-"))
