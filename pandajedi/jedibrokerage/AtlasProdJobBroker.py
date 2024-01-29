@@ -6,11 +6,12 @@ from dataservice.DataServiceUtils import select_scope
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+
 from pandajedi.jedicore import Interaction, JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 
 from . import AtlasBrokerUtils
 from .JobBrokerBase import JobBrokerBase
@@ -661,6 +662,8 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         ######################################
         # selection for release
+        cmt_config = taskSpec.get_sw_platform()
+        base_platform = taskSpec.get_base_platform()
         if taskSpec.transHome is not None:
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             unified_site_list = self.get_unified_sites(scanSiteList)
@@ -673,7 +676,6 @@ class AtlasProdJobBroker(JobBrokerBase):
             else:
                 use_container = True
 
-            cmt_config = taskSpec.get_sw_platform()
             need_cvmfs = False
 
             # 3 digits base release or normal tasks
@@ -1710,6 +1712,10 @@ class AtlasProdJobBroker(JobBrokerBase):
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
             # override attributes
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
+            if cmt_config:
+                platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                if platforms:
+                    siteCandidateSpec.override_attribute("platforms", platforms)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning

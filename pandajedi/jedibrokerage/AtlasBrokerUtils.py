@@ -8,9 +8,10 @@ import time
 import traceback
 
 from dataservice.DataServiceUtils import select_scope
-from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils, ProcessGroups
+
+from pandajedi.jedicore import Interaction
 
 
 # get hospital queues
@@ -1033,8 +1034,11 @@ class JsonSoftwareCheck:
                                 if "excl" in architecture_map["cpu"]["arch"]:
                                     continue
                             else:
-                                if "any" not in architecture_map["cpu"]["arch"] and host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
-                                    continue
+                                if "any" not in architecture_map["cpu"]["arch"]:
+                                    if host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
+                                        # check with regex
+                                        if not [True for iii in architecture_map["cpu"]["arch"] if re.search("^" + host_cpu_spec["arch"] + "$", iii)]:
+                                            continue
                             # check vendor
                             if host_cpu_spec["vendor"] == "*":
                                 # task doesn't specify a vendor and PQ explicitly requests a specific vendor
@@ -1151,3 +1155,30 @@ class JsonSoftwareCheck:
                 continue
             noAutoSite.append(tmpSiteName)
         return (okSite, noAutoSite)
+
+
+# resolve cmt_config
+def resolve_cmt_config(queue_name: str, cmt_config: str, base_platform, sw_map: dict) -> str | None:
+    """
+    resolve cmt config at a given queue_name
+    :param queue_name: queue name
+    :param cmt_config: cmt confing to resolve
+    :param base_platform: base platform
+    :param sw_map: software map
+    :return: resolved cmt config or None if unavailable or valid
+    """
+    # return None if queue_name is unavailable
+    if queue_name not in sw_map:
+        return None
+    # return None if cmt_config is valid
+    if cmt_config in sw_map[queue_name]["cmtconfigs"]:
+        return None
+    # check if cmt_config matches with any of the queue's cmt_configs
+    for tmp_cmt_config in sw_map[queue_name]["cmtconfigs"]:
+        if re.search("^" + cmt_config + "$", tmp_cmt_config):
+            if base_platform:
+                # add base_platform if necessary
+                tmp_cmt_config = tmp_cmt_config + "@" + base_platform
+            return tmp_cmt_config
+    # return None if cmt_config is unavailable
+    return None
