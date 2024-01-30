@@ -1367,7 +1367,7 @@ class JediTaskSpec(object):
                     return None
                 arch = self.architecture.split("-")[0]
                 if arch:
-                    return {"arch": arch, "vendor": "*", "instr": "*"}
+                    return [{"arch": arch, "vendor": "*", "instr": "*"}]
                 return None
             m = re.search(r"#([^\^@&]*)", self.architecture)
             spec_strs = m.group(1)
