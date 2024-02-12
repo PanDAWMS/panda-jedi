@@ -4,12 +4,13 @@ import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import JobUtils
+
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.taskbuffer import JobUtils
 
 from .JumboWatchDog import JumboWatchDog
 from .TypicalWatchDogBase import TypicalWatchDogBase
@@ -320,6 +321,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             # empty
             gTmpLog.debug("no pending DC task; skipped")
         else:
+            gTmpLog.debug(f"got {len(res_dict)} DC tasks to provoke")
             ddm_if = self.ddmIF.getInterface(self.vo)
             # loop over pending DC tasks
             for task_id, ds_name_list in res_dict.items():
@@ -327,24 +329,18 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                     continue
                 total_all_ok = True
                 for ds_name in ds_name_list:
-                    # ret_code, (all_ok, rule_dict) = ddm_if.get_rules_state(ds_name)
-                    ret_code, ret_data = ddm_if.get_rules_state(ds_name)
+                    ret_data = ddm_if.get_rules_state(ds_name)
                     try:
                         all_ok, rule_dict = ret_data
                         total_all_ok = total_all_ok and all_ok
                     except ValueError:
-                        gTmpLog.error(f"failed to thottle jobs in paused tasks, {ret_data}")
+                        gTmpLog.error(f"failed to get rule info for task={task_id}. data={ret_data}")
                         total_all_ok = False
                         break
                 if total_all_ok:
-                    if False:
-                        # Dry-run; all rules ok; provoke the task
-                        gTmpLog.info(f"provoking task {task_id} (dry-run)")
-                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked (dry-run)")
-                    else:
-                        # all rules ok; provoke the task
-                        gTmpLog.info(f"provoking task {task_id}")
-                        self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None, None)
-                        gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked")
+                    # all rules ok; provoke the task
+                    gTmpLog.info(f"provoking task {task_id}")
+                    self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None, None)
+                    gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked")
                 else:
                     gTmpLog.debug(f"not all staging rules of task {task_id} are OK; skipped ")
