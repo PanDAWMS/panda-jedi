@@ -2,10 +2,11 @@ import random
 import re
 import sys
 
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils
+
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 from .TaskRefinerBase import TaskRefinerBase
 
@@ -136,6 +137,9 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             analy_md_percent = self.taskBufferIF.getConfigValue("taskrefiner", "USER_TASKS_MESSAGE_DRIVEN_PERCENT", "jedi", "atlas")
             if analy_md_percent and random.uniform(0, 100) <= analy_md_percent:
                 taskParamMap["messageDriven"] = True
+        # disable skipScout except for group production
+        if "skipScout" in taskParamMap and "workingGroup" not in taskParamMap:
+            del taskParamMap["skipScout"]
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
