@@ -424,6 +424,7 @@ def hasZeroShare(site_spec, task_spec, ignore_priority, tmp_log):
             tmp_processing_type = None
             tmp_working_group = None
             tmp_priority = None
+            tmp_gshare = None
             tmp_fair_share = policy.split(":")[-1]
 
             # break down each fair share policy into its fields
