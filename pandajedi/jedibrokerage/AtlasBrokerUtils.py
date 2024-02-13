@@ -361,10 +361,13 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
     return nJobs
 
 
-# get the total number of jobs in a status
 def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
+    """
+    Get the ratio of number of queued jobs to number of running jobs
+    """
     nRunning = 0
     nQueue = 0
+
     # loop over all workQueues
     for siteVal in job_stat_map.values():
         for tmpWorkQueue in siteVal:
@@ -382,92 +385,108 @@ def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
         ratio = float(nQueue) / float(nRunning)
     except Exception:
         ratio = None
-    # return
+
     return ratio
 
 
-# check if the queue is suppressed
-def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
-    # per-site share is undefined
-    if siteSpec.fairsharePolicy in ["", None]:
+def hasZeroShare(site_spec, task_spec, ignore_priority, tmp_log):
+    """
+    Check if the site has a zero share for the given task. Zero share means there is a policy preventing the site to be used for the task.
+
+    :param site_spec: SiteSpec object describing the site being checked in brokerage
+    :param task_spec: TaskSpec object describing the task being brokered
+    :param ignore_priority: Merging job chunks will skip the priority check
+    :param tmp_log: Logger object
+
+    :return: False means there is no policy defined and the site can be used.
+             True means the site has a fair share policy that prevents the site to be used for the task
+    """
+
+    # there is no per-site share defined (CRIC "fairsharePolicy" field), the site can be used
+    if site_spec.fairsharePolicy in ["", None]:
         return False
+
     try:
-        # get process group
-        tmpProGroup = ProcessGroups.getProcessGroup(taskSpec.processingType)
-        # no suppress for test queues
-        if tmpProGroup in ["test"]:
+        # get the group of processing types from a pre-defined mapping
+        processing_group = ProcessGroups.getProcessGroup(task_spec.processingType)
+
+        # don't suppress test tasks - the site can be used
+        if processing_group in ["test"]:
             return False
+
         # loop over all policies
-        for tmpItem in siteSpec.fairsharePolicy.split(","):
-            if re.search("(^|,|:)id=", tmpItem) is not None:
-                # new format
-                tmpMatch = re.search(f"(^|,|:)id={taskSpec.workQueue_ID}:", tmpItem)
-                if tmpMatch is not None:
-                    # check priority if any
-                    tmpPrio = None
-                    for tmpStr in tmpItem.split(":"):
-                        if tmpStr.startswith("priority"):
-                            tmpPrio = re.sub("priority", "", tmpStr)
-                            break
-                    if tmpPrio is not None:
-                        try:
-                            exec(f"tmpStat = {taskSpec.currentPriority}{tmpPrio}", globals())
-                            if not tmpStat:
-                                continue
-                        except Exception:
-                            pass
-                    # check share
-                    tmpShare = tmpItem.split(":")[-1]
-                    tmpSahre = tmpShare.replace("%", "")
-                    if tmpSahre == "0":
-                        return True
-                    else:
-                        return False
+        for policy in site_spec.fairsharePolicy.split(","):
+            # Examples of policies are:
+            # type=evgen:100%,type=simul:100%,type=any:0%
+            # type=evgen:100%,type=simul:100%,type=any:0%,group=(AP_Higgs|AP_Susy|AP_Exotics|Higgs):0%
+            # gshare=Express:100%,gshare=any:0%
+            # priority>400:0
+            tmp_processing_type = None
+            tmp_working_group = None
+            tmp_priority = None
+            tmp_fair_share = policy.split(":")[-1]
+
+            # break down each fair share policy into its fields
+            for tmp_field in policy.split(":"):
+                if tmp_field.startswith("type="):
+                    tmp_processing_type = tmp_field.split("=")[-1]
+                elif tmp_field.startswith("group="):
+                    tmp_working_group = tmp_field.split("=")[-1]
+                elif tmp_field.startswith("gshare="):
+                    tmp_gshare = tmp_field.split("=")[-1]
+                elif tmp_field.startswith("priority"):
+                    tmp_priority = re.sub("priority", "", tmp_field)
+
+            # check for a matching processing type
+            if tmp_processing_type not in ["any", None]:
+                if "*" in tmp_processing_type:
+                    tmp_processing_type = tmp_processing_type.replace("*", ".*")
+                # if there is no match between the site's fair share policy and the task's processing type,
+                # so continue looking for other policies that trigger the zero share condition
+                if re.search(f"^{tmp_processing_type}$", processing_group) is None:
+                    continue
+
+            # check for matching working group
+            if tmp_working_group not in ["any", None] and task_spec.workingGroup is not None:
+                if "*" in tmp_working_group:
+                    tmp_working_group = tmp_working_group.replace("*", ".*")
+                # if there is no match between the site's fair share policy and the task's working group
+                # continue looking for other policies that trigger the zero share condition
+                if re.search(f"^{tmp_working_group}$", task_spec.workingGroup) is None:
+                    continue
+
+            # check for matching gshare. Note that this only works for "leave gshares" in the fairsharePolicy,
+            # i.e. the ones that have no sub-gshares, since the task only gets "leave gshares" assigned
+            if tmp_gshare not in ["any", None] and task_spec.gshare is not None:
+                if "*" in tmp_gshare:
+                    tmp_gshare = tmp_gshare.replace("*", ".*")
+                # if there is no match between the site's fair share policy and the task's gshare
+                # continue looking for other policies that trigger the zero share condition
+                if re.search(f"^{tmp_gshare}$", task_spec.gshare) is None:
+                    continue
+
+            # check priority
+            if tmp_priority is not None and not ignore_priority:
+                try:
+                    exec(f"tmpStat = {task_spec.currentPriority}{tmp_priority}", globals())
+                    if not tmpStat:
+                        continue
+                except Exception:
+                    pass
+
+            # check fair share value
+            # if 0, we need to skip the site
+            # if different than 0, the site can be used
+            if tmp_fair_share in ["0", "0%"]:
+                return True
             else:
-                # old format
-                tmpType = None
-                tmpGroup = None
-                tmpPrio = None
-                tmpShare = tmpItem.split(":")[-1]
-                for tmpStr in tmpItem.split(":"):
-                    if tmpStr.startswith("type="):
-                        tmpType = tmpStr.split("=")[-1]
-                    elif tmpStr.startswith("group="):
-                        tmpGroup = tmpStr.split("=")[-1]
-                    elif tmpStr.startswith("priority"):
-                        tmpPrio = re.sub("priority", "", tmpStr)
-                # check matching for type
-                if tmpType not in ["any", None]:
-                    if "*" in tmpType:
-                        tmpType = tmpType.replace("*", ".*")
-                    # type mismatch
-                    if re.search("^" + tmpType + "$", tmpProGroup) is None:
-                        continue
-                # check matching for group
-                if tmpGroup not in ["any", None] and taskSpec.workingGroup is not None:
-                    if "*" in tmpGroup:
-                        tmpGroup = tmpGroup.replace("*", ".*")
-                    # group mismatch
-                    if re.search("^" + tmpGroup + "$", taskSpec.workingGroup) is None:
-                        continue
-                # check priority
-                if tmpPrio is not None and not ignorePrio:
-                    try:
-                        exec(f"tmpStat = {taskSpec.currentPriority}{tmpPrio}", globals())
-                        if not tmpStat:
-                            continue
-                    except Exception:
-                        pass
-                # check share
-                tmpShare = tmpItem.split(":")[-1]
-                if tmpShare in ["0", "0%"]:
-                    return True
-                else:
-                    return False
+                return False
+
     except Exception:
-        errtype, errvalue = sys.exc_info()[:2]
-        tmpLog.error(f"hasZeroShare failed with {errtype}:{errvalue}")
-    # return
+        error_type, error_value = sys.exc_info()[:2]
+        tmp_log.error(f"hasZeroShare failed with {error_type}:{error_value}")
+
+    # if we reach this point, it means there is no policy preventing the site to be used
     return False
 
 
