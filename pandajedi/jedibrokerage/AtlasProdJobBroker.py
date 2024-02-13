@@ -211,7 +211,6 @@ class AtlasProdJobBroker(JobBrokerBase):
                     tmpLog.error(f"unknown nucleus {taskSpec.nucleus}")
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
-                t1Sites = []
                 t1Sites = nucleusSpec.allPandaSites
             else:
                 # use all sites in nuclei for WORLD task brokerage
