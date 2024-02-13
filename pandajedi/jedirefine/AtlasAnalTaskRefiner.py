@@ -137,8 +137,8 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             analy_md_percent = self.taskBufferIF.getConfigValue("taskrefiner", "USER_TASKS_MESSAGE_DRIVEN_PERCENT", "jedi", "atlas")
             if analy_md_percent and random.uniform(0, 100) <= analy_md_percent:
                 taskParamMap["messageDriven"] = True
-        # disable skipScout except for group production
-        if "skipScout" in taskParamMap and "workingGroup" not in taskParamMap:
+        # disable skipScout fot tasks without for group production role
+        if "skipScout" in taskParamMap and ("official" not in taskParamMap or not taskParamMap["official"]):
             del taskParamMap["skipScout"]
         # update task parameters
         self.updatedTaskParams = taskParamMap
