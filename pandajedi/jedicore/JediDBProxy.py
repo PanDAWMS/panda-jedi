@@ -14,8 +14,9 @@ import uuid
 
 import numpy
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jediconfig import jedi_config
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
+
+from pandajedi.jediconfig import jedi_config
 
 from . import JediCoreUtils, ParseJobXML
 from .InputChunk import InputChunk
@@ -42,10 +43,13 @@ if backend == "postgres":
     import psycopg2 as psycopg
 
     varNUMBER = int
-else:
-    import cx_Oracle
 
-    varNUMBER = cx_Oracle.NUMBER
+else:
+    import oracledb
+
+    # If we were to make a connection to the database, we would need to initialize the Oracle client
+    # oracledb.init_oracle_client()
+    varNUMBER = oracledb.NUMBER
 
 # add handlers of filtered logger
 tmpLoggerFiltered = PandaLogger().getLogger(__name__.split(".")[-1] + "Filtered")
