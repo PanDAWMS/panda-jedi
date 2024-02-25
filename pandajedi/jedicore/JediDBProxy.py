@@ -14,8 +14,9 @@ import uuid
 
 import numpy
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jediconfig import jedi_config
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
+
+from pandajedi.jediconfig import jedi_config
 
 from . import JediCoreUtils, ParseJobXML
 from .InputChunk import InputChunk
@@ -5801,6 +5802,7 @@ class DBProxy(OraDBProxy.DBProxy):
             newSH = tagStr
         else:
             items = jobMetrics.split(" ")
+            items = [item for item in items if not item.startswith("scout=")]
             items.append(tagStr)
             newSH = " ".join(items)
         # cap
