@@ -1344,7 +1344,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 useCompleteOnly = False
                 if inputChunk.isMerging:
                     checkCompleteness = False
-                if not datasetSpec.isMaster() or (taskSpec.ioIntensity and taskSpec.ioIntensity > self.io_intensity_cutoff):
+                if not datasetSpec.isMaster() or (taskSpec.ioIntensity and taskSpec.ioIntensity > self.io_intensity_cutoff and not taskSpec.inputPreStaging()):
                     useCompleteOnly = True
                 # get available files per site/endpoint
                 tmpLog.debug(f"getting available files for {datasetSpec.datasetName}")
