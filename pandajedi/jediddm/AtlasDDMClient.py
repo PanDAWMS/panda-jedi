@@ -16,8 +16,6 @@ except Exception:
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.srvcore import CoreUtils
 from rucio.client import Client as RucioClient
@@ -29,6 +27,9 @@ from rucio.common.exception import (
     InvalidObject,
     UnsupportedOperation,
 )
+
+from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .DDMClientBase import DDMClientBase
 
@@ -556,7 +557,7 @@ class AtlasDDMClient(DDMClientBase):
                     i_loop += 1
                     tmp_log.debug(f"lookup {i_loop} start")
                     loopStart = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-                    x = client.list_replicas(dids, ["srm", "gsiftp"], resolve_archives=True)
+                    x = client.list_replicas(dids, resolve_archives=True)
                     regTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - loopStart
                     tmp_log.info(f"rucio.list_replicas took {regTime.seconds} sec for {len(dids)} files")
                     loopStart = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
@@ -585,9 +586,8 @@ class AtlasDDMClient(DDMClientBase):
             scope, dsn = self.extract_scope(datasetName)
             client = RucioClient()
             lfn_to_rses_map = {}
-            dids = []
             dids = [{"scope": scope, "name": dsn}]
-            for tmp_dict in client.list_replicas(dids, ["srm", "gsiftp"], resolve_archives=True):
+            for tmp_dict in client.list_replicas(dids, resolve_archives=True):
                 try:
                     tmp_LFN = str(tmp_dict["name"])
                 except Exception:
@@ -1411,44 +1411,6 @@ class AtlasDDMClient(DDMClientBase):
         except Exception:
             pass
         return self.SC_SUCCEEDED, False
-
-    # get disk usage at RSE
-    def getRseUsage(self, rse, src="srm"):
-        methodName = "getRseUsage"
-        methodName += f" pid={self.pid}"
-        methodName += f" <rse={rse}>"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        retMap = {}
-        try:
-            # get rucio API
-            client = RucioClient()
-            # get info
-            itr = client.get_rse_usage(rse)
-            # look for srm
-            for item in itr:
-                if item["source"] == src:
-                    try:
-                        total = item["total"] / 1024 / 1024 / 1024
-                    except Exception:
-                        total = None
-                    try:
-                        used = item["used"] / 1024 / 1024 / 1024
-                    except Exception:
-                        used = None
-                    try:
-                        free = item["free"] / 1024 / 1024 / 1024
-                    except Exception:
-                        free = None
-                    retMap = {"total": total, "used": used, "free": free}
-                    break
-        except Exception as e:
-            errType = e
-            errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, f"{methodName} : {errMsg}"
-        tmpLog.debug(f"done {str(retMap)}")
-        return self.SC_SUCCEEDED, retMap
 
     # update endpoint dict
     def updateEndPointDict(self):
