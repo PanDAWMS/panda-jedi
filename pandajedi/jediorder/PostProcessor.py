@@ -6,6 +6,7 @@ import time
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.FactoryBase import FactoryBase
@@ -111,34 +112,31 @@ class PostProcessorThread(WorkerThread):
             if tmpStat == Interaction.SC_SUCCEEDED:
                 tmpLog.info(f"post-process with {impl.__class__.__name__}")
                 try:
-                    impl.doPostProcess(taskSpec, tmpLog)
-                except Exception:
-                    errtype, errvalue = sys.exc_info()[:2]
-                    tmpLog.error(f"doPostProcess failed with {errtype.__name__}:{errvalue}")
+                    tmpStat = impl.doPostProcess(taskSpec, tmpLog)
+                except Exception as e:
+                    tmpLog.error(f"post-process failed with {str(e)}")
                     tmpStat = Interaction.SC_FATAL
             # done
-            if tmpStat == Interaction.SC_FATAL:
+            if tmpStat == Interaction.SC_FATAL or (tmpStat == Interaction.SC_FAILED and taskSpec.status in ["toabort", "tobroken"]):
                 # task is broken
-                tmpErrStr = "post-process failed"
+                tmpErrStr = "post-process permanently failed"
                 tmpLog.error(tmpErrStr)
                 taskSpec.status = "broken"
                 taskSpec.setErrDiag(tmpErrStr)
                 taskSpec.lockedBy = None
                 self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID})
             elif tmpStat == Interaction.SC_FAILED:
-                tmpErrStr = "post processing failed"
-                taskSpec.setOnHold()
+                tmpErrStr = "post-processing temporarily failed"
                 taskSpec.setErrDiag(tmpErrStr, True)
-                taskSpec.lockedBy = None
                 self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID})
                 tmpLog.info(f"set task_status={taskSpec.status} since {taskSpec.errorDialog}")
+                tmpLog.info("done")
                 continue
             # final procedure
             try:
                 impl.doFinalProcedure(taskSpec, tmpLog)
-            except Exception:
-                errtype, errvalue = sys.exc_info()[:2]
-                tmpLog.error(f"doFinalProcedure failed with {errtype.__name__}:{errvalue}")
+            except Exception as e:
+                tmpLog.error(f"final procedure failed with {str(e)}")
             # done
             tmpLog.info("done")
 
