@@ -6,6 +6,7 @@ import time
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
@@ -275,6 +276,21 @@ class TaskCommandoThread(WorkerThread):
                             tmpMsg = f"set task_status={newTaskStatus}"
                             tmpLog.sendMsg(tmpMsg, self.msgType)
                             tmpLog.info(tmpMsg)
+                            tmpStat, task_spec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID)
+                            if tmpStat and task_spec.is_msg_driven():
+                                # msg driven
+                                if newTaskStatus == "rerefine":
+                                    push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID)
+                                    if push_ret:
+                                        tmpLog.debug(f"pushed trigger message to jedi_contents_feeder")
+                                    else:
+                                        tmpLog.warning(f"failed to push trigger message to jedi_contents_feeder")
+                                elif newTaskStatus == "ready":
+                                    push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jediTaskID)
+                                    if push_ret:
+                                        tmpLog.debug("pushed trigger message to jedi_job_generator")
+                                    else:
+                                        tmpLog.warning("failed to push trigger message to jedi_job_generator")
                         tmpLog.info(f"done with {tmpRet}")
                     else:
                         tmpLog.error("unknown command")
