@@ -6,6 +6,14 @@ import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import JobUtils
+from pandaserver.userinterface import Client as PandaClient
+
+# cannot use pandaserver.taskbuffer while Client is used
+from taskbuffer.JobSpec import JobSpec
+
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import (
@@ -15,13 +23,6 @@ from pandajedi.jedicore.ThreadUtils import (
     WorkerThread,
 )
 from pandajedi.jedirefine import RefinerUtils
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import JobUtils
-from pandaserver.userinterface import Client as PandaClient
-
-# cannot use pandaserver.taskbuffer while Client is used
-from taskbuffer.JobSpec import JobSpec
 
 from . import AtlasBrokerUtils
 from .AtlasProdJobBroker import AtlasProdJobBroker
@@ -506,11 +507,11 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                         ######################################
                         # data locality
                         time_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                        availableData = {}
                         if taskSpec.frozenTime and time_now - taskSpec.frozenTime > datetime.timedelta(days=data_location_check_period):
                             tmpLog.info(f"disabled data check since the task was in assigning for " f"{data_location_check_period} days")
                         else:
                             toSkip = False
-                            availableData = {}
                             for datasetSpec in inputChunk.getDatasets():
                                 # only for real datasets
                                 if datasetSpec.isPseudo():
