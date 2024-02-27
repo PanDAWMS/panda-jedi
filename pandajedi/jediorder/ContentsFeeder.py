@@ -324,6 +324,10 @@ class ContentsFeederThread(WorkerThread):
                                             and taskParamMap["nEventsPerFile"] > taskParamMap["nEventsPerJob"]
                                         ):
                                             nPFN = nPFN * math.ceil(taskParamMap["nEventsPerFile"] / taskParamMap["nEventsPerJob"])
+                                        elif "nEventsPerJob" in taskParamMap and "nEventsPerFile" not in taskParamMap:
+                                            max_events_in_file = self.taskBufferIF.get_max_events_in_dataset(jediTaskID, datasetSpec.masterID)
+                                            if max_events_in_file and max_events_in_file > taskParamMap["nEventsPerJob"]:
+                                                nPFN = nPFN * math.ceil(max_events_in_file / taskParamMap["nEventsPerJob"])
                                     elif "nEvents" in taskParamMap and "nEventsPerJob" in taskParamMap:
                                         nPFN = math.ceil(taskParamMap["nEvents"] / taskParamMap["nEventsPerJob"])
                                     elif "nEvents" in taskParamMap and "nEventsPerFile" in taskParamMap and taskSpec.getNumFilesPerJob() is not None:
