@@ -6,6 +6,7 @@ import time
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.FactoryBase import FactoryBase
@@ -117,7 +118,7 @@ class PostProcessorThread(WorkerThread):
                     tmpLog.error(f"doPostProcess failed with {errtype.__name__}:{errvalue}")
                     tmpStat = Interaction.SC_FATAL
             # done
-            if tmpStat == Interaction.SC_FATAL:
+            if tmpStat == Interaction.SC_FATAL or (tmpStat == Interaction.SC_FAILED and taskSpec.status in ["toabort", "tobroken"]):
                 # task is broken
                 tmpErrStr = "post-process failed"
                 tmpLog.error(tmpErrStr)
