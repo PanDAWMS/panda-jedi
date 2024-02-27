@@ -4133,7 +4133,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
                                     iFilesWaiting = 0
-                                    for iDup in range(100):  # avoid infinite loop just in case
+                                    for iDup in range(5000):  # avoid infinite loop just in case
                                         tmpLog.debug(
                                             "jediTaskID={} to read {} files from datasetID={} in attmpt={} with ramCount={} orderBy={}".format(
                                                 jediTaskID, numFilesTobeReadInCycle, datasetID, iDup + 1, inputChunk.ramCount, orderBy
@@ -15022,6 +15022,35 @@ class DBProxy(OraDBProxy.DBProxy):
             # return
             tmp_log.debug(f"found pending dc tasks: {ret_tasks_dict}")
             return ret_tasks_dict
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # get max number of events in a file of the dataset
+    def get_max_events_in_dataset(self, jedi_task_id, dataset_id):
+        comment = " /* JediDBProxy.get_max_events_in_dataset */"
+        method_name = self.getMethodName(comment)
+        method_name += f" <jediTaskID={jedi_task_id} datasetID={dataset_id}>"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # sql for get attributes
+            sql = f"SELECT MAX(nEvents) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            var_map = {":jediTaskID": jedi_task_id, ":datasetID": dataset_id}
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.execute(sql + comment, var_map)
+            res = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            (max_events,) = res
+            tmp_log.debug(f"got {max_events}")
+            return max_events
         except Exception:
             # roll back
             self._rollback()
