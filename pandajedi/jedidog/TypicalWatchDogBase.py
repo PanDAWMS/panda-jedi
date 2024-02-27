@@ -20,7 +20,6 @@ class TypicalWatchDogBase(WatchDogBase):
             tmpLog.error("failed to rescue")
         else:
             tmpLog.info(f"rescued {tmpRet} tasks")
-
         # reactivate pending tasks
         tmpLog.info(f"reactivate pending tasks for vo={vo} label={prodSourceLabel}")
         timeoutForPending = self.taskBufferIF.getConfigValue("watchdog", f"PENDING_TIMEOUT_{prodSourceLabel}", "jedi", vo)
@@ -30,12 +29,20 @@ class TypicalWatchDogBase(WatchDogBase):
             if timeoutForPending is None:
                 timeoutForPending = jedi_config.watchdog.timeoutForPending
             timeoutForPending = int(timeoutForPending) * 24
-        tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForPending, timeoutForPending)
+        tmpRet, msg_driven_taskid_set = self.taskBufferIF.reactivatePendingTasks_JEDI(
+            vo, prodSourceLabel, jedi_config.watchdog.waitForPending, timeoutForPending
+        )
         if tmpRet is None:
             # failed
             tmpLog.error("failed to reactivate")
         else:
             tmpLog.info(f"reactivated {tmpRet} tasks")
+            for jeditaskid in msg_driven_taskid_set:
+                push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jeditaskid)
+                if push_ret:
+                    tmpLog.debug("pushed trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
+                else:
+                    tmpLog.warning("failed to push trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
         # unlock tasks
         tmpLog.info(f"unlock tasks for vo={vo} label={prodSourceLabel} host={socket.getfqdn().split('.')[0]} pgid={os.getpgrp()}")
         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo, prodSourceLabel, 10, socket.getfqdn().split(".")[0], os.getpgrp())
@@ -54,12 +61,18 @@ class TypicalWatchDogBase(WatchDogBase):
             tmpLog.info(f"unlock {tmpRet} tasks")
         # restart contents update
         tmpLog.info(f"restart contents update for vo={vo} label={prodSourceLabel}")
-        tmpRet = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo, prodSourceLabel)
+        tmpRet, msg_driven_taskid_set = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo, prodSourceLabel)
         if tmpRet is None:
             # failed
             tmpLog.error("failed to restart")
         else:
             tmpLog.info(f"restarted {tmpRet} tasks")
+            for jeditaskid in msg_driven_taskid_set:
+                push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jeditaskid)
+                if push_ret:
+                    tmpLog.debug(f"pushed trigger message to jedi_contents_feeder for jeditaskid={jeditaskid}")
+                else:
+                    tmpLog.warning(f"failed to push trigger message to jedi_contents_feeder for jeditaskid={jeditaskid}")
         # kick exhausted tasks
         tmpLog.info(f"kick exhausted tasks for vo={vo} label={prodSourceLabel}")
         tmpRet = self.taskBufferIF.kickExhaustedTasks_JEDI(vo, prodSourceLabel, jedi_config.watchdog.waitForExhausted)
