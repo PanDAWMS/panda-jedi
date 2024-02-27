@@ -4133,7 +4133,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
                                     iFilesWaiting = 0
-                                    for iDup in range(100):  # avoid infinite loop just in case
+                                    for iDup in range(5000):  # avoid infinite loop just in case
                                         tmpLog.debug(
                                             "jediTaskID={} to read {} files from datasetID={} in attmpt={} with ramCount={} orderBy={}".format(
                                                 jediTaskID, numFilesTobeReadInCycle, datasetID, iDup + 1, inputChunk.ramCount, orderBy
