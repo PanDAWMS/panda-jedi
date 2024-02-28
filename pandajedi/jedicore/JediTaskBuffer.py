@@ -4,9 +4,10 @@ import datetime
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jediconfig import jedi_config
 from pandaserver.brokerage.SiteMapper import SiteMapper
 from pandaserver.taskbuffer import TaskBuffer
+
+from pandajedi.jediconfig import jedi_config
 
 from . import JediDBProxyPool
 from .Interaction import CommandReceiveInterface
@@ -944,3 +945,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_pending_dc_tasks_JEDI(self, task_type="prod", time_limit_minutes=60):
         with self.proxyPool.get() as proxy:
             return proxy.get_pending_dc_tasks_JEDI(task_type=task_type, time_limit_minutes=time_limit_minutes)
+
+    # get max number of events in a file of the dataset
+    def get_max_events_in_dataset(self, jedi_task_id, dataset_id):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_max_events_in_dataset(jedi_task_id, dataset_id)
