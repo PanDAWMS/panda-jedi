@@ -283,9 +283,9 @@ class TaskCommandoThread(WorkerThread):
                                     if newTaskStatus == "rerefine":
                                         push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID)
                                         if push_ret:
-                                            tmpLog.debug(f"pushed trigger message to jedi_contents_feeder")
+                                            tmpLog.debug("pushed trigger message to jedi_contents_feeder")
                                         else:
-                                            tmpLog.warning(f"failed to push trigger message to jedi_contents_feeder")
+                                            tmpLog.warning("failed to push trigger message to jedi_contents_feeder")
                                     elif newTaskStatus == "ready":
                                         push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jediTaskID)
                                         if push_ret:

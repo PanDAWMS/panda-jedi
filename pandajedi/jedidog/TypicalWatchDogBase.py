@@ -40,9 +40,9 @@ class TypicalWatchDogBase(WatchDogBase):
             for jeditaskid in msg_driven_taskid_set:
                 push_ret = self.taskBufferIF.push_task_trigger_message("jedi_job_generator", jeditaskid)
                 if push_ret:
-                    tmpLog.debug("pushed trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
+                    tmpLog.debug(f"pushed trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
                 else:
-                    tmpLog.warning("failed to push trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
+                    tmpLog.warning(f"failed to push trigger message to jedi_job_generator for jeditaskid={jeditaskid}")
         # unlock tasks
         tmpLog.info(f"unlock tasks for vo={vo} label={prodSourceLabel} host={socket.getfqdn().split('.')[0]} pgid={os.getpgrp()}")
         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo, prodSourceLabel, 10, socket.getfqdn().split(".")[0], os.getpgrp())
