@@ -1,7 +1,8 @@
-from pandajedi.jedicore import JediTaskBuffer
 from taskbuffer.Initializer import initializer
 
-# initialize cx_Oracle using dummy connection
+from pandajedi.jedicore import JediTaskBuffer
+
+# initialize DB using dummy connection
 initializer.init()
 
 taskBuffer = JediTaskBuffer.JediTaskBuffer(None)
