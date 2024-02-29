@@ -23,7 +23,7 @@ from .InputChunk import InputChunk
 from .JediCacheSpec import JediCacheSpec
 from .JediDatasetSpec import JediDatasetSpec
 from .JediFileSpec import JediFileSpec
-from .JediTaskSpec import JediTaskSpec, push_status_changes
+from .JediTaskSpec import JediTaskSpec, is_msg_driven, push_status_changes
 from .MsgWrapper import MsgWrapper
 from .WorkQueueMapper import WorkQueueMapper
 
@@ -8652,6 +8652,7 @@ class DBProxy(OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
+            msg_driven_taskid_set = set()
             for jediTaskID, frozenTime, errorDialog, parent_tid, splitRule, startTime in resTL:
                 timeoutFlag = False
                 keepFlag = False
@@ -8707,6 +8708,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=keep_pending")
                     else:
                         tmpLog.info(f"#ATM #KV jediTaskID={jediTaskID} action=reactivate")
+                        if is_msg_driven(splitRule):
+                            # added msg driven tasks
+                            msg_driven_taskid_set.add(jediTaskID)
                 nRow += tmpRow
                 if tmpRow > 0 and not keepFlag:
                     self.record_task_status_change(jediTaskID)
@@ -8721,13 +8725,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             tmpLog.debug(f"updated {nRow} rows")
-            return nRow
+            return nRow, msg_driven_taskid_set
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None
+            return None, None
 
     # restart contents update
     def restartTasksForContentsUpdate_JEDI(self, vo, prodSourceLabel, timeLimit):
@@ -8746,7 +8750,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":dsState"] = "mutable"
             varMap[":dsStatus1"] = "ready"
             varMap[":dsStatus2"] = "toupdate"
-            sqlTL = "SELECT distinct tabT.jediTaskID,tabT.status "
+            sqlTL = "SELECT distinct tabT.jediTaskID,tabT.status,tabT.splitRule "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
             sqlTL += "AND ((tabT.status=:taskStatus1 AND tabD.status=:dsStatus1) OR (tabT.status=:taskStatus2 AND tabD.status=:dsStatus2)) "
@@ -8770,7 +8774,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if prodSourceLabel not in [None, "any"]:
                 sqlTR += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # get tasks in ready with defined datasets
-            sqlTW = "SELECT distinct tabT.jediTaskID "
+            sqlTW = "SELECT distinct tabT.jediTaskID,tabT.splitRule "
             sqlTW += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTW += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
             sqlTW += "AND tabT.status=:taskStatus1 AND tabD.status=:dsStatus1 "
@@ -8798,7 +8802,9 @@ class DBProxy(OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nTasks = 0
-            for jediTaskID, taskStatus in resTL:
+            msg_driven_taskid_set = set()
+            for jediTaskID, taskStatus, splitRule in resTL:
+                nRow = 0
                 if taskStatus == "defined":
                     # update mutable datasets
                     varMap = {}
@@ -8829,6 +8835,9 @@ class DBProxy(OraDBProxy.DBProxy):
                     if nRow > 0:
                         tmpLog.debug("jediTaskID={0} back to defined".format(jediTaskID, nRow))
                         nTasks += 1
+                if nRow > 0 and is_msg_driven(splitRule):
+                    # added msg driven tasks
+                    msg_driven_taskid_set.add(jediTaskID)
             # get tasks in defined with only ready datasets
             varMap = {}
             varMap[":taskStatus1"] = "defined"
@@ -8867,7 +8876,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get jediTaskIDs
             self.cur.execute(sqlTW + comment, varMap)
             resTW = self.cur.fetchall()
-            for (jediTaskID,) in resTW:
+            for jediTaskID, splitRule in resTW:
                 # update task
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
@@ -8880,18 +8889,21 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.push_task_status_message(None, jediTaskID, varMap[":newStatus"])
                     tmpLog.debug(f"jediTaskID={jediTaskID} reset to defined")
                     nTasks += 1
+                    if is_msg_driven(splitRule):
+                        # added msg driven tasks
+                        msg_driven_taskid_set.add(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
             tmpLog.debug("done")
-            return nTasks
+            return nTasks, msg_driven_taskid_set
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None
+            return None, None
 
     # kick exhausted tasks
     def kickExhaustedTasks_JEDI(self, vo, prodSourceLabel, timeLimit):

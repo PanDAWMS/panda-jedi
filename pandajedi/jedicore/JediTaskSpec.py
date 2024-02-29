@@ -1608,17 +1608,27 @@ class JediTaskSpec(object):
 
     # check if message driven
     def is_msg_driven(self):
-        return self.check_split_rule("messageDriven")
+        return is_msg_driven(self.splitRule)
 
 
 # utils
 
 
-# check if push status changes without class instance
-def push_status_changes(split_rule):
+# check split rule with postive integer
+def check_split_rule_positive_int(key, split_rule):
     if not split_rule:
         return False
-    tmpMatch = re.search(JediTaskSpec.splitRuleToken["pushStatusChanges"] + r"=(\d+)", split_rule)
+    tmpMatch = re.search(JediTaskSpec.splitRuleToken[key] + r"=(\d+)", split_rule)
     if not tmpMatch or int(tmpMatch.group(1)) <= 0:
         return False
     return True
+
+
+# check if push status changes without class instance
+def push_status_changes(split_rule):
+    return check_split_rule_positive_int("pushStatusChanges", split_rule)
+
+
+# check if message driven without class instance
+def is_msg_driven(split_rule):
+    return check_split_rule_positive_int("messageDriven", split_rule)

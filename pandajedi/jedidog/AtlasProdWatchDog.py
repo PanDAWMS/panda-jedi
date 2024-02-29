@@ -268,7 +268,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         if timeoutForPending is None:
             timeoutForPending = jedi_config.watchdog.timeoutForPending
         timeoutForPending = int(timeoutForPending) * 24
-        tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo, self.prodSourceLabel, timeoutVal, timeoutForPending, minPriority=minPriority)
+        tmpRet, _ = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo, self.prodSourceLabel, timeoutVal, timeoutForPending, minPriority=minPriority)
         if tmpRet is None:
             # failed
             gTmpLog.error(f"failed to reactivate high priority (>{minPriority}) tasks")
