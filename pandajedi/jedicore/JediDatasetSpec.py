@@ -555,3 +555,7 @@ class JediDatasetSpec(object):
             return self.attrToken["mergeOnly"] in self.attributes.split(",")
         except Exception:
             return False
+
+    # sort files by old PandaIDs and move files with no PandaIDs to the end
+    def sort_files_by_panda_ids(self):
+        self.Files = sorted([f for f in self.Files if f.PandaID is not None], key=lambda x: x.PandaID) + [f for f in self.Files if f.PandaID is None]

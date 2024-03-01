@@ -2,6 +2,7 @@
 import sys
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -30,6 +31,10 @@ try:
     datasetID = [int(sys.argv[2])]
 except Exception:
     datasetID = None
+try:
+    n_files = int(sys.argv[3])
+except Exception:
+    n_files = 10
 
 s, taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
 
@@ -54,7 +59,7 @@ tmpListList = tbIF.getTasksToBeProcessed_JEDI(
     workQueue,
     prodSourceLabel,
     cloudName,
-    nFiles=10,
+    nFiles=n_files,
     simTasks=[jediTaskID],
     fullSimulation=True,
     typicalNumFilesMap=typicalNumFilesMap,

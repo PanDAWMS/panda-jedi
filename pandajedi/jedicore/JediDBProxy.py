@@ -4095,6 +4095,16 @@ class DBProxy(OraDBProxy.DBProxy):
                             totalEvents = {}
                             maxFilesTobeReadWithEventRatio = 10000
                             for inputChunk in inputChunks:
+                                # check if sequence numbers need to be consistent with masters
+                                to_be_used_with_same_master = False
+                                if taskSpec.getNumFilesPerJob() or taskSpec.getNumEventsPerJob():
+                                    for datasetID in datasetIDs:
+                                        tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
+                                        if tmpDatasetSpec.isSeqNumber():
+                                            to_be_used_with_same_master = True
+                                            break
+                                panda_ids_used_by_master = set()
+                                panda_ids_used_by_master_list = []
                                 for datasetID in datasetIDs:
                                     iFiles.setdefault(datasetID, 0)
                                     totalEvents.setdefault(datasetID, [])
@@ -4138,9 +4148,9 @@ class DBProxy(OraDBProxy.DBProxy):
                                     iFilesWaiting = 0
                                     for iDup in range(5000):  # avoid infinite loop just in case
                                         tmpLog.debug(
-                                            "jediTaskID={} to read {} files from datasetID={} in attmpt={} with ramCount={} orderBy={}".format(
-                                                jediTaskID, numFilesTobeReadInCycle, datasetID, iDup + 1, inputChunk.ramCount, orderBy
-                                            )
+                                            f"jediTaskID={jediTaskID} to read {numFilesTobeReadInCycle} files from datasetID={datasetID} in attmpt={iDup + 1} "
+                                            f"with ramCount={inputChunk.ramCount} orderBy={orderBy} isSEQ={tmpDatasetSpec.isSeqNumber()} "
+                                            f"same_master={to_be_used_with_same_master}"
                                         )
                                         varMap = {}
                                         varMap[":datasetID"] = datasetID
@@ -4160,23 +4170,90 @@ class DBProxy(OraDBProxy.DBProxy):
                                                     varMap[":status"] = "ready"
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[":ramCount"] = inputChunk.ramCount
+                                            # safety margin to read enough sequential numbers, which is required since sequential numbers can become
+                                            # ready after the cycle reading master files is done
+                                            if tmpDatasetSpec.isSeqNumber() and to_be_used_with_same_master and numFilesTobeReadInCycle > iFiles_tmp:
+                                                if taskSpec.inputPreStaging():
+                                                    # use larger margin for data carousel since all sequence numbers are ready even if master files are not yet staged-in
+                                                    safety_margin = 200000
+                                                else:
+                                                    safety_margin = 100
+                                            else:
+                                                safety_margin = 0
                                             if inputChunk.ramCount not in (None, 0):
                                                 if primaryDatasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo["lack"]:
-                                                    self.cur.execute(sqlFR.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp) + comment, varMap)
+                                                    self.cur.execute(
+                                                        sqlFR.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp + safety_margin) + comment, varMap
+                                                    )
                                                 else:
-                                                    self.cur.execute(sqlCJ_FR.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp) + comment, varMap)
+                                                    self.cur.execute(
+                                                        sqlCJ_FR.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp + safety_margin) + comment, varMap
+                                                    )
                                             else:  # We group inputChunk.ramCount None and 0 together
                                                 if primaryDatasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo["lack"]:
-                                                    self.cur.execute(sqlFR_RCNull.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp) + comment, varMap)
+                                                    self.cur.execute(
+                                                        sqlFR_RCNull.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp + safety_margin) + comment, varMap
+                                                    )
                                                 else:
-                                                    self.cur.execute(sqlCJ_FR_RCNull.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp) + comment, varMap)
+                                                    self.cur.execute(
+                                                        sqlCJ_FR_RCNull.format(orderBy, numFilesTobeReadInCycle - iFiles_tmp + safety_margin) + comment, varMap
+                                                    )
 
+                                        # create FileSpec first to check PandaID
                                         resFileList = self.cur.fetchall()
+                                        file_spec_list = []
+                                        file_spec_map_with_panda_id = {}
+                                        file_spec_list_with_no_panda_id = []
+                                        file_spec_list_reserved = []
+                                        n_files_proper_panda_id = 0
+                                        n_files_null_panda_id = 0
+                                        n_files_inconsistent_panda_id = 0
                                         for resFile in resFileList:
                                             # make FileSpec
                                             tmpFileSpec = JediFileSpec()
                                             tmpFileSpec.pack(resFile)
-                                            # update file status
+                                            # sort sequential numbers depending on old PandaIDs
+                                            if tmpDatasetSpec.isSeqNumber() and to_be_used_with_same_master:
+                                                if tmpFileSpec.PandaID is not None:
+                                                    if tmpFileSpec.PandaID in panda_ids_used_by_master:
+                                                        file_spec_map_with_panda_id[tmpFileSpec.PandaID] = tmpFileSpec
+                                                    else:
+                                                        # reserve the sequential number which may be used when master files don't have enough sequential numbers
+                                                        file_spec_list_reserved.append(tmpFileSpec)
+                                                else:
+                                                    file_spec_list_with_no_panda_id.append(tmpFileSpec)
+                                            else:
+                                                file_spec_list.append(tmpFileSpec)
+                                                n_files_proper_panda_id += 1
+                                        if tmpDatasetSpec.isSeqNumber() and to_be_used_with_same_master:
+                                            # sort sequential numbers consistently with master's PandaIDs
+                                            used_panda_ids = set()
+                                            for tmp_panda_id in panda_ids_used_by_master_list:
+                                                if tmp_panda_id is not None and tmp_panda_id in used_panda_ids:
+                                                    continue
+                                                if tmp_panda_id is not None and tmp_panda_id in file_spec_map_with_panda_id:
+                                                    file_spec_list.append(file_spec_map_with_panda_id[tmp_panda_id])
+                                                    n_files_proper_panda_id += 1
+                                                else:
+                                                    # take sequential numbers which are not used by master
+                                                    if file_spec_list_with_no_panda_id:
+                                                        file_spec_list.append(file_spec_list_with_no_panda_id.pop(0))
+                                                        n_files_null_panda_id += 1
+                                                    elif file_spec_list_reserved:
+                                                        file_spec_list.append(file_spec_list_reserved.pop(0))
+                                                        n_files_inconsistent_panda_id += 1
+                                                # to ignore duplicated master's PandaIDs
+                                                if tmp_panda_id is not None:
+                                                    used_panda_ids.add(tmp_panda_id)
+
+                                        tmpLog.debug(
+                                            f"jediTaskID={jediTaskID} datasetID={datasetID} old PandaID: proper={n_files_proper_panda_id} "
+                                            f"null={n_files_null_panda_id} inconsistent={n_files_inconsistent_panda_id}"
+                                        )
+
+                                        # update file status
+                                        for tmpFileSpec in file_spec_list:
+                                            # lock files
                                             if simTasks is None and tmpDatasetSpec.toKeepTrack():
                                                 varMap = {}
                                                 varMap[":jediTaskID"] = tmpFileSpec.jediTaskID
@@ -4255,6 +4332,16 @@ class DBProxy(OraDBProxy.DBProxy):
                                             tmpLog.debug(f"jediTaskID={jediTaskID} {nNewRec} seq nums were added")
                                         if nNewRec == 0:
                                             break
+
+                                    # get old PandaIDs of master files to check with PandaIDs of sequential numbers later
+                                    if tmpDatasetSpec.isMaster() and to_be_used_with_same_master:
+                                        # sort by PandaID and move PandaID=None to the end, to avoid
+                                        #  * master: 1 1 None None 2 2 -> seq: 1 None None
+                                        #  * master: 1 2 1 2 -> seq: 1 1
+                                        #  when getting corresponding sequence numbers for nFilesPeroJob=2
+                                        tmpDatasetSpec.sort_files_by_panda_ids()
+                                        panda_ids_used_by_master_list = [f.PandaID for f in tmpDatasetSpec.Files]
+                                        panda_ids_used_by_master = set(panda_ids_used_by_master_list)
 
                                     if tmpDatasetSpec.isMaster() and iFiles_tmp == 0:
                                         inputChunk.isEmpty = True
