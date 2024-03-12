@@ -7,7 +7,7 @@ import traceback
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandaserver.dataservice.Activator import Activator
+from pandaserver.dataservice.activator import Activator
 
 from .TypicalWatchDogBase import TypicalWatchDogBase
 
@@ -102,8 +102,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                     if dataset is not None:
                         # activate jobs
                         aThr = Activator(self.taskBufferIF, dataset)
-                        aThr.start()
-                        aThr.join()
+                        aThr.run()
                         tmpLog.debug(f'  action=activated_downstream_jobs for user="{prodUserName}" with libDS={datasetName}')
                     else:
                         # datasetSpec not found
