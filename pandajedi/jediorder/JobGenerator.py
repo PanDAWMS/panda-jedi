@@ -233,7 +233,7 @@ class JobGenerator(JediKnight):
                                             inputList = ListWithLock(tmpList)
                                             # make thread pool
                                             threadPool = ThreadPool()
-                                            # make lock if nessesary
+                                            # make lock if necessary
                                             if lockFlag:
                                                 liveCounter = MapWithLock()
                                             else:
