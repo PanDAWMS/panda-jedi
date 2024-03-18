@@ -64,6 +64,10 @@ class JobGenerator(JediKnight):
         # JediKnight.start(self)
         # global thread pool
         globalThreadPool = ThreadPool()
+
+        # probability of running inactive gshare rtype combinations
+        inactive_poll_probability = 0.25
+
         # go into main loop
         while True:
             startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
@@ -87,6 +91,9 @@ class JobGenerator(JediKnight):
                 # loop over all vos
                 tmpLog.debug("go into loop")
                 for vo in self.vos:
+                    # get the active gshare rtypes combinations in order to reduce polling frequency on unused combinations
+                    active_gshare_rtypes = self.taskBufferIF.get_active_gshare_rtypes(vo)
+
                     # check if job submission is enabled
                     isUP = self.taskBufferIF.getConfigValue("jobgen", "JOB_SUBMISSION", "jedi", vo)
                     if isUP is False:
@@ -106,6 +113,13 @@ class JobGenerator(JediKnight):
                                         self.pid, vo, cloudName, workqueue_name_nice, workQueue.queue_id, prodSourceLabel, resource_type.resource_name
                                     )
                                     tmpLog_inner = MsgWrapper(logger, cycleStr)
+
+                                    # reduce the polling frequency on unused combinations
+                                    if not (workQueue.queue_name in active_gshare_rtypes and resource_type in active_gshare_rtypes[workQueue.queue_name]):
+                                        if random.uniform(0, 1) > inactive_poll_probability:
+                                            tmpLog_inner.debug(f"skipping {cycleStr} due to inactivity")
+                                            continue
+
                                     tmpLog_inner.debug(f"start {cycleStr}")
                                     # check if to lock
                                     lockFlag = self.toLockProcess(vo, prodSourceLabel, workQueue.queue_name, cloudName)
