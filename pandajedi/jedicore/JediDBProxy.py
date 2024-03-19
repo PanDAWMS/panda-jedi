@@ -2691,7 +2691,7 @@ class DBProxy(OraDBProxy.DBProxy):
             f"SELECT name, resource_type FROM gshare_results "
             f"UNION "
             f"SELECT name, resource_type FROM wq_results "
-            f"GROUP BY name, resource_type; "
+            f"GROUP BY name, resource_type"
         )
 
         return_map = {}
@@ -2703,7 +2703,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # create map
             for name, resource_type in res:
                 return_map.setdefault(name, [])
-                return_map[name].add(resource_type)
+                return_map[name].append(resource_type)
 
             tmp_log.debug("done")
             return True, return_map
