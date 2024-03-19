@@ -66,7 +66,10 @@ class JobGenerator(JediKnight):
         globalThreadPool = ThreadPool()
 
         # probability of running inactive gshare rtype combinations
-        inactive_poll_probability = 0.25
+        try:
+            inactive_poll_probability = jedi_config.jobgen.inactive_poll_probability
+        except AttributeError:
+            inactive_poll_probability = 0.25
 
         # go into main loop
         while True:
