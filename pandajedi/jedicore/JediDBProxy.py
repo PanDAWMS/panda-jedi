@@ -2706,10 +2706,10 @@ class DBProxy(OraDBProxy.DBProxy):
                 return_map[name].append(resource_type)
 
             tmp_log.debug("done")
-            return True, return_map
+            return return_map
         except Exception:
             self.dumpErrorMessage(tmp_log)
-            return False, {}
+            return {}
 
     def getJobStatisticsByResourceType(self, workqueue):
         """
