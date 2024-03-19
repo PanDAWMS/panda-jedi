@@ -118,12 +118,10 @@ class JobGenerator(JediKnight):
                                     tmpLog_inner = MsgWrapper(logger, cycleStr)
 
                                     # reduce the polling frequency on unused combinations
-                                    active = workQueue.queue_name in active_gshare_rtypes and resource_type in active_gshare_rtypes[workQueue.queue_name]
-                                    tmpLog_inner.debug(f"active_gshare_rtypes: {active_gshare_rtypes}")
-                                    tmpLog_inner.debug(f"workQueue.queue_name: {workQueue.queue_name}")
-                                    tmpLog_inner.debug(f"queue present: {workQueue.queue_name in active_gshare_rtypes}")
-                                    if {workQueue.queue_name in active_gshare_rtypes}:
-                                        tmpLog_inner.debug(f"rtype present: {resource_type in active_gshare_rtypes[workQueue.queue_name]}")
+                                    active = (
+                                        workQueue.queue_name in active_gshare_rtypes
+                                        and resource_type.resource_name in active_gshare_rtypes[workQueue.queue_name]
+                                    )
                                     if active_gshare_rtypes and not active:
                                         if random.uniform(0, 1) > inactive_poll_probability:
                                             tmpLog_inner.debug(f"skipping {cycleStr} due to inactivity")
