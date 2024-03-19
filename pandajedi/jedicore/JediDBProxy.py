@@ -2659,7 +2659,7 @@ class DBProxy(OraDBProxy.DBProxy):
         :param vo: Virtual Organization
         """
         comment = " /* DBProxy.get_active_gshare_rtypes */"
-        method_name = self.getmethod_name(comment)
+        method_name = self.getMethodName(comment)
         method_name += f" < vo={vo} >"
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
