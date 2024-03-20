@@ -280,7 +280,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getJobStatisticsByGlobalShare(vo, exclude_rwq)
 
-    # get job statistics by global share
+    # get whether a gshare rtype combination is active
+    def get_active_gshare_rtypes(self, vo):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_active_gshare_rtypes(vo)
+
+    # get job statistics by resource type
     def getJobStatisticsByResourceType(self, workqueue):
         with self.proxyPool.get() as proxy:
             return proxy.getJobStatisticsByResourceType(workqueue)
