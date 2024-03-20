@@ -2668,31 +2668,31 @@ class DBProxy(OraDBProxy.DBProxy):
         var_map = {":vo": vo}
 
         # sql to query on pre-cached job statistics tables, creating a single result set with active gshares and resource workqueues
-        sql_get_active_combinations = (
-            f"WITH gshare_results AS ( "
-            f"SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type "
-            f"FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS "
-            f"WHERE vo=:vo "
-            f"UNION "
-            f"SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type "
-            f"FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS "
-            f"WHERE vo=:vo "
-            f"), wq_results AS ( "
-            f"SELECT jwq.QUEUE_NAME AS name, jss.resource_type "
-            f"FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS jss "
-            f"JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID "
-            f"WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo "
-            f"UNION "
-            f"SELECT jwq.QUEUE_NAME AS name, jss.resource_type "
-            f"FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS jss "
-            f"JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID "
-            f"WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo "
-            f") "
-            f"SELECT name, resource_type FROM gshare_results "
-            f"UNION "
-            f"SELECT name, resource_type FROM wq_results "
-            f"GROUP BY name, resource_type"
-        )
+        sql_get_active_combinations = f"""
+            WITH gshare_results AS ( 
+            SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS 
+            WHERE vo=:vo 
+            UNION 
+            SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS 
+            WHERE vo=:vo 
+            ), wq_results AS ( 
+            SELECT jwq.QUEUE_NAME AS name, jss.resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS jss 
+            JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID 
+            WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo 
+            UNION 
+            SELECT jwq.QUEUE_NAME AS name, jss.resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS jss 
+            JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID 
+            WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo 
+            ) 
+            SELECT name, resource_type FROM gshare_results 
+            UNION 
+            SELECT name, resource_type FROM wq_results 
+            GROUP BY name, resource_type
+        """
 
         return_map = {}
         try:
