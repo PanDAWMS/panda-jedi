@@ -2,6 +2,8 @@ import enum
 import math
 import re
 
+from pandaserver.taskbuffer import task_split_rules
+
 """
 task specification for JEDI
 
@@ -102,113 +104,10 @@ class JediTaskSpec(object):
     _limitLength = {"errorDialog": 255}
     # attribute length
     _attrLength = {"workingGroup": 32}
+
     # tokens for split rule
-    splitRuleToken = {
-        "allowEmptyInput": "AE",
-        "addNthFieldToLFN": "AN",
-        "allowPartialFinish": "AP",
-        "altStageOut": "AT",
-        "avoidVP": "AV",
-        "maxCoreCount": "CC",
-        "cloudAsVO": "CV",
-        "ddmBackEnd": "DE",
-        "disableAutoFinish": "DF",
-        "disableReassign": "DI",
-        "debugMode": "DM",
-        "disableAutoRetry": "DR",
-        "dynamicNumEvents": "DY",
-        "nEsConsumers": "EC",
-        "nEventsPerInput": "EI",
-        "encJobParams": "EJ",
-        "nEventsPerWorker": "ES",
-        "firstContentsFeed": "FC",
-        "failGoalUnreached": "FG",
-        "fineGrainedProc": "FP",
-        "firstEvent": "FT",
-        "fullChain": "FU",
-        "groupBoundaryID": "GB",
-        "hpoWorkflow": "HO",
-        "instantiateTmplSite": "IA",
-        "inFilePosEvtNum": "IF",
-        "ipStack": "IK",
-        "allowInputLAN": "IL",
-        "ignoreMissingInDS": "IM",
-        "intermediateTask": "IN",
-        "ipConnectivity": "IP",
-        "inputPreStaging": "IS",
-        "instantiateTmpl": "IT",
-        "allowInputWAN": "IW",
-        "noLoopingCheck": "LC",
-        "useLocalIO": "LI",
-        "limitedSites": "LS",
-        "loadXML": "LX",
-        "minCpuEfficiency": "MC",
-        "messageDriven": "MD",
-        "mergeEsOnOS": "ME",
-        "nMaxFilesPerJob": "MF",
-        "maxJumboPerSite": "MJ",
-        "maxNumJobs": "MN",
-        "mergeOutput": "MO",
-        "multiStepExec": "MS",
-        "maxWalltime": "MW",
-        "maxEventsPerJob": "MX",
-        "noExecStrCnv": "NC",
-        "notDiscardEvents": "ND",
-        "nEventsPerJob": "NE",
-        "nFilesPerJob": "NF",
-        "nGBPerJob": "NG",
-        "noInputPooling": "NI",
-        "nJumboJobs": "NJ",
-        "nSitesPerJob": "NS",
-        "nChunksToWait": "NT",
-        "noWaitParent": "NW",
-        "orderInputBy": "OI",
-        "orderByLB": "OL",
-        "onSiteMerging": "OM",
-        "osMatching": "OS",
-        "onlyTagsForFC": "OT",
-        "pushStatusChanges": "PC",
-        "pushJob": "PJ",
-        "pfnList": "PL",
-        "putLogToOS": "PO",
-        "runUntilClosed": "RC",
-        "registerDatasets": "RD",
-        "registerEsFiles": "RE",
-        "respectLB": "RL",
-        "reuseSecOnDemand": "RO",
-        "releasePerLB": "RP",
-        "respectSplitRule": "RR",
-        "randomSeed": "RS",
-        "retryRamOffset": "RX",
-        "retryRamStep": "RY",
-        "resurrectConsumers": "SC",
-        "switchEStoNormal": "SE",
-        "stayOutputOnSite": "SO",
-        "scoutSuccessRate": "SS",
-        "useSecrets": "ST",
-        "segmentedWork": "SW",
-        "totNumJobs": "TJ",
-        "tgtMaxOutputForNG": "TN",
-        "t1Weight": "TW",
-        "useBuild": "UB",
-        "useJobCloning": "UC",
-        "useRealNumEvents": "UE",
-        "useFileAsSourceLFN": "UF",
-        "usePrePro": "UP",
-        "useScout": "US",
-        "usePrefetcher": "UT",
-        "useExhausted": "UX",
-        "useZipToPin": "UZ",
-        "writeInputToFile": "WF",
-        "waitInput": "WI",
-        "maxAttemptES": "XA",
-        "decAttOnFailedES": "XF",
-        "maxAttemptEsJob": "XJ",
-        "nEventsPerMergeJob": "ZE",
-        "nFilesPerMergeJob": "ZF",
-        "nGBPerMergeJob": "ZG",
-        "nMaxFilesPerMergeJob": "ZM",
-    }
+    splitRuleToken = task_split_rules.split_rule_dict
+
     # enum for preprocessing
     enum_toPreProcess = "1"
     enum_preProcessed = "2"
@@ -1614,7 +1513,7 @@ class JediTaskSpec(object):
 # utils
 
 
-# check split rule with postive integer
+# check split rule with positive integer
 def check_split_rule_positive_int(key, split_rule):
     if not split_rule:
         return False
