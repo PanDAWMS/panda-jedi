@@ -2653,6 +2653,64 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False, {}
 
+    def get_active_gshare_rtypes(self, vo):
+        """
+        Gets the active gshare/resource wq combinations.  Active means they have at least 1 job in (assigned, activate, starting, running, ...)
+        :param vo: Virtual Organization
+        """
+        comment = " /* DBProxy.get_active_gshare_rtypes */"
+        method_name = self.getMethodName(comment)
+        method_name += f" < vo={vo} >"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+
+        # define the var map of query parameters
+        var_map = {":vo": vo}
+
+        # sql to query on pre-cached job statistics tables, creating a single result set with active gshares and resource workqueues
+        sql_get_active_combinations = f"""
+            WITH gshare_results AS ( 
+            SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS 
+            WHERE vo=:vo 
+            UNION 
+            SELECT /*+ RESULT_CACHE */ gshare AS name, resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS 
+            WHERE vo=:vo 
+            ), wq_results AS ( 
+            SELECT jwq.QUEUE_NAME AS name, jss.resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBS_SHARE_STATS jss 
+            JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID 
+            WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo 
+            UNION 
+            SELECT jwq.QUEUE_NAME AS name, jss.resource_type 
+            FROM {jedi_config.db.schemaPANDA}.JOBSDEFINED_SHARE_STATS jss 
+            JOIN {jedi_config.db.schemaPANDA}.JEDI_WORK_QUEUE jwq ON jss.WORKQUEUE_ID = jwq.QUEUE_ID 
+            WHERE jwq.QUEUE_FUNCTION = 'Resource' AND jss.vo=:vo AND jwq.vo=:vo 
+            ) 
+            SELECT name, resource_type FROM gshare_results 
+            UNION 
+            SELECT name, resource_type FROM wq_results 
+            GROUP BY name, resource_type
+        """
+
+        return_map = {}
+        try:
+            self.cur.arraysize = 1000
+            self.cur.execute(f"{sql_get_active_combinations} {comment}", var_map)
+            res = self.cur.fetchall()
+
+            # create map
+            for name, resource_type in res:
+                return_map.setdefault(name, [])
+                return_map[name].append(resource_type)
+
+            tmp_log.debug("done")
+            return return_map
+        except Exception:
+            self.dumpErrorMessage(tmp_log)
+            return {}
+
     def getJobStatisticsByResourceType(self, workqueue):
         """
         This function will return the job statistics for a particular workqueue, broken down by resource type

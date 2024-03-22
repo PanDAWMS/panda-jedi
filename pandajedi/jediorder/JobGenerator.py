@@ -64,12 +64,19 @@ class JobGenerator(JediKnight):
         # JediKnight.start(self)
         # global thread pool
         globalThreadPool = ThreadPool()
+
+        # probability of running inactive gshare rtype combinations
+        try:
+            inactive_poll_probability = jedi_config.jobgen.inactive_poll_probability
+        except AttributeError:
+            inactive_poll_probability = 0.25
+
         # go into main loop
         while True:
             startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            tmpLog = MsgWrapper(logger)
+            resource_types = self.taskBufferIF.load_resource_types()
             try:
-                # get logger
-                tmpLog = MsgWrapper(logger)
                 tmpLog.debug("start")
                 # get SiteMapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
@@ -87,6 +94,9 @@ class JobGenerator(JediKnight):
                 # loop over all vos
                 tmpLog.debug("go into loop")
                 for vo in self.vos:
+                    # get the active gshare rtypes combinations in order to reduce polling frequency on unused combinations
+                    active_gshare_rtypes = self.taskBufferIF.get_active_gshare_rtypes(vo)
+
                     # check if job submission is enabled
                     isUP = self.taskBufferIF.getConfigValue("jobgen", "JOB_SUBMISSION", "jedi", vo)
                     if isUP is False:
@@ -96,10 +106,8 @@ class JobGenerator(JediKnight):
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all clouds
                         random.shuffle(self.cloudList)
+                        workQueueList = workQueueMapper.getAlignedQueueList(vo, prodSourceLabel)
                         for cloudName in self.cloudList:
-                            # loop over all work queues
-                            workQueueList = workQueueMapper.getAlignedQueueList(vo, prodSourceLabel)
-                            resource_types = self.taskBufferIF.load_resource_types()
                             tmpLog.debug(f"{len(workQueueList)} workqueues for vo:{vo} label:{prodSourceLabel}")
                             for workQueue in workQueueList:
                                 for resource_type in resource_types:
@@ -108,6 +116,17 @@ class JobGenerator(JediKnight):
                                         self.pid, vo, cloudName, workqueue_name_nice, workQueue.queue_id, prodSourceLabel, resource_type.resource_name
                                     )
                                     tmpLog_inner = MsgWrapper(logger, cycleStr)
+
+                                    # reduce the polling frequency on unused combinations
+                                    active = (
+                                        workQueue.queue_name in active_gshare_rtypes
+                                        and resource_type.resource_name in active_gshare_rtypes[workQueue.queue_name]
+                                    )
+                                    if active_gshare_rtypes and not active:
+                                        if random.uniform(0, 1) > inactive_poll_probability:
+                                            tmpLog_inner.debug(f"skipping {cycleStr} due to inactivity")
+                                            continue
+
                                     tmpLog_inner.debug(f"start {cycleStr}")
                                     # check if to lock
                                     lockFlag = self.toLockProcess(vo, prodSourceLabel, workQueue.queue_name, cloudName)
@@ -197,22 +216,18 @@ class JobGenerator(JediKnight):
                                         numNewTaskWithJumbo = 0
                                     # release lock when lack of jobs
                                     lackOfJobs = False
-                                    if thrFlag is False:
-                                        if flagLocked and throttle.lackOfJobs:
-                                            tmpLog_inner.debug(
-                                                f"unlock {cycleStr} for multiple processes to quickly fill the queue until nQueueLimit is reached"
-                                            )
-                                            self.taskBufferIF.unlockProcess_JEDI(
-                                                vo=vo,
-                                                prodSourceLabel=prodSourceLabel,
-                                                cloud=cloudName,
-                                                workqueue_id=workQueue.queue_id,
-                                                resource_name=resource_type.resource_name,
-                                                component=None,
-                                                pid=self.pid,
-                                            )
-                                            lackOfJobs = True
-                                            flagLocked = True
+                                    if thrFlag is False and flagLocked and throttle.lackOfJobs:
+                                        tmpLog_inner.debug(f"unlock {cycleStr} for multiple processes to quickly fill the queue until nQueueLimit is reached")
+                                        self.taskBufferIF.unlockProcess_JEDI(
+                                            vo=vo,
+                                            prodSourceLabel=prodSourceLabel,
+                                            cloud=cloudName,
+                                            workqueue_id=workQueue.queue_id,
+                                            resource_name=resource_type.resource_name,
+                                            component=None,
+                                            pid=self.pid,
+                                        )
+                                        lackOfJobs = True
                                     # get the list of input
                                     tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(
                                         self.pid,
@@ -239,7 +254,7 @@ class JobGenerator(JediKnight):
                                             inputList = ListWithLock(tmpList)
                                             # make thread pool
                                             threadPool = ThreadPool()
-                                            # make lock if nessesary
+                                            # make lock if necessary
                                             if lockFlag:
                                                 liveCounter = MapWithLock()
                                             else:
@@ -275,7 +290,6 @@ class JobGenerator(JediKnight):
                                                 self.taskBufferIF.unlockProcessWithPID_JEDI(
                                                     vo, prodSourceLabel, workQueue.queue_name, resource_type.resource_name, brokeragelockID, True
                                                 )
-                                            # dump
                                             tmpLog_inner.debug(f"dump one-time pool : {threadPool.dump()} remTasks={inputList.dump()}")
                                     # unlock
                                     self.taskBufferIF.unlockProcess_JEDI(
@@ -607,16 +621,15 @@ class JobGeneratorThread(WorkerThread):
                             splitter = JobSplitter()
                             try:
                                 # lock counter
-                                if self.liveCounter is not None and not inputChunk.isMerging:
-                                    if not lockCounter:
-                                        tmpLog.debug("trying to lock counter")
-                                        self.liveCounter.acquire()
-                                        tmpLog.debug("locked counter")
-                                        lockCounter = True
-                                        # update nQueuedJobs since live counter may not have been
-                                        # considered in brokerage
-                                        tmpMsg = inputChunk.update_n_queue(self.liveCounter)
-                                        tmpLog.debug(f"updated nQueue at {tmpMsg}")
+                                if self.liveCounter is not None and not inputChunk.isMerging and not lockCounter:
+                                    tmpLog.debug("trying to lock counter")
+                                    self.liveCounter.acquire()
+                                    tmpLog.debug("locked counter")
+                                    lockCounter = True
+                                    # update nQueuedJobs since live counter may not have been
+                                    # considered in brokerage
+                                    tmpMsg = inputChunk.update_n_queue(self.liveCounter)
+                                    tmpLog.debug(f"updated nQueue at {tmpMsg}")
                                 tmpStat, subChunks, isSkipped = splitter.doSplit(taskSpec, inputChunk, self.siteMapper, allow_chunk_size_limit=True)
                                 if tmpStat == Interaction.SC_SUCCEEDED and isSkipped:
                                     # run again without chunk size limit to generate jobs for skipped snippet
@@ -738,8 +751,8 @@ class JobGeneratorThread(WorkerThread):
                             iJobs = 0
                             nJobsInBunch = 100
                             resSubmit = []
-                            esJobsetMap = dict()
-                            unprocessedMap = dict()
+                            esJobsetMap = {}
+                            unprocessedMap = {}
                             while iJobs < len(pandaJobs):
                                 tmpResSubmit, esJobsetMap, unprocessedMap = self.taskBufferIF.storeJobs(
                                     pandaJobs[iJobs : iJobs + nJobsInBunch],
@@ -767,23 +780,13 @@ class JobGeneratorThread(WorkerThread):
                                 tmpLog.debug(f"{nSkipJumbo} jumbo jobs were skipped")
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs) and pandaJobs:
-                                tmpMsg = "successfully submitted "
-                                tmpMsg += (
-                                    "jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} resource_type={5} status={6} nucleus={7}".format(
-                                        len(pandaIDs),
-                                        len(pandaJobs),
-                                        taskSpec.vo,
-                                        cloudName,
-                                        workqueue_name_nice,
-                                        self.resource_name,
-                                        oldStatus,
-                                        taskSpec.nucleus,
-                                    )
+                                tmpMsg = (
+                                    f"successfully submitted jobs_submitted={len(pandaIDs)} / jobs_possible={len(pandaJobs)} "
+                                    f"for VO={taskSpec.vo} cloud={cloudName} queue={workqueue_name_nice} "
+                                    f"resource_type={self.resource_name} status={oldStatus} nucleus={taskSpec.nucleus}"
+                                    f"pmerge={'Y' if inputChunk.isMerging else 'N'}"
                                 )
-                                if inputChunk.isMerging:
-                                    tmpMsg += " pmerge=Y"
-                                else:
-                                    tmpMsg += " pmerge=N"
+
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg, self.msgType)
                                 if self.execJobs:
@@ -1076,7 +1079,6 @@ class JobGeneratorThread(WorkerThread):
                     boundaryID = None
                     # flag for merging
                     isUnMerging = False
-                    isMerging = False
                     # special handling
                     specialHandling = ""
                     # DDM backend
@@ -1108,9 +1110,8 @@ class JobGeneratorThread(WorkerThread):
                     segmentID = None
                     for tmpDatasetSpec, tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
-                        if useBoundary is not None and boundaryID is None:
-                            if tmpDatasetSpec.isMaster():
-                                boundaryID = tmpFileSpecList[0].boundaryID
+                        if useBoundary is not None and boundaryID is None and tmpDatasetSpec.isMaster():
+                            boundaryID = tmpFileSpecList[0].boundaryID
                         # get prodDBlock
                         if not tmpDatasetSpec.isPseudo():
                             if tmpDatasetSpec.isMaster():
@@ -1796,7 +1797,6 @@ class JobGeneratorThread(WorkerThread):
             # return
             return Interaction.SC_SUCCEEDED, jobSpec, runFileSpec, datasetToRegister
         except Exception:
-            errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error(f"{self.__class__.__name__}.doGenerateBuild() failed with {traceback.format_exc()}")
             return failedRet
 

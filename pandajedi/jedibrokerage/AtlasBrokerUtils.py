@@ -471,10 +471,14 @@ def hasZeroShare(site_spec, task_spec, ignore_priority, tmp_log):
             if tmp_priority is not None and not ignore_priority:
                 try:
                     exec(f"tmpStat = {task_spec.currentPriority}{tmp_priority}", globals())
+                    tmp_log.debug(
+                        f"Priority check for {site_spec.sitename}, {task_spec.currentPriority}): " f"{task_spec.currentPriority}{tmp_priority} = {tmpStat}"
+                    )
                     if not tmpStat:
                         continue
                 except Exception:
-                    pass
+                    error_type, error_value = sys.exc_info()[:2]
+                    tmp_log.error(f"Priority check for {site_spec.sitename} failed with {error_type}:{error_value}")
 
             # check fair share value
             # if 0, we need to skip the site

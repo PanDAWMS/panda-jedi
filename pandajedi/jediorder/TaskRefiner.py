@@ -3,12 +3,11 @@ import sys
 import time
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediException
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
@@ -59,7 +58,7 @@ class TaskRefiner(JediKnight, FactoryBase):
                             workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
-                            for iWorker in range(nWorker):
+                            for _ in range(nWorker):
                                 thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper)
                                 thr.start()
                             # join
@@ -201,43 +200,43 @@ class TaskRefinerThread(WorkerThread):
                     # check parent
                     noWaitParent = False
                     parentState = None
-                    if tmpStat == Interaction.SC_SUCCEEDED:
-                        if parent_tid not in [None, jediTaskID]:
-                            tmpLog.info("check parent task")
-                            try:
-                                tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
-                                parentState = tmpStat
-                                if tmpStat == "completed":
-                                    # parent is done
-                                    tmpStat = Interaction.SC_SUCCEEDED
-                                elif tmpStat is None or tmpStat == "running":
-                                    if not impl.taskSpec.noWaitParent():
-                                        # parent is running
-                                        errStr = f"pending until parent task {parent_tid} is done"
-                                        impl.taskSpec.status = taskStatus
-                                        impl.taskSpec.setOnHold()
-                                        impl.taskSpec.setErrDiag(errStr)
-                                        # not to update some task attributes
-                                        impl.taskSpec.resetRefinedAttrs()
-                                        tmpLog.info(errStr)
-                                        self.taskBufferIF.updateTask_JEDI(
-                                            impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], setFrozenTime=False
-                                        )
-                                        continue
-                                    else:
-                                        # not wait for parent
-                                        tmpStat = Interaction.SC_SUCCEEDED
-                                        noWaitParent = True
+                    if tmpStat == Interaction.SC_SUCCEEDED and parent_tid not in [None, jediTaskID]:
+                        tmpLog.info("check parent task")
+                        try:
+                            tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
+                            parentState = tmpStat
+                            if tmpStat == "completed":
+                                # parent is done
+                                tmpStat = Interaction.SC_SUCCEEDED
+                            elif tmpStat is None or tmpStat == "running":
+                                if not impl.taskSpec.noWaitParent():
+                                    # parent is running
+                                    errStr = f"pending until parent task {parent_tid} is done"
+                                    impl.taskSpec.status = taskStatus
+                                    impl.taskSpec.setOnHold()
+                                    impl.taskSpec.setErrDiag(errStr)
+                                    # not to update some task attributes
+                                    impl.taskSpec.resetRefinedAttrs()
+                                    tmpLog.info(errStr)
+                                    self.taskBufferIF.updateTask_JEDI(
+                                        impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], setFrozenTime=False
+                                    )
+                                    continue
                                 else:
-                                    # parent is corrupted
-                                    tmpStat = Interaction.SC_FAILED
-                                    tmpErrStr = f"parent task {parent_tid} failed to complete"
-                                    impl.taskSpec.setErrDiag(tmpErrStr)
-                            except Exception:
-                                errtype, errvalue = sys.exc_info()[:2]
-                                errStr = f"failed to check parent task with {errtype.__name__}:{errvalue}"
-                                tmpLog.error(errStr)
+                                    # not wait for parent
+                                    tmpStat = Interaction.SC_SUCCEEDED
+                                    noWaitParent = True
+                            else:
+                                # parent is corrupted
                                 tmpStat = Interaction.SC_FAILED
+                                tmpErrStr = f"parent task {parent_tid} failed to complete"
+                                impl.taskSpec.setErrDiag(tmpErrStr)
+                        except Exception:
+                            errtype, errvalue = sys.exc_info()[:2]
+                            errStr = f"failed to check parent task with {errtype.__name__}:{errvalue}"
+                            tmpLog.error(errStr)
+                            tmpStat = Interaction.SC_FAILED
+
                     # refine
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info(f"refining with {impl.__class__.__name__}")
@@ -387,9 +386,6 @@ class TaskRefinerThread(WorkerThread):
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
                 logger.error(f"{self.__class__.__name__} failed in runImpl() with {errtype.__name__}:{errvalue}")
-
-
-# lauch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):
