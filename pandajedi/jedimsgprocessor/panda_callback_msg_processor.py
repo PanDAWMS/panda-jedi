@@ -3,7 +3,7 @@ import re
 import yaml
 from pandacommon.pandalogger import logger_utils
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
-from pandaserver.dataservice.DDMHandler import DDMHandler
+from pandaserver.dataservice.ddm_handler import DDMHandler
 
 # logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
@@ -48,7 +48,7 @@ class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
                 scope = message_payload["scope"]
                 site = message_payload["rse"]
                 tmp_log.debug(f"{dsn} site={site} type={event_type}")
-                thr = DDMHandler(taskBuffer=self.tbIF, vuid=None, site=site, dataset=dsn, scope=scope)
+                thr = DDMHandler(task_buffer=self.tbIF, vuid=None, site=site, dataset=dsn, scope=scope)
                 # just call run rather than start+join, to run it in main thread instead of spawning new thread
                 thr.run()
                 del thr
