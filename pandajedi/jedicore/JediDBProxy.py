@@ -4155,7 +4155,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             for inputChunk in inputChunks:
                                 # check if sequence numbers need to be consistent with masters
                                 to_be_used_with_same_master = False
-                                if taskSpec.getNumFilesPerJob() or taskSpec.getNumEventsPerJob():
+                                if (taskSpec.getNumFilesPerJob() or taskSpec.getNumEventsPerJob()) and not taskSpec.dynamicNumEvents():
                                     for datasetID in datasetIDs:
                                         tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
                                         if tmpDatasetSpec.isSeqNumber():
