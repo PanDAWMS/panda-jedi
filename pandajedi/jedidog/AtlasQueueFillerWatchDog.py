@@ -2,21 +2,18 @@ import copy
 import datetime
 import json
 import os
-import re
 import socket
 import sys
 import time
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer.ResourceSpec import ResourceSpecMapper
+
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore.ThreadUtils import ListWithLock
-from pandaserver.dataservice import DataServiceUtils
-from pandaserver.taskbuffer import JobUtils
 
 from .WatchDogBase import WatchDogBase
 
@@ -39,16 +36,20 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
     def __init__(self, taskBufferIF, ddmIF):
         WatchDogBase.__init__(self, taskBufferIF, ddmIF)
         self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
-        # self.cronActions = {'forPrestage': 'atlas_prs'}
         self.vo = "atlas"
         self.prodSourceLabelList = ["managed"]
+
         # keys for cache
         self.dc_main_key = "AtlasQueueFillerWatchDog"
         self.dc_sub_key_pt = "PreassignedTasks"
         self.dc_sub_key_bt = "BlacklistedTasks"
         self.dc_sub_key_attr = "OriginalTaskAttributes"
         self.dc_sub_key_ses = "SiteEmptySince"
-        # call refresh
+
+        # initialize the resource_spec_mapper object
+        resource_types = taskBuffer.load_resource_types()
+        self.resource_spec_mapper = ResourceSpecMapper(resource_types)
+
         self.refresh()
 
     # refresh information stored in the instance
@@ -360,7 +361,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     tmp_log.debug(f"skipped {site} since no available RSE")
                     continue
                 # skip if no coreCount set
-                if not tmpSiteSpec.coreCount or not tmpSiteSpec.coreCount > 0:
+                if not tmpSiteSpec.coreCount or tmpSiteSpec.coreCount <= 0:
                     tmp_log.debug(f"skipped {site} since coreCount is not set")
                     continue
                 # now timestamp
@@ -426,12 +427,15 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 for resource_type in resource_type_list:
                     # key name for preassigned_tasks_map = site + resource_type
                     key_name = f"{site}|{resource_type}"
-                    # skip if not match with site capability
-                    if site_capability == "score" and not resource_type.startswith("SCORE"):
+
+                    # skip if no match: site is single core and resource_type is multi core
+                    if site_capability == "score" and self.resource_spec_mapper.is_multi_core(resource_type):
                         continue
-                    elif site_capability == "mcore" and not resource_type.startswith("MCORE"):
+
+                    # skip if no match: site is multi core and resource_type is single core
+                    elif site_capability == "mcore" and self.resource_spec_mapper.is_single_core(resource_type):
                         continue
-                    # params map
+
                     params_map = {
                         ":prodSourceLabel": prod_source_label,
                         ":resource_type": resource_type,
