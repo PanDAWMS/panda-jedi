@@ -5,11 +5,12 @@ import re
 import sys
 import uuid
 
+from pandaserver.taskbuffer import EventServiceUtils
+
 from pandajedi.jedicore import Interaction, JediException
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandaserver.taskbuffer import EventServiceUtils
 
 from . import RefinerUtils
 
@@ -431,18 +432,15 @@ class TaskRefinerBase(object):
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
         # Initialize the global share
-        gshare = "Undefined"
         if "gshare" in taskParamMap and self.taskBufferIF.is_valid_share(taskParamMap["gshare"]):
-            # work queue is specified
+            # global share was already specified in ProSys
             gshare = taskParamMap["gshare"]
         else:
             # get share based on definition
             gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
-                gshare = "Undefined"  # Should not happen. Undefined is set when no share is found
-                # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
-                # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
-                # raise RuntimeError,errStr
+                error_message = "task definition does not match any global share vo={0} label={1}"
+                raise RuntimeError(error_message)
         self.taskSpec.gshare = gshare
 
         # Initialize the resource type
