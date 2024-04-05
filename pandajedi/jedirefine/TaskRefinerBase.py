@@ -433,7 +433,7 @@ class TaskRefinerBase(object):
 
         # Initialize the global share
         if "gshare" in taskParamMap and self.taskBufferIF.is_valid_share(taskParamMap["gshare"]):
-            # global share was already specified in ProSys
+            # global share was already specified in ProdSys
             gshare = taskParamMap["gshare"]
         else:
             # get share based on definition
