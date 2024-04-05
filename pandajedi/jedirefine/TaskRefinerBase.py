@@ -439,7 +439,7 @@ class TaskRefinerBase(object):
             # get share based on definition
             gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
-                error_message = "task definition does not match any global share vo={0} label={1}"
+                error_message = "task definition does not match any global share"
                 raise RuntimeError(error_message)
         self.taskSpec.gshare = gshare
 
