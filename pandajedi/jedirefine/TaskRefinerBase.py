@@ -5,11 +5,12 @@ import re
 import sys
 import uuid
 
+from pandaserver.taskbuffer import EventServiceUtils, task_split_rules
+
 from pandajedi.jedicore import Interaction, JediException
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandaserver.taskbuffer import EventServiceUtils
 
 from . import RefinerUtils
 
@@ -886,17 +887,21 @@ class TaskRefinerBase(object):
         return True, taskParamMap
 
     # set split rule
-    def setSplitRule(self, taskParamMap, keyName, valName):
+    def setSplitRule(self, taskParamMap, key_or_value, rule_token):
         if taskParamMap is not None:
-            if keyName not in taskParamMap:
+            if key_or_value not in taskParamMap:
+                self.taskSpec.splitRule = task_split_rules.remove_rule(self.taskSpec.splitRule, rule_token)
                 return
-            tmpStr = f"{valName}={taskParamMap[keyName]}"
+            tmpStr = f"{rule_token}={taskParamMap[key_or_value]}"
         else:
-            tmpStr = f"{valName}={keyName}"
+            if key_or_value is None:
+                self.taskSpec.splitRule = task_split_rules.remove_rule(self.taskSpec.splitRule, rule_token)
+                return
+            tmpStr = f"{rule_token}={key_or_value}"
         if self.taskSpec.splitRule in [None, ""]:
             self.taskSpec.splitRule = tmpStr
         else:
-            tmpMatch = re.search(valName + "=(-*\d+)(,-*\d+)*", self.taskSpec.splitRule)
+            tmpMatch = re.search(rule_token + "=(-*\d+)(,-*\d+)*", self.taskSpec.splitRule)
             if tmpMatch is None:
                 # append
                 self.taskSpec.splitRule += f",{tmpStr}"
