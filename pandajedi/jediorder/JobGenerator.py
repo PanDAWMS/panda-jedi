@@ -574,7 +574,7 @@ class JobGeneratorThread(WorkerThread):
                             jobBrokerCore.setLockID(self.pid, self.ident)
                             # set common dict
                             jobBrokerCore.set_task_common_dict(task_common_dict)
-                        # read task params if nessesary
+                        # read task params if necessary
                         if taskSpec.useLimitedSites():
                             tmpStat, taskParamMap = self.readTaskParams(taskSpec, taskParamMap, tmpLog)
                             if not tmpStat:

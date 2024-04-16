@@ -4,8 +4,9 @@ import re
 import shlex
 import traceback
 
-from pandajedi.jedicore import JediException
 from pandaserver.dataservice import DataServiceUtils
+
+from pandajedi.jedicore import JediException
 
 from .TaskRefinerBase import TaskRefinerBase
 
@@ -107,7 +108,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
                 if datasetType not in ["", None]:
                     datasetTypeListIn.append(datasetType)
-            # extract datatype and set destination if nessesary
+            # extract datatype and set destination if necessary
             datasetTypeList = []
             for datasetSpec in self.outDatasetSpecList:
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
