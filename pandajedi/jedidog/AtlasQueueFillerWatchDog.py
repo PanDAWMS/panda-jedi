@@ -47,7 +47,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.dc_sub_key_ses = "SiteEmptySince"
 
         # initialize the resource_spec_mapper object
-        resource_types = taskBuffer.load_resource_types()
+        resource_types = taskBufferIF.load_resource_types()
         self.resource_spec_mapper = ResourceSpecMapper(resource_types)
 
         self.refresh()
