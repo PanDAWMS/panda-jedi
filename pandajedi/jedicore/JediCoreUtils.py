@@ -174,7 +174,8 @@ def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
 # get max walltime and cpu count
 def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec):
     try:
-        if not taskSpec.getCpuTime():
+        if taskSpec.getCpuTime() is None:
+            # use PQ maxtime when CPU time is not defined
             jobSpec.maxWalltime = siteSpec.maxtime
             jobSpec.maxCpuCount = siteSpec.maxtime
         else:
