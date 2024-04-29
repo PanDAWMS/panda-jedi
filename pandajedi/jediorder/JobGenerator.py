@@ -1,5 +1,6 @@
 import copy
 import datetime
+import gc
 import os
 import random
 import re
@@ -337,12 +338,10 @@ class JobGenerator(JediKnight):
                 tmpLog.debug(f"memUsage now {memNow} MB pid={os.getpid()}")
                 if memNow > memLimit:
                     tmpLog.warning(f"memory limit exceeds {memNow} > {memLimit} MB pid={os.getpid()}")
-                    tmpLog.debug("join")
-                    globalThreadPool.join()
-                    tmpLog.debug("kill")
-                    os.kill(os.getpid(), signal.SIGKILL)
-            except Exception:
-                pass
+                tmpLog.debug("trigger garbage collection")
+                gc.collect()
+            except Exception as e:
+                tmpLog.error(f"failed in garbage collection with {str(e)}")
             # sleep if needed. It can be specified for the particular JobGenerator instance or use the default value
             if self.loopCycle_cust:
                 loopCycle = self.loopCycle_cust

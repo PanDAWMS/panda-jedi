@@ -54,7 +54,7 @@ def getMemoryUsage():
                 elif items[2] in ["mB", "MB"]:
                     pass
                 break
-        return value
+        return int(value)
     except Exception:
         return None
 
