@@ -1489,6 +1489,7 @@ class JobGeneratorThread(WorkerThread):
                         if tmpToRegisterItem not in datasetToRegister:
                             datasetToRegister.append(tmpToRegisterItem)
                     destinationDBlock = None
+                    destination_data_block_type = None
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if tmpFileSpec.datasetID not in outDsMap:
@@ -1517,9 +1518,10 @@ class JobGeneratorThread(WorkerThread):
                             else:
                                 tmpOutFileSpec.destinationDBlockToken = "ddd:"
                         jobSpec.addFile(tmpOutFileSpec)
-                        # use the first dataset as destinationDBlock
-                        if destinationDBlock is None:
+                        # use the first (preferably non-log) dataset as destinationDBlock
+                        if destinationDBlock is None or destination_data_block_type == "log":
                             destinationDBlock = tmpDatasetSpec.datasetName
+                            destination_data_block_type = tmpDatasetSpec.type
                     if destinationDBlock is not None:
                         jobSpec.destinationDBlock = destinationDBlock
                     # get datasetSpec for parallel jobs
