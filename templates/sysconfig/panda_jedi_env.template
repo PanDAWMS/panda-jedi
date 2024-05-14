@@ -23,3 +23,6 @@ TZ=UTC
 
 # avoid to use AFS
 HOME=~atlpan
+
+# starts with non-root
+PANDA_NO_ROOT=1
