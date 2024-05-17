@@ -1,4 +1,5 @@
 import copy
+import datetime
 import math
 import os
 import re
@@ -212,3 +213,24 @@ def use_direct_io_for_job(task_spec, site_spec, input_chunk):
     if task_spec.allowInputLAN() is not None and site_spec.isDirectIO():
         return True
     return False
+
+
+# stopwatch
+class StopWatch:
+    def __init__(self):
+        self.start_time = datetime.datetime.now()
+        self.checkpoint = self.start_time
+
+    def reset(self):
+        self.start_time = datetime.datetime.now()
+        self.checkpoint = self.start_time
+
+    def get_elapsed_time(self):
+        now = datetime.datetime.now()
+        total_delta = now - self.start_time
+        interval_delta = now - self.checkpoint
+        self.checkpoint = now
+        return (
+            f"elapsed {total_delta.seconds}.{int(total_delta.microseconds / 1000):03d} sec. "
+            f"interval {interval_delta.seconds}.{int(interval_delta.microseconds / 1000):03d} sec"
+        )

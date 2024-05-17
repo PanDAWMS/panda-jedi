@@ -2833,7 +2833,7 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug(f"start with simul={simul} instantiateTmpl={instantiateTmpl} instantiatedSites={instantiatedSites}")
-        tmpLog.debug(f"isUnMerging={isUnMerging} isPrePro={isPrePro} xmlConfigJob={type(xmlConfigJob)}")
+        tmpLog.debug(f"isUnMerging={isUnMerging} isPrePro={isPrePro} provenanceID={provenanceID} xmlConfigJob={type(xmlConfigJob)}")
         tmpLog.debug(f"middleName={middleName} registerDatasets={registerDatasets} idPool={len(fileIDPool)}")
         tmpLog.debug(f"n_files_per_chunk={n_files_per_chunk}")
         try:
@@ -2846,6 +2846,7 @@ class DBProxy(OraDBProxy.DBProxy):
             outMap = {}
             datasetToRegister = []
             indexFileID = 0
+            fetched_serial_ids = 0
             maxSerialNr = None
             # sql to get dataset
             sqlD = "SELECT "
@@ -3069,6 +3070,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                         self.cur.execute(sqlI + comment, varMap)
                                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
                                         fileSpec.fileID = int(val)
+                                        fetched_serial_ids += 1
                                 else:
                                     # set dummy for simulation
                                     fileSpec.fileID = fileSpec.datasetID
@@ -3108,7 +3110,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
-            tmpLog.debug(f"done indexFileID={indexFileID}")
+            tmpLog.debug(f"done indexFileID={indexFileID} fetched_serial_ids={fetched_serial_ids}")
             return outMap, maxSerialNr, datasetToRegister, siteDsMap, parallelOutMap
         except Exception:
             # roll back
