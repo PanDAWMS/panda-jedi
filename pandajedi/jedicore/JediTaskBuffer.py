@@ -549,9 +549,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getSitesUsedByTask_JEDI(jediTaskID)
 
     # get random seed
-    def getRandomSeed_JEDI(self, jediTaskID, simul):
+    def getRandomSeed_JEDI(self, jediTaskID, simul, n_files=1):
         with self.proxyPool.get() as proxy:
-            return proxy.getRandomSeed_JEDI(jediTaskID, simul)
+            return proxy.getRandomSeed_JEDI(jediTaskID, simul, n_files)
 
     # get preprocess metadata
     def getPreprocessMetadata_JEDI(self, jediTaskID):

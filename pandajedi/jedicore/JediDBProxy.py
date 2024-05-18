@@ -9380,7 +9380,7 @@ class DBProxy(OraDBProxy.DBProxy):
             return False, None
 
     # get random seed
-    def getRandomSeed_JEDI(self, jediTaskID, simul):
+    def getRandomSeed_JEDI(self, jediTaskID, simul, n_files=1):
         comment = " /* JediDBProxy.getRandomSeed_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" <jediTaskID={jediTaskID}>"
@@ -9392,10 +9392,10 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDS += "WHERE jediTaskID=:jediTaskID AND type=:type "
             # sql to get min random seed
-            sqlFR = f"SELECT {JediFileSpec.columnNames()} "
+            sqlFR = f"SELECT * FROM (SELECT {JediFileSpec.columnNames()} "
             sqlFR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents WHERE "
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
-            sqlFR += "ORDER BY firstEvent "
+            sqlFR += f"ORDER BY firstEvent) WHERE rownum<={n_files} "
             # sql to update file status
             sqlFU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFU += "SET status=:status "
@@ -9403,12 +9403,15 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get max random seed
             sqlLR = f"SELECT MAX(firstEvent) FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlLR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to get fileIDs
+            sqlFID = f"SELECT {jedi_config.db.schemaJEDI}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM "
+            sqlFID += "(SELECT level FROM dual CONNECT BY level<=:nIDs) "
             # sql to insert file
             sqlFI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
-            sqlFI += JediFileSpec.bindValuesExpression()
-            sqlFI += " RETURNING fileID INTO :newFileID"
+            sqlFI += JediFileSpec.bindValuesExpression(useSeq=False)
             # start transaction
             self.conn.begin()
+            self.cur.arraysize = 100000
             # get pseudo dataset for random seed
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -9422,14 +9425,15 @@ class DBProxy(OraDBProxy.DBProxy):
             else:
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(resDS)
-                # get min random seed
+                # use existing random seeds
+                randomseed_file_specs = []
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
                 varMap[":datasetID"] = datasetSpec.datasetID
                 varMap[":status"] = "ready"
                 self.cur.execute(sqlFR + comment, varMap)
-                resFR = self.cur.fetchone()
-                if resFR is not None:
+                var_maps = []
+                for resFR in self.cur.fetchall():
                     # make FileSpec to reuse the row
                     tmpFileSpec = JediFileSpec()
                     tmpFileSpec.pack(resFR)
@@ -9440,8 +9444,13 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":datasetID"] = datasetSpec.datasetID
                     varMap[":fileID"] = tmpFileSpec.fileID
                     varMap[":status"] = "picked"
-                    self.cur.execute(sqlFU + comment, varMap)
-                else:
+                    var_maps.append(varMap)
+                    randomseed_file_specs.append(tmpFileSpec)
+                if not simul and var_maps:
+                    self.cur.executemany(sqlFU + comment, var_maps)
+                # add new random seeds if needed
+                n_new_files = n_files - len(var_maps)
+                if n_new_files > 0:
                     # get max random seed
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -9457,26 +9466,37 @@ class DBProxy(OraDBProxy.DBProxy):
                     else:
                         # increment
                         maxRndSeed += 1
-                    # insert file
-                    tmpFileSpec = JediFileSpec()
-                    tmpFileSpec.jediTaskID = jediTaskID
-                    tmpFileSpec.datasetID = datasetSpec.datasetID
-                    tmpFileSpec.status = "picked"
-                    tmpFileSpec.creationDate = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-                    tmpFileSpec.keepTrack = 1
-                    tmpFileSpec.type = "random_seed"
-                    tmpFileSpec.lfn = f"{maxRndSeed}"
-                    tmpFileSpec.firstEvent = maxRndSeed
+                    # get new fileIDs
                     if not simul:
-                        varMap = tmpFileSpec.valuesMap(useSeq=True)
-                        varMap[":newFileID"] = self.cur.var(varNUMBER)
-                        self.cur.execute(sqlFI + comment, varMap)
-                        val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
-                        tmpFileSpec.fileID = int(val)
-                        tmpLog.debug(f"insert fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} rndmSeed={tmpFileSpec.firstEvent}")
-                    tmpFileSpec.status = "ready"
+                        var_map = {}
+                        var_map[":nIDs"] = n_new_files
+                        self.cur.execute(sqlFID + comment, var_map)
+                        new_file_ids = self.cur.fetchall()
+                    else:
+                        new_file_ids = [(0,) for _ in range(n_new_files)]
+                    var_maps = []
+                    for (new_file_id,) in new_file_ids:
+                        # crate new file
+                        tmpFileSpec = JediFileSpec()
+                        tmpFileSpec.jediTaskID = jediTaskID
+                        tmpFileSpec.datasetID = datasetSpec.datasetID
+                        tmpFileSpec.fileID = new_file_id
+                        tmpFileSpec.status = "picked"
+                        tmpFileSpec.creationDate = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                        tmpFileSpec.keepTrack = 1
+                        tmpFileSpec.type = "random_seed"
+                        tmpFileSpec.lfn = f"{maxRndSeed}"
+                        tmpFileSpec.firstEvent = maxRndSeed
+                        varMap = tmpFileSpec.valuesMap()
+                        var_maps.append(varMap)
+                        maxRndSeed += 1
+                        tmpLog.debug(f"insert fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} seed={tmpFileSpec.firstEvent}")
+                        tmpFileSpec.status = "ready"
+                        randomseed_file_specs.append(tmpFileSpec)
+                    if not simul and var_maps:
+                        self.cur.executemany(sqlFI + comment, var_maps)
                 # cannot return JobFileSpec due to owner.PandaID
-                retVal = (tmpFileSpec, datasetSpec)
+                retVal = (randomseed_file_specs, datasetSpec)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")

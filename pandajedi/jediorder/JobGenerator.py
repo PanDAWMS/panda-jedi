@@ -956,6 +956,14 @@ class JobGeneratorThread(WorkerThread):
                     fileIDPool = self.taskBufferIF.bulkFetchFileIDs_JEDI(taskSpec.jediTaskID, num_outputs_per_job * totalNormalJobs)
             else:
                 num_outputs_per_job = None
+            # get random seeds
+            random_seed_list = None
+            random_seed_dataset = None
+            if taskSpec.useRandomSeed() and not inputChunk.isMerging:
+                tmp_stat, (random_seed_list, random_seed_dataset) = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID, simul, totalNormalJobs)
+                if not tmp_stat:
+                    tmpLog.error("failed to get random seeds")
+                    return failedRet
             # loop over all sub chunks
             for tmpInChunk in inSubChunkList:
                 siteName = tmpInChunk["siteName"]
@@ -1588,7 +1596,19 @@ class JobGeneratorThread(WorkerThread):
                         useEStoMakeJP = False
                     tmpLog.debug(f"cycle making job params: {stop_watch.get_elapsed_time()}")
                     jobSpec.jobParameters, multiExecStep = self.makeJobParameters(
-                        taskSpec, inSubChunk, outSubChunk, serialNr, paramList, jobSpec, simul, taskParamMap, inputChunk.isMerging, jobSpec.Files, useEStoMakeJP
+                        taskSpec,
+                        inSubChunk,
+                        outSubChunk,
+                        serialNr,
+                        paramList,
+                        jobSpec,
+                        simul,
+                        taskParamMap,
+                        inputChunk.isMerging,
+                        jobSpec.Files,
+                        useEStoMakeJP,
+                        random_seed_list,
+                        random_seed_dataset,
                     )
                     if multiExecStep is not None:
                         jobSpec.addMultiStepExec(multiExecStep)
@@ -1913,7 +1933,22 @@ class JobGeneratorThread(WorkerThread):
             return failedRet
 
     # make job parameters
-    def makeJobParameters(self, taskSpec, inSubChunk, outSubChunk, serialNr, paramList, jobSpec, simul, taskParamMap, isMerging, jobFileList, useEventService):
+    def makeJobParameters(
+        self,
+        taskSpec,
+        inSubChunk,
+        outSubChunk,
+        serialNr,
+        paramList,
+        jobSpec,
+        simul,
+        taskParamMap,
+        isMerging,
+        jobFileList,
+        useEventService,
+        random_seed_list,
+        random_seed_dataset,
+    ):
         if not isMerging:
             parTemplate = taskSpec.jobParamsTemplate
         else:
@@ -1934,13 +1969,20 @@ class JobGeneratorThread(WorkerThread):
             sourceURL = taskParamMap["sourceURL"]
         # get random seed
         if taskSpec.useRandomSeed() and not isMerging:
-            tmpStat, randomSpecList = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID, simul)
-            if tmpStat is True:
-                tmpRandomFileSpec, tmpRandomDatasetSpec = randomSpecList
-                if tmpRandomFileSpec is not None:
-                    tmpJobFileSpec = tmpRandomFileSpec.convertToJobFileSpec(tmpRandomDatasetSpec, setType="pseudo_input")
-                    rndmSeed = tmpRandomFileSpec.firstEvent + taskSpec.getRndmSeedOffset()
-                    jobSpec.addFile(tmpJobFileSpec)
+            tmpRandomFileSpec = None
+            if random_seed_list:
+                tmpRandomFileSpec = random_seed_list.pop(0)
+                tmpRandomDatasetSpec = random_seed_dataset
+            else:
+                tmpStat, randomSpecList = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID, simul, 1)
+                if tmpStat is True:
+                    tmp_file_spec_list, tmpRandomDatasetSpec = randomSpecList
+                    if tmp_file_spec_list:
+                        tmpRandomFileSpec = tmp_file_spec_list[0]
+            if tmpRandomFileSpec is not None:
+                tmpJobFileSpec = tmpRandomFileSpec.convertToJobFileSpec(tmpRandomDatasetSpec, setType="pseudo_input")
+                rndmSeed = tmpRandomFileSpec.firstEvent + taskSpec.getRndmSeedOffset()
+                jobSpec.addFile(tmpJobFileSpec)
         # input
         for tmpDatasetSpec, tmpFileSpecList in inSubChunk:
             # stream name
