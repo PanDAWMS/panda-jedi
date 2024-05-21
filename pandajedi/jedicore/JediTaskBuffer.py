@@ -312,6 +312,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         parallelOutMap=None,
         fileIDPool=[],
         n_files_per_chunk=1,
+        bulk_fetch_for_multiple_jobs=False,
+        master_dataset_id=None,
     ):
         with self.proxyPool.get() as proxy:
             return proxy.getOutputFiles_JEDI(
@@ -329,6 +331,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                 parallelOutMap,
                 fileIDPool,
                 n_files_per_chunk,
+                bulk_fetch_for_multiple_jobs,
+                master_dataset_id,
             )
 
     # insert output file templates

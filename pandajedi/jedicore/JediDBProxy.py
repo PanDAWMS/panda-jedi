@@ -2827,15 +2827,20 @@ class DBProxy(OraDBProxy.DBProxy):
         parallelOutMap,
         fileIDPool,
         n_files_per_chunk=1,
+        bulk_fetch_for_multiple_jobs=False,
+        master_dataset_id=None,
     ):
         comment = " /* JediDBProxy.getOutputFiles_JEDI */"
         methodName = self.getMethodName(comment)
-        methodName += f" <jediTaskID={jediTaskID}>"
+        if master_dataset_id:
+            methodName += f" < jediTaskID={jediTaskID} datasetID={master_dataset_id} >"
+        else:
+            methodName += f" < jediTaskID={jediTaskID} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug(f"start with simul={simul} instantiateTmpl={instantiateTmpl} instantiatedSites={instantiatedSites}")
         tmpLog.debug(f"isUnMerging={isUnMerging} isPrePro={isPrePro} provenanceID={provenanceID} xmlConfigJob={type(xmlConfigJob)}")
         tmpLog.debug(f"middleName={middleName} registerDatasets={registerDatasets} idPool={len(fileIDPool)}")
-        tmpLog.debug(f"n_files_per_chunk={n_files_per_chunk}")
+        tmpLog.debug(f"n_files_per_chunk={n_files_per_chunk} bulk_fetch={bulk_fetch_for_multiple_jobs}")
         try:
             if instantiatedSites is None:
                 instantiatedSites = ""
@@ -2848,6 +2853,9 @@ class DBProxy(OraDBProxy.DBProxy):
             indexFileID = 0
             fetched_serial_ids = 0
             maxSerialNr = None
+            output_map_for_bulk_fetch = [{} for _ in range(n_files_per_chunk)]
+            parallel_out_map_for_bulk_fetch = [{} for _ in range(n_files_per_chunk)]
+            max_serial_numbers_for_bulk_fetch = [None] * n_files_per_chunk
             # sql to get dataset
             sqlD = "SELECT "
             sqlD += f"datasetID,datasetName,vo,masterID,status,type FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
@@ -3030,13 +3038,17 @@ class DBProxy(OraDBProxy.DBProxy):
                             newStreamName = tmpFileName
                             newFileNameTemplate = fileNameTemplate + "." + xmlConfigJob.prepend_string() + "." + newStreamName
                             fileNameTemplateList.append((newFileNameTemplate, newStreamName))
-                    if outType.endswith("log"):
-                        nFileLoop = 1
-                    else:
+                    if bulk_fetch_for_multiple_jobs:
                         nFileLoop = n_files_per_chunk
+                    else:
+                        if outType.endswith("log"):
+                            nFileLoop = 1
+                        else:
+                            nFileLoop = n_files_per_chunk
                     # loop over all filename templates
                     for fileNameTemplate, streamName in fileNameTemplateList:
                         firstFileID = None
+                        first_file_id_for_bulk_fetch = {}
                         for fileDatasetID in fileDatasetIDs:
                             for iFileLoop in range(nFileLoop):
                                 fileSpec = JediFileSpec()
@@ -3051,38 +3063,50 @@ class DBProxy(OraDBProxy.DBProxy):
                                 fileSpec.creationDate = timeNow
                                 fileSpec.type = outType
                                 fileSpec.keepTrack = 1
-                                if maxSerialNr is None or maxSerialNr < serialNr:
-                                    maxSerialNr = serialNr
+                                if bulk_fetch_for_multiple_jobs:
+                                    if max_serial_numbers_for_bulk_fetch[iFileLoop] is None or max_serial_numbers_for_bulk_fetch[iFileLoop] < serialNr:
+                                        max_serial_numbers_for_bulk_fetch[iFileLoop] = serialNr
+                                else:
+                                    if maxSerialNr is None or maxSerialNr < serialNr:
+                                        maxSerialNr = serialNr
                                 serialNr += 1
                                 # scope
                                 if vo in jedi_config.ddm.voWithScope.split(","):
                                     fileSpec.scope = self.extractScope(datasetName)
-                                if not simul:
-                                    # insert
-                                    if indexFileID < len(fileIDPool):
-                                        fileSpec.fileID = fileIDPool[indexFileID]
-                                        varMap = fileSpec.valuesMap()
-                                        varMapsForInsert.append(varMap)
-                                        indexFileID += 1
-                                    else:
+                                # insert
+                                if indexFileID < len(fileIDPool):
+                                    fileSpec.fileID = fileIDPool[indexFileID]
+                                    varMap = fileSpec.valuesMap()
+                                    varMapsForInsert.append(varMap)
+                                    indexFileID += 1
+                                else:
+                                    if not simul:
                                         varMap = fileSpec.valuesMap(useSeq=True)
                                         varMap[":newFileID"] = self.cur.var(varNUMBER)
                                         self.cur.execute(sqlI + comment, varMap)
                                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newFileID"]))
                                         fileSpec.fileID = int(val)
                                         fetched_serial_ids += 1
-                                else:
-                                    # set dummy for simulation
-                                    fileSpec.fileID = fileSpec.datasetID
+                                    else:
+                                        # set dummy for simulation
+                                        fileSpec.fileID = indexFileID
+                                        indexFileID += 1
                                 # append
-                                if firstFileID is None:
-                                    outMap[streamName] = fileSpec
-                                    firstFileID = fileSpec.fileID
-                                    parallelOutMap[firstFileID] = []
-                                if iFileLoop > 0:
-                                    outMap[streamName + f"|{iFileLoop}"] = fileSpec
-                                    continue
-                                parallelOutMap[firstFileID].append(fileSpec)
+                                if bulk_fetch_for_multiple_jobs:
+                                    if first_file_id_for_bulk_fetch.get(iFileLoop) is None:
+                                        output_map_for_bulk_fetch[iFileLoop][streamName] = fileSpec
+                                        first_file_id_for_bulk_fetch[iFileLoop] = fileSpec.fileID
+                                        parallel_out_map_for_bulk_fetch[iFileLoop][fileSpec.fileID] = []
+                                    parallel_out_map_for_bulk_fetch[iFileLoop][first_file_id_for_bulk_fetch[iFileLoop]].append(fileSpec)
+                                else:
+                                    if firstFileID is None:
+                                        outMap[streamName] = fileSpec
+                                        firstFileID = fileSpec.fileID
+                                        parallelOutMap[firstFileID] = []
+                                    if iFileLoop > 0:
+                                        outMap[streamName + f"|{iFileLoop}"] = fileSpec
+                                        continue
+                                    parallelOutMap[firstFileID].append(fileSpec)
                             # increment SN
                             varMap = {}
                             varMap[":jediTaskID"] = jediTaskID
@@ -3111,7 +3135,10 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             tmpLog.debug(f"done indexFileID={indexFileID} fetched_serial_ids={fetched_serial_ids}")
-            return outMap, maxSerialNr, datasetToRegister, siteDsMap, parallelOutMap
+            if bulk_fetch_for_multiple_jobs:
+                return output_map_for_bulk_fetch, max_serial_numbers_for_bulk_fetch, datasetToRegister, siteDsMap, parallel_out_map_for_bulk_fetch
+            else:
+                return outMap, maxSerialNr, datasetToRegister, siteDsMap, parallelOutMap
         except Exception:
             # roll back
             self._rollback()
@@ -9412,6 +9439,8 @@ class DBProxy(OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             self.cur.arraysize = 100000
+            n_reused = 0
+            n_new = 0
             # get pseudo dataset for random seed
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
@@ -9437,7 +9466,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # make FileSpec to reuse the row
                     tmpFileSpec = JediFileSpec()
                     tmpFileSpec.pack(resFR)
-                    tmpLog.debug(f"reuse fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} rndmSeed={tmpFileSpec.firstEvent}")
+                    n_reused += 1
                     # update status
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -9490,7 +9519,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap = tmpFileSpec.valuesMap()
                         var_maps.append(varMap)
                         maxRndSeed += 1
-                        tmpLog.debug(f"insert fileID={tmpFileSpec.fileID} datasetID={tmpFileSpec.datasetID} seed={tmpFileSpec.firstEvent}")
+                        n_new += 1
                         tmpFileSpec.status = "ready"
                         randomseed_file_specs.append(tmpFileSpec)
                     if not simul and var_maps:
@@ -9501,7 +9530,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmpLog.debug("done")
+            tmpLog.debug(f"done -> {n_reused} reused, {n_new} new")
             return True, retVal
         except Exception:
             # roll back

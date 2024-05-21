@@ -217,20 +217,39 @@ def use_direct_io_for_job(task_spec, site_spec, input_chunk):
 
 # stopwatch
 class StopWatch:
-    def __init__(self):
+    """Utility class to measure timing information."""
+
+    def __init__(self, identifier: str = None):
         self.start_time = datetime.datetime.now()
         self.checkpoint = self.start_time
+        self.step_name = None
+        self.identifier = identifier
 
     def reset(self):
+        """Reset the stopwatch."""
         self.start_time = datetime.datetime.now()
         self.checkpoint = self.start_time
+        self.step_name = None
 
-    def get_elapsed_time(self):
+    def get_elapsed_time(self, new_step_name: str) -> str:
+        """Get the elapsed time since the stopwatch was started and the duration since the last checkpoint.
+        :param new_step_name: The name of the next step.
+        Returns:
+            str: A string with the elapsed time and the duration since the last checkpoint.
+        """
         now = datetime.datetime.now()
         total_delta = now - self.start_time
-        interval_delta = now - self.checkpoint
+        duration_delta = now - self.checkpoint
+        return_str = ""
+        if self.identifier:
+            return_str += f"{self.identifier}: "
+        return_str += f"elapsed {total_delta.seconds}.{int(total_delta.microseconds / 1000):03d} sec. "
+        if self.step_name is not None:
+            return_str += f"{self.step_name} took {duration_delta.seconds}.{int(duration_delta.microseconds / 1000):03d} sec. "
+        if new_step_name:
+            return_str += f"{new_step_name} started."
+        else:
+            return_str += "done."
         self.checkpoint = now
-        return (
-            f"elapsed {total_delta.seconds}.{int(total_delta.microseconds / 1000):03d} sec. "
-            f"interval {interval_delta.seconds}.{int(interval_delta.microseconds / 1000):03d} sec"
-        )
+        self.step_name = new_step_name
+        return return_str
