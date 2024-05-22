@@ -1039,6 +1039,11 @@ class JobGeneratorThread(WorkerThread):
                     for tmp_dataset_spec in tmp_datasets_to_register:
                         if tmp_dataset_spec not in datasetToRegister:
                             datasetToRegister.append(tmp_dataset_spec)
+                    if not simul:
+                        try:
+                            fileIDPool = fileIDPool[num_outputs_per_job * n_jobs_per_site[site_name] :]
+                        except Exception:
+                            fileIDPool = []
 
             # loop over all sub chunks
             for tmpInChunk in inSubChunkList:
