@@ -1,6 +1,7 @@
 import json
 
 from pandacommon.pandalogger import logger_utils
+
 from pandajedi.jediconfig import jedi_config
 
 # from pandajedi.jedicore.FactoryBase import FactoryBase
@@ -72,6 +73,10 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
                 vo = taskSpec.vo
                 prodSourceLabel = taskSpec.prodSourceLabel
                 workQueue = self.tbIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
+                # get resource types
+                resource_types = self.tbIF.load_resource_types()
+                if not resource_types:
+                    raise RuntimeError("failed to get resource types")
                 # get inputs
                 tmpList = self.tbIF.getTasksToBeProcessed_JEDI(self.pid, None, workQueue, None, None, nFiles=1000, target_tasks=[task_id])
                 if tmpList:
@@ -82,7 +87,21 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
                     taskSetupper = TaskSetupper(vo, prodSourceLabel)
                     taskSetupper.initializeMods(self.tbIF, self.ddmIF)
                     gen_thr = JobGeneratorThread(
-                        inputList, threadPool, self.tbIF, self.ddmIF, siteMapper, True, taskSetupper, self.pid, workQueue, "pjmsg", None, None, None, False
+                        inputList,
+                        threadPool,
+                        self.tbIF,
+                        self.ddmIF,
+                        siteMapper,
+                        True,
+                        taskSetupper,
+                        self.pid,
+                        workQueue,
+                        "pjmsg",
+                        None,
+                        None,
+                        None,
+                        False,
+                        resource_types,
                     )
                     gen_thr.start()
                     gen_thr.join()
