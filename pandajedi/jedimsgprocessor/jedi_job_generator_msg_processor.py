@@ -19,7 +19,7 @@ base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 # Jedi Job Generator message processor plugin
 class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
     """
-    Message-driven Post-Processor
+    Message-driven Job Generator
     """
 
     def initialize(self):
