@@ -493,7 +493,7 @@ class JobGeneratorThread(WorkerThread):
     ):
         # initialize woker with no semaphore
         WorkerThread.__init__(self, None, threadPool, logger)
-        # attributres
+        # attributes
         self.inputList = inputList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
@@ -1004,8 +1004,7 @@ class JobGeneratorThread(WorkerThread):
                 and not taskSpec.on_site_merging()
                 and taskSpec.getFieldNumToLFN() is None
             ):
-                for tmpInChunk in inSubChunkList:
-                    site_name = tmpInChunk["siteName"]
+                for site_name in n_jobs_per_site:
                     # set site name if the chunks instantiate template datasets
                     if to_produce_outputs_merged_later or (taskSpec.instantiateTmpl() and taskSpec.instantiateTmplSite()):
                         site_to_instantiate = site_name
