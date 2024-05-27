@@ -504,6 +504,8 @@ class JobGeneratorThread(WorkerThread):
         self.msgType = "jobgenerator"
         self.pid = pid
         self.buildSpecMap = {}
+        self.finished_lib_specs_map = {}
+        self.active_lib_specs_map = {}
         self.workQueue = workQueue
         self.resource_name = resource_name
         self.cloud = cloud
@@ -1779,13 +1781,24 @@ class JobGeneratorThread(WorkerThread):
             secondKey = [siteName] + associatedSites
             secondKey.sort()
             buildSpecMapKey = (taskSpec.jediTaskID, tuple(secondKey))
+            tmpStat = True
             if buildSpecMapKey in self.buildSpecMap:
-                # reuse lib.tgz
-                reuseDatasetID, reuseFileID = self.buildSpecMap[buildSpecMapKey]
-                tmpStat, fileSpec, datasetSpec = self.taskBufferIF.getOldBuildFileSpec_JEDI(taskSpec.jediTaskID, reuseDatasetID, reuseFileID)
+                # reuse active lib.tgz
+                if self.buildSpecMap[buildSpecMapKey] in self.active_lib_specs_map:
+                    fileSpec, datasetSpec = self.active_lib_specs_map[self.buildSpecMap[buildSpecMapKey]]
+                else:
+                    reuseDatasetID, reuseFileID = self.buildSpecMap[buildSpecMapKey]
+                    tmpStat, fileSpec, datasetSpec = self.taskBufferIF.getOldBuildFileSpec_JEDI(taskSpec.jediTaskID, reuseDatasetID, reuseFileID)
+                    if fileSpec is not None:
+                        self.active_lib_specs_map[self.buildSpecMap[buildSpecMapKey]] = (fileSpec, datasetSpec)
             else:
-                # get lib.tgz file
-                tmpStat, fileSpec, datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID, siteName, associatedSites)
+                # get finished lib.tgz file
+                if buildSpecMapKey in self.finished_lib_specs_map:
+                    fileSpec, datasetSpec = self.finished_lib_specs_map[buildSpecMapKey]
+                else:
+                    tmpStat, fileSpec, datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID, siteName, associatedSites)
+                    if fileSpec is not None:
+                        self.finished_lib_specs_map[buildSpecMapKey] = (fileSpec, datasetSpec)
             # failed
             if not tmpStat:
                 tmpLog.error(f"failed to get lib.tgz for jediTaskID={taskSpec.jediTaskID} siteName={siteName}")
@@ -1894,15 +1907,15 @@ class JobGeneratorThread(WorkerThread):
             libDsFileNameBase = libDsName + ".$JEDIFILEID"
             # make lib.tgz
             libTgzName = libDsFileNameBase + ".lib.tgz"
-            fileSpec = FileSpec()
-            fileSpec.lfn = libTgzName
-            fileSpec.type = "output"
-            fileSpec.attemptNr = 0
-            fileSpec.jediTaskID = taskSpec.jediTaskID
-            fileSpec.dataset = jobSpec.destinationDBlock
-            fileSpec.destinationDBlock = jobSpec.destinationDBlock
-            fileSpec.destinationSE = jobSpec.destinationSE
-            jobSpec.addFile(fileSpec)
+            lib_file_spec = FileSpec()
+            lib_file_spec.lfn = libTgzName
+            lib_file_spec.type = "output"
+            lib_file_spec.attemptNr = 0
+            lib_file_spec.jediTaskID = taskSpec.jediTaskID
+            lib_file_spec.dataset = jobSpec.destinationDBlock
+            lib_file_spec.destinationDBlock = jobSpec.destinationDBlock
+            lib_file_spec.destinationSE = jobSpec.destinationSE
+            jobSpec.addFile(lib_file_spec)
             # make log
             logFileSpec = FileSpec()
             logFileSpec.lfn = libDsFileNameBase + ".log.tgz"
@@ -1929,17 +1942,17 @@ class JobGeneratorThread(WorkerThread):
                 if tmpFile.datasetID not in datasetToRegister:
                     datasetToRegister.append(tmpFile.datasetID)
             # append to map of buildSpec
-            self.buildSpecMap[buildSpecMapKey] = [fileIdMap[libTgzName]["datasetID"], fileIdMap[libTgzName]["fileID"]]
+            self.buildSpecMap[buildSpecMapKey] = (fileIdMap[libTgzName]["datasetID"], fileIdMap[libTgzName]["fileID"])
             # parameter map
             paramMap = {}
-            paramMap["OUT"] = fileSpec.lfn
+            paramMap["OUT"] = lib_file_spec.lfn
             paramMap["IN"] = taskParamMap["buildSpec"]["archiveName"]
             paramMap["SURL"] = taskParamMap["sourceURL"]
             # job parameter
             jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap["buildSpec"]["jobParameters"], paramMap)
             # make file spec which will be used by runJobs
-            runFileSpec = copy.copy(fileSpec)
-            runFileSpec.dispatchDBlock = fileSpec.dataset
+            runFileSpec = copy.copy(lib_file_spec)
+            runFileSpec.dispatchDBlock = lib_file_spec.dataset
             runFileSpec.destinationDBlock = None
             runFileSpec.type = "input"
             runFileSpec.prodDBlockToken = "local"
