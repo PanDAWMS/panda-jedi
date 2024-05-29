@@ -2865,7 +2865,9 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to read template
             sqlR = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName "
             sqlR += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Output_Template "
-            sqlR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE"
+            sqlR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            if not simul:
+                sqlR += "FOR UPDATE "
             # sql to insert files
             sqlI = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents ({JediFileSpec.columnNames()}) "
             sqlI += JediFileSpec.bindValuesExpression()

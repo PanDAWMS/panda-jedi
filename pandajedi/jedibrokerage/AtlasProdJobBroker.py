@@ -662,7 +662,12 @@ class AtlasProdJobBroker(JobBrokerBase):
         ######################################
         # selection for release
         cmt_config = taskSpec.get_sw_platform()
+        is_regexp_cmt_config = False
+        if cmt_config:
+            if re.match(cmt_config, cmt_config) is None:
+                is_regexp_cmt_config = True
         base_platform = taskSpec.get_base_platform()
+        resolved_platforms = {}
         if taskSpec.transHome is not None:
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             unified_site_list = self.get_unified_sites(scanSiteList)
@@ -716,9 +721,17 @@ class AtlasProdJobBroker(JobBrokerBase):
 
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if cmt_config:
+                    platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                    if platforms:
+                        resolved_platforms[tmpSiteName] = platforms
                 if tmpSiteName in siteListWithSW:
                     # passed
-                    newScanSiteList.append(tmpSiteName)
+                    if not is_regexp_cmt_config or tmpSiteName in resolved_platforms:
+                        newScanSiteList.append(tmpSiteName)
+                    else:
+                        # cmtconfig is not resolved
+                        tmpLog.info(f"  skip site={tmpSiteName} due to unresolved regexp in cmtconfig={cmt_config} criteria=-regexpcmtconfig")
                 elif (
                     not (taskSpec.container_name and taskSpec.use_only_tags_fc())
                     and host_cpu_spec is None
@@ -735,24 +748,15 @@ class AtlasProdJobBroker(JobBrokerBase):
                         autoStr = "without AUTO"
                     # release is unavailable
                     tmpLog.info(
-                        '  skip site=%s %s due to cache=%s:%s sw_platform="%s" '
-                        "cpu=%s gpu=%s criteria=-cache"
-                        % (
-                            tmpSiteName,
-                            autoStr,
-                            taskSpec.transHome,
-                            taskSpec.get_sw_platform(),
-                            taskSpec.container_name,
-                            str(host_cpu_spec),
-                            str(host_gpu_spec),
-                        )
+                        f"  skip site={tmpSiteName} {autoStr} due to missing SW cache={taskSpec.transHome}:{taskSpec.get_sw_platform()} sw_platform='{taskSpec.container_name}' "
+                        f"or irrelevant HW cpu={str(host_cpu_spec)} gpu={str(host_gpu_spec)} criteria=-cache"
                     )
 
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info(f"{len(scanSiteList)} candidates ({len(sitesAuto)} with AUTO, {len(sitesAny)} with ANY) passed SW check ")
-            self.add_summary_message(oldScanSiteList, scanSiteList, "SW check")
+            tmpLog.info(f"{len(scanSiteList)} candidates ({len(sitesAuto)} with AUTO, {len(sitesAny)} with ANY) passed SW/HW check ")
+            self.add_summary_message(oldScanSiteList, scanSiteList, "SW/HW check")
             if not scanSiteList:
                 self.dump_summary(tmpLog)
                 tmpLog.error("no candidates")
@@ -1711,10 +1715,9 @@ class AtlasProdJobBroker(JobBrokerBase):
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
             # override attributes
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
-            if cmt_config:
-                platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
-                if platforms:
-                    siteCandidateSpec.override_attribute("platforms", platforms)
+            platforms = resolved_platforms.get(tmpSiteName)
+            if platforms:
+                siteCandidateSpec.override_attribute("platforms", platforms)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
