@@ -735,6 +735,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     continue
             ######################################
             # selection for release
+            cmt_config = taskSpec.get_sw_platform()
+            is_regexp_cmt_config = False
+            if cmt_config:
+                if re.match(cmt_config, cmt_config) is None:
+                    is_regexp_cmt_config = True
+            base_platform = taskSpec.get_base_platform()
+            resolved_platforms = {}
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
             if not sitePreAssigned:
@@ -857,9 +864,17 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 sitesAny = []
                 for tmpSiteName in unified_site_list:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    if cmt_config:
+                        platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                        if platforms:
+                            resolved_platforms[tmpSiteName] = platforms
                     if tmpSiteName in siteListWithSW:
                         # passed
-                        newScanSiteList.append(tmpSiteName)
+                        if not is_regexp_cmt_config or tmpSiteName in resolved_platforms:
+                            newScanSiteList.append(tmpSiteName)
+                        else:
+                            # cmtconfig is not resolved
+                            tmpLog.info(f"  skip site={tmpSiteName} due to unresolved regexp in cmtconfig={cmt_config} criteria=-regexpcmtconfig")
                     elif host_cpu_spec is None and host_gpu_spec is None and tmpSiteSpec.releases == ["ANY"]:
                         # release check is disabled or release is available
                         newScanSiteList.append(tmpSiteName)
@@ -867,15 +882,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     else:
                         # release is unavailable
                         tmpLog.info(
-                            "  skip site=%s due to rel/cache %s:%s sw_platform=%s "
-                            " cpu=%s gpu=%s criteria=-cache"
-                            % (tmpSiteName, taskSpec.transUses, taskSpec.transHome, taskSpec.get_sw_platform(), str(host_cpu_spec), str(host_gpu_spec))
+                            f"  skip site={tmpSiteName} due to missing SW cache={taskSpec.transHome}:{taskSpec.get_sw_platform()} sw_platform='{taskSpec.container_name}' "
+                            f"or irrelevant HW cpu={str(host_cpu_spec)} gpu={str(host_gpu_spec)} criteria=-cache"
                         )
                 sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
                 sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-                tmpLog.info(f"{len(scanSiteList)} candidates ({len(sitesAuto)} with AUTO, {len(sitesAny)} with ANY) passed SW check ")
-                self.add_summary_message(oldScanSiteList, scanSiteList, "release/cache/CPU/GPU check")
+                tmpLog.info(f"{len(scanSiteList)} candidates ({len(sitesAuto)} with AUTO, {len(sitesAny)} with ANY) passed SW/HW check ")
+                self.add_summary_message(oldScanSiteList, scanSiteList, "SW/HW check")
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
                     tmpLog.error("no candidates")
@@ -1894,8 +1908,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
             tmpLog.error(f"{traceback.format_exc()}")
         # choose basic weight
         _basic_weight_version = "new"
-        cmt_config = taskSpec.get_sw_platform()
-        base_platform = taskSpec.get_base_platform()
         # finish computing weight
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -1935,7 +1947,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # override attributes
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
             if cmt_config:
-                platforms = AtlasBrokerUtils.resolve_cmt_config(tmpSiteName, cmt_config, base_platform, self.sw_map)
+                platforms = resolved_platforms.get(tmpSiteName)
                 if platforms:
                     siteCandidateSpec.override_attribute("platforms", platforms)
             # set weight
