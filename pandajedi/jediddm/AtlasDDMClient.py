@@ -995,8 +995,20 @@ class AtlasDDMClient(DDMClientBase):
                         userInfo = {"nickname": i["account"], "email": i["email"]}
                         break
                     if userInfo is None:
+                        # replace / with , and reverse substrings to be converted to RFC format
+                        userName = ",".join(userName.split("/")[::-1])
+                        for i in client.list_accounts(account_type=accType, identity=userName):
+                            userInfo = {"nickname": i["account"], "email": i["email"]}
+                            break
+                    if userInfo is None:
                         # remove /CN=\d
                         userName = CoreUtils.get_bare_dn(dn, keep_digits=False)
+                        for i in client.list_accounts(account_type=accType, identity=userName):
+                            userInfo = {"nickname": i["account"], "email": i["email"]}
+                            break
+                    if userInfo is None:
+                        # replace / with , and reverse substrings to be converted to RFC format
+                        userName = ",".join(userName.split("/")[::-1])
                         for i in client.list_accounts(account_type=accType, identity=userName):
                             userInfo = {"nickname": i["account"], "email": i["email"]}
                             break
