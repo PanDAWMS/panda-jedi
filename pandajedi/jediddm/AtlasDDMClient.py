@@ -981,7 +981,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # get rucio API
             client = RucioClient()
-            userInfo = None
+            user_info = None
             x509_user_name = CoreUtils.get_bare_dn(dn)
             oidc_user_name = CoreUtils.get_id_from_dn(dn)
             if oidc_user_name == x509_user_name:
@@ -990,42 +990,33 @@ class AtlasDDMClient(DDMClientBase):
                 x509_user_name = None
             for accType in ["USER", "GROUP"]:
                 if x509_user_name is not None:
-                    userName = x509_user_name
-                    for i in client.list_accounts(account_type=accType, identity=userName):
-                        userInfo = {"nickname": i["account"], "email": i["email"]}
-                        break
-                    if userInfo is None:
-                        # replace / with , and reverse substrings to be converted to RFC format
-                        userName = ",".join(userName.split("/")[::-1])
-                        for i in client.list_accounts(account_type=accType, identity=userName):
-                            userInfo = {"nickname": i["account"], "email": i["email"]}
+                    user_names = [x509_user_name]
+                    # replace / with , and reverse substrings to be converted to RFC format
+                    user_names.append(",".join(user_names[-1].split("/")[::-1]))
+                    # remove /CN=\d
+                    user_names.append(CoreUtils.get_bare_dn(dn, keep_digits=False))
+                    # replace / with , and reverse substrings to be converted to RFC format
+                    user_names.append(",".join(user_names[-1].split("/")[::-1]))
+                    for user_name in user_names:
+                        for i in client.list_accounts(account_type=accType, identity=user_name):
+                            user_info = {"nickname": i["account"], "email": i["email"]}
                             break
-                    if userInfo is None:
-                        # remove /CN=\d
-                        userName = CoreUtils.get_bare_dn(dn, keep_digits=False)
-                        for i in client.list_accounts(account_type=accType, identity=userName):
-                            userInfo = {"nickname": i["account"], "email": i["email"]}
-                            break
-                    if userInfo is None:
-                        # replace / with , and reverse substrings to be converted to RFC format
-                        userName = ",".join(userName.split("/")[::-1])
-                        for i in client.list_accounts(account_type=accType, identity=userName):
-                            userInfo = {"nickname": i["account"], "email": i["email"]}
+                        if user_info is not None:
                             break
                 else:
-                    userName = oidc_user_name
+                    user_name = oidc_user_name
                 try:
-                    if userInfo is None:
-                        i = client.get_account(userName)
-                        userInfo = {"nickname": i["account"], "email": i["email"]}
+                    if user_info is None:
+                        i = client.get_account(user_name)
+                        user_info = {"nickname": i["account"], "email": i["email"]}
                 except Exception:
                     pass
-                if userInfo is not None:
+                if user_info is not None:
                     break
-            if userInfo is None:
+            if user_info is None:
                 tmpLog.error("failed to get account info")
                 return self.SC_FAILED, None
-            tmpRet = userInfo
+            tmpRet = user_info
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
