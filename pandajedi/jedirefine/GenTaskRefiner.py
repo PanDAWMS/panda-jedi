@@ -16,7 +16,7 @@ class GenTaskRefiner(TaskRefinerBase):
         if "cloud" not in taskParamMap and "workingGroup" in taskParamMap:
             taskParamMap["cloud"] = taskParamMap["workingGroup"]
         if "transPath" not in taskParamMap:
-            taskParamMap["transPath"] = "http://pandaserver-doma.cern.ch/trf/user/runGen-00-00-02"
+            taskParamMap["transPath"] = "https://pandaserver-doma.cern.ch/trf/user/runGen-00-00-02"
         # set sourceURL
         try:
             if "sourceURL" in taskParamMap:
