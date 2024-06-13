@@ -992,11 +992,17 @@ class AtlasDDMClient(DDMClientBase):
                 if x509_user_name is not None:
                     user_names = [x509_user_name]
                     # replace / with , and reverse substrings to be converted to RFC format
-                    user_names.append(",".join(user_names[-1].split("/")[::-1]))
+                    tmp_list = user_names[-1].split("/")
+                    if "" in tmp_list:
+                        tmp_list.remove("")
+                    user_names.append(",".join(tmp_list[::-1]))
                     # remove /CN=\d
                     user_names.append(CoreUtils.get_bare_dn(dn, keep_digits=False))
                     # replace / with , and reverse substrings to be converted to RFC format
-                    user_names.append(",".join(user_names[-1].split("/")[::-1]))
+                    tmp_list = user_names[-1].split("/")
+                    if "" in tmp_list:
+                        tmp_list.remove("")
+                    user_names.append(",".join(tmp_list[::-1]))
                     for user_name in user_names:
                         for i in client.list_accounts(account_type=accType, identity=user_name):
                             user_info = {"nickname": i["account"], "email": i["email"]}
