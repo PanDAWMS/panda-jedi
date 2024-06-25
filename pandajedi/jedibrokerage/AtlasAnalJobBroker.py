@@ -1676,7 +1676,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # count subchunks
                 n_subchunks = 0
                 while True:
-                    subchunk = inputChunk.getSubChunk(
+                    subchunk, _ = inputChunk.getSubChunk(
                         None,
                         maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                         nFilesPerJob=taskSpec.getNumFilesPerJob(),
