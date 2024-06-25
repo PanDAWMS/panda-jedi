@@ -336,7 +336,7 @@ class InputChunk:
             else:
                 maxNumFiles = self.taskSpec.getMaxNumFilesPerMergeJob()
             # get one subchunk
-            subChunk = self.getSubChunk(
+            subChunk, _ = self.getSubChunk(
                 None, nFilesPerJob=nFilesPerJob, nEventsPerJob=nEventsPerJob, useBoundary=useBoundary, respectLB=respectLB, maxNumFiles=maxNumFiles
             )
             if subChunk is None:
@@ -424,9 +424,10 @@ class InputChunk:
         max_events=None,
         skip_short_output=False,
     ):
+        is_short = False
         # check if there are unused files/events
         if not self.checkUnused():
-            return None
+            return None, is_short
         # protection against unreasonable values
         if nFilesPerJob == 0 or dynNumEvents:
             nFilesPerJob = None
@@ -955,7 +956,7 @@ class InputChunk:
         if dynNumEvents and min_walltime and min_walltime > expWalltime:
             if enableLog and tmpLog:
                 tmpLog.debug(f"expected walltime {expWalltime} less than min walltime {min_walltime} at {siteName}")
-                return []
+                return [], is_short
         # make copy to return
         returnList = []
         for tmpDatasetID, inputFileList in inputFileMap.items():
@@ -978,7 +979,7 @@ class InputChunk:
             tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)
             returnList.append((tmpDatasetSpec, tmpRetList))
         # dump only problematic splitting
-        is_short = False
+        err_msg = ""
         if returnList:
             if maxNumEvents and inputNumEvents < maxNumEvents:
                 is_short = True
@@ -991,9 +992,9 @@ class InputChunk:
             if enableLog and tmpLog:
                 tmpLog.debug(err_msg)
             if skip_short_output:
-                return None
+                return None, is_short
         # return
-        return returnList
+        return returnList, is_short
 
     # check if master is mutable
     def isMutableMaster(self):

@@ -1134,7 +1134,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                                 maxSizePerJob = InputChunk.maxInputSizeAvalanche * 1024 * 1024
                                         tmp_nChunksLB = 0
                                     # get a chunk
-                                    tmp_sub_chunk = tmpInputChunk.getSubChunk(
+                                    tmp_sub_chunk, is_short = tmpInputChunk.getSubChunk(
                                         None,
                                         maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                         nFilesPerJob=taskSpec.getNumFilesPerJob(),
@@ -1155,6 +1155,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                             (not isMutableDataset)
                                             or (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB)
                                             or (skip_short_output and tmp_sub_chunk)
+                                            or (tmp_sub_chunk and not is_short)
                                         ):
                                             tmp_nChunksLB += 1
                                             tmp_nChunks += 1

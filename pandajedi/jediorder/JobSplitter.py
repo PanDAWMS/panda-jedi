@@ -2,6 +2,7 @@ import copy
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jedicore import Interaction, JediCoreUtils
 from pandajedi.jedicore.InputChunk import InputChunk
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -227,7 +228,7 @@ class JobSplitter:
                 )
                 tmpLog.debug(f"useDirectIO={useDirectIO} label={taskSpec.prodSourceLabel}")
             # get sub chunk
-            subChunk = inputChunk.getSubChunk(
+            subChunk, _ = inputChunk.getSubChunk(
                 siteName,
                 maxSize=maxSize,
                 maxNumFiles=maxNumFiles,
