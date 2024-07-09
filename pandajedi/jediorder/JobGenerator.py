@@ -4,7 +4,6 @@ import gc
 import os
 import random
 import re
-import signal
 import socket
 import sys
 import time
