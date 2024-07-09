@@ -112,7 +112,7 @@ class ContentsFeederThread(WorkerThread):
                 logger.error(f"{self.__class__.__name__} failed in runImpl() with {str(e)}: {traceback.format_exc()}")
 
     # feed contents to tasks
-    def feed_contents_to_tasks(self, task_ds_list):
+    def feed_contents_to_tasks(self, task_ds_list, real_run=True):
         # max number of file records per dataset
         maxFileRecords = 200000
         # loop over all tasks
@@ -126,7 +126,7 @@ class ContentsFeederThread(WorkerThread):
             datasetsIdxConsistency = []
 
             # get task
-            tmpStat, taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID, False, True, self.pid, 10, clearError=True)
+            tmpStat, taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID, False, real_run, self.pid, 10, clearError=True)
             if not tmpStat or taskSpec is None:
                 self.logger.debug(f"failed to get taskSpec for jediTaskID={jediTaskID}")
                 continue

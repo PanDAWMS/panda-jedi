@@ -1050,9 +1050,11 @@ class DBProxy(OraDBProxy.DBProxy):
                         # keep original pendingFID
                         orig_pendingFID = set(pendingFID)
                         # respect split rule
-                        enoughPendingWithSL = False
-                        numFilesWithSL = 0
-                        init_num_files_with_sl = None
+                        enough_pending_files_to_activate = False
+                        total_pending_files_to_activate = 0
+                        total_pending_chunks = 0
+                        num_pending_files_in_first_bunch = None
+                        num_available_files_in_an_input = 0
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset or datasetSpec.state == "mutable"):
                             tmpDatasetSpecMap = {}
                             # read files
@@ -1091,14 +1093,14 @@ class DBProxy(OraDBProxy.DBProxy):
                                     tmpDatasetSpecMap.setdefault(tmpLumiBlockNr, {"datasetSpec": copy.deepcopy(datasetSpec), "newPandingFID": []})
                                     tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"].append(tmpFileSpec.fileID)
                                     tmpDatasetSpecMap[tmpLumiBlockNr]["datasetSpec"].addFile(tmpFileSpec)
-                            # make sub chunks
+                            # make bunches
                             if fake_mutable_for_skip_short_output:
-                                # use # of files as max # of chunks for skip_short_output to activate all files in closed datasets
-                                maxNumChunks = max(len(uniqueFileKeyList), 100)
+                                # use # of files as max # of bunches for skip_short_output to activate all files in closed datasets
+                                max_num_bunches = max(len(uniqueFileKeyList), 100)
                             elif taskSpec.status == "running":
-                                maxNumChunks = 100
+                                max_num_bunches = 100
                             else:
-                                maxNumChunks = 1
+                                max_num_bunches = 1
                             if taskSpec.useHS06():
                                 walltimeGradient = taskSpec.getCpuTime()
                             else:
@@ -1111,12 +1113,12 @@ class DBProxy(OraDBProxy.DBProxy):
                             tmpInputChunk = None
                             newPendingFID = []
                             tmpDatasetSpecMapIdxList = list(tmpDatasetSpecMap.keys())
-                            for ii in range(maxNumChunks):
-                                tmp_nChunks = 0
-                                tmp_enoughPendingWithSL = False
-                                tmp_numFilesWithSL = 0
-                                while tmp_nChunks < nChunks:
-                                    # make input chunk
+                            for i_bunch in range(max_num_bunches):
+                                # making a single bunch with multiple chunks
+                                i_chunks_in_a_bunch = 0
+                                files_available_for_a_chunk = False
+                                while i_chunks_in_a_bunch < nChunks:
+                                    # make a new input with another lumiblock
                                     if tmpInputChunk is None:
                                         if not tmpDatasetSpecMapIdxList:
                                             break
@@ -1132,7 +1134,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                                 maxSizePerJob = InputChunk.maxInputSizeScouts * 1024 * 1024
                                             else:
                                                 maxSizePerJob = InputChunk.maxInputSizeAvalanche * 1024 * 1024
-                                        tmp_nChunksLB = 0
+                                        i_chunks_with_a_lumiblock = 0
                                     # get a chunk
                                     tmp_sub_chunk, is_short = tmpInputChunk.getSubChunk(
                                         None,
@@ -1149,48 +1151,51 @@ class DBProxy(OraDBProxy.DBProxy):
                                         respectLB=taskSpec.respectLumiblock(),
                                         skip_short_output=skip_short_output,
                                     )
-                                    tmp_enoughPendingWithSL = tmpInputChunk.checkUnused()
-                                    if not tmp_enoughPendingWithSL:
+                                    files_available_for_a_chunk = tmpInputChunk.checkUnused()
+                                    if not files_available_for_a_chunk:
                                         if (
                                             (not isMutableDataset)
                                             or (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB)
                                             or (skip_short_output and tmp_sub_chunk)
                                             or (tmp_sub_chunk and not is_short)
                                         ):
-                                            tmp_nChunksLB += 1
-                                            tmp_nChunks += 1
-                                            tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
-                                        if tmp_nChunksLB > 0:
-                                            numFilesWithSL += tmp_numFilesWithSL
-                                            newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"][:tmp_numFilesWithSL]
+                                            i_chunks_with_a_lumiblock += 1
+                                            i_chunks_in_a_bunch += 1
+                                            total_pending_chunks += 1
+                                            num_available_files_in_an_input = tmpInputChunk.getMasterUsedIndex()
+                                        if i_chunks_with_a_lumiblock > 0:
+                                            total_pending_files_to_activate += num_available_files_in_an_input
+                                            newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"][:num_available_files_in_an_input]
                                         tmpInputChunk = None
                                     else:
-                                        tmp_nChunksLB += 1
-                                        tmp_nChunks += 1
-                                        tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
-                                if init_num_files_with_sl is None:
-                                    init_num_files_with_sl = tmp_numFilesWithSL
-                                if tmp_enoughPendingWithSL:
-                                    enoughPendingWithSL = True
+                                        i_chunks_with_a_lumiblock += 1
+                                        i_chunks_in_a_bunch += 1
+                                        total_pending_chunks += 1
+                                        num_available_files_in_an_input = tmpInputChunk.getMasterUsedIndex()
+                                # end of a single bunch creation
+                                if num_pending_files_in_first_bunch is None:
+                                    num_pending_files_in_first_bunch = num_available_files_in_an_input
+                                if files_available_for_a_chunk:
+                                    enough_pending_files_to_activate = True
                                 else:
-                                    # one set of sub chunks is at least available
-                                    if ii > 0 or tmp_nChunks >= nChunks:
-                                        enoughPendingWithSL = True
+                                    # one bunch is at least available
+                                    if i_bunch > 0 or i_chunks_in_a_bunch >= nChunks:
+                                        enough_pending_files_to_activate = True
                                     # terminate lookup for skip short output
                                     if skip_short_output and datasetState == "closed":
-                                        enoughPendingWithSL = True
+                                        enough_pending_files_to_activate = True
                                     break
                             if tmpInputChunk:
-                                numFilesWithSL += tmpInputChunk.getMasterUsedIndex()
+                                total_pending_files_to_activate += tmpInputChunk.getMasterUsedIndex()
                                 newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"][: tmpInputChunk.getMasterUsedIndex()]
                             pendingFID = newPendingFID
                             tmpLog.debug(
-                                ("respecting SR nFiles={0} isEnough={1} " "nFilesPerJob={2} maxSize={3} maxNumChunks={4}").format(
-                                    numFilesWithSL, enoughPendingWithSL, taskSpec.getNumFilesPerJob(), maxSizePerJob, maxNumChunks
-                                )
+                                f"respecting SR nFilesToActivate={total_pending_files_to_activate} nChunksToActivate={total_pending_chunks} "
+                                f"isEnough={enough_pending_files_to_activate} nFilesPerJob={taskSpec.getNumFilesPerJob()} maxSizePerJob={maxSizePerJob} "
+                                f"maxNumChunks={max_num_bunches}"
                             )
-                        if init_num_files_with_sl is None:
-                            init_num_files_with_sl = 0
+                        if num_pending_files_in_first_bunch is None:
+                            num_pending_files_in_first_bunch = 0
                         # activate pending
                         tmpLog.debug("activate pending")
                         toActivateFID = []
@@ -1204,8 +1209,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             else:
                                 if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset):
                                     # enough pending
-                                    if enoughPendingWithSL:
-                                        toActivateFID = pendingFID[:numFilesWithSL]
+                                    if enough_pending_files_to_activate:
+                                        toActivateFID = pendingFID[:total_pending_files_to_activate]
                                     else:
                                         diagMap["errMsg"] = "not enough files"
                                 elif isEventSplit:
@@ -1236,44 +1241,47 @@ class DBProxy(OraDBProxy.DBProxy):
                                 nReady += 1
                         tmpLog.debug(f"nReady={nReady} nPending={nPending} nActivatedPending={nActivatedPending} after activation")
                         # lost or recovered files
-                        tmpLog.debug("lost or recovered files")
-                        uniqueFileKeySet = set(uniqueFileKeyList)
-                        for uniqueFileKey, fileVarMap in existingFiles.items():
-                            varMap = {}
-                            varMap[":jediTaskID"] = datasetSpec.jediTaskID
-                            varMap[":datasetID"] = datasetSpec.datasetID
-                            varMap[":fileID"] = fileVarMap["fileID"]
-                            lostInPending = False
-                            if uniqueFileKey not in uniqueFileKeySet:
-                                if fileVarMap["status"] == "lost":
+                        if datasetSpec.isSeqNumber():
+                            tmpLog.debug("skip lost or recovered file check for SEQ")
+                        else:
+                            tmpLog.debug("lost or recovered files")
+                            uniqueFileKeySet = set(uniqueFileKeyList)
+                            for uniqueFileKey, fileVarMap in existingFiles.items():
+                                varMap = {}
+                                varMap[":jediTaskID"] = datasetSpec.jediTaskID
+                                varMap[":datasetID"] = datasetSpec.datasetID
+                                varMap[":fileID"] = fileVarMap["fileID"]
+                                lostInPending = False
+                                if uniqueFileKey not in uniqueFileKeySet:
+                                    if fileVarMap["status"] == "lost":
+                                        continue
+                                    if fileVarMap["status"] not in ["ready", "pending", "staging"]:
+                                        continue
+                                    elif fileVarMap["status"] != "ready":
+                                        lostInPending = True
+                                    varMap["status"] = "lost"
+                                    tmpLog.debug(f"{uniqueFileKey} was lost")
+                                else:
                                     continue
-                                if fileVarMap["status"] not in ["ready", "pending", "staging"]:
-                                    continue
-                                elif fileVarMap["status"] != "ready":
-                                    lostInPending = True
-                                varMap["status"] = "lost"
-                                tmpLog.debug(f"{uniqueFileKey} was lost from {str(uniqueFileKeySet)}")
-                            else:
-                                continue
-                            if varMap["status"] == "ready":
-                                nLost -= 1
-                                nReady += 1
-                                if fileVarMap["nevents"] is not None:
-                                    nEventsExist += fileVarMap["nevents"]
-                            if varMap["status"] in ["lost", "missing"]:
-                                nLost += 1
-                                if not lostInPending:
-                                    nReady -= 1
-                                if fileVarMap["nevents"] is not None:
-                                    nEventsExist -= fileVarMap["nevents"]
-                                if fileVarMap["is_failed"]:
-                                    nUsed -= 1
-                            self.cur.execute(sqlFU + comment, varMap)
-                        tmpLog.debug(
-                            "nReady={} nLost={} nUsed={} nUsedInDB={} nUsedConsistent={} after lost/recovery check".format(
-                                nReady, nLost, nUsed, nFilesUsedInDS, nUsed == nFilesUsedInDS
+                                if varMap["status"] == "ready":
+                                    nLost -= 1
+                                    nReady += 1
+                                    if fileVarMap["nevents"] is not None:
+                                        nEventsExist += fileVarMap["nevents"]
+                                if varMap["status"] in ["lost", "missing"]:
+                                    nLost += 1
+                                    if not lostInPending:
+                                        nReady -= 1
+                                    if fileVarMap["nevents"] is not None:
+                                        nEventsExist -= fileVarMap["nevents"]
+                                    if fileVarMap["is_failed"]:
+                                        nUsed -= 1
+                                self.cur.execute(sqlFU + comment, varMap)
+                            tmpLog.debug(
+                                "nReady={} nLost={} nUsed={} nUsedInDB={} nUsedConsistent={} after lost/recovery check".format(
+                                    nReady, nLost, nUsed, nFilesUsedInDS, nUsed == nFilesUsedInDS
+                                )
                             )
-                        )
                         # get master status
                         masterStatus = None
                         if not datasetSpec.isMaster():
@@ -1302,12 +1310,12 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap[":nFilesTobeUsed"] = nFilesToUseDS
                             else:
                                 if fake_mutable_for_skip_short_output:
-                                    # use num_files_with_sl in the first iteration since numFilesWithSL is too big for scouts
-                                    varMap[":nFilesTobeUsed"] = init_num_files_with_sl + nUsed
+                                    # use num_files_with_sl in the first bunch since numFilesWithSL is too big for scouts
+                                    varMap[":nFilesTobeUsed"] = num_pending_files_in_first_bunch + nUsed
                                 elif isMutableDataset:
                                     varMap[":nFilesTobeUsed"] = nReady + nUsed
                                 else:
-                                    varMap[":nFilesTobeUsed"] = numFilesWithSL + nUsed
+                                    varMap[":nFilesTobeUsed"] = total_pending_files_to_activate + nUsed
                         elif datasetSpec.isMaster() and useScout and (set([taskStatus, taskSpec.oldStatus]) & set(["scouting", "ready", "assigning"])):
                             varMap[":nFilesTobeUsed"] = nFilesToUseDS
                         elif xmlConfig is not None:
