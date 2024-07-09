@@ -16,7 +16,7 @@ except Exception:
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice import DataServiceUtils, ddm
 from pandaserver.srvcore import CoreUtils
 from rucio.client import Client as RucioClient
 from rucio.common.exception import (
@@ -978,58 +978,14 @@ class AtlasDDMClient(DDMClientBase):
         methodName = f"{methodName} userName={dn}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        try:
-            # get rucio API
-            client = RucioClient()
-            user_info = None
-            x509_user_name = CoreUtils.get_bare_dn(dn)
-            oidc_user_name = CoreUtils.get_id_from_dn(dn)
-            if oidc_user_name == x509_user_name:
-                oidc_user_name = None
-            else:
-                x509_user_name = None
-            for accType in ["USER", "GROUP"]:
-                if x509_user_name is not None:
-                    user_names = [x509_user_name]
-                    # replace / with , and reverse substrings to be converted to RFC format
-                    tmp_list = user_names[-1].split("/")
-                    if "" in tmp_list:
-                        tmp_list.remove("")
-                    user_names.append(",".join(tmp_list[::-1]))
-                    # remove /CN=\d
-                    user_names.append(CoreUtils.get_bare_dn(dn, keep_digits=False))
-                    # replace / with , and reverse substrings to be converted to RFC format
-                    tmp_list = user_names[-1].split("/")
-                    if "" in tmp_list:
-                        tmp_list.remove("")
-                    user_names.append(",".join(tmp_list[::-1]))
-                    for user_name in user_names:
-                        for i in client.list_accounts(account_type=accType, identity=user_name):
-                            user_info = {"nickname": i["account"], "email": i["email"]}
-                            break
-                        if user_info is not None:
-                            break
-                else:
-                    user_name = oidc_user_name
-                try:
-                    if user_info is None:
-                        i = client.get_account(user_name)
-                        user_info = {"nickname": i["account"], "email": i["email"]}
-                except Exception:
-                    pass
-                if user_info is not None:
-                    break
-            if user_info is None:
-                tmpLog.error("failed to get account info")
-                return self.SC_FAILED, None
-            tmpRet = user_info
-        except Exception as e:
-            errType = e
-            errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, f"{methodName} : {errMsg}"
-        tmpLog.debug("done with " + str(tmpRet))
-        return self.SC_SUCCEEDED, tmpRet
+        status, user_info = ddm.rucioAPI.finger(dn)
+        if status:
+            tmpLog.debug(f"done with {str(user_info)}")
+            return self.SC_SUCCEEDED, user_info
+        else:
+            err_msg = f"failed with {str(user_info)}"
+            tmpLog.error(err_msg)
+            return self.SC_FAILED, err_msg
 
     # set dataset metadata
     def setDatasetMetadata(self, datasetName, metadataName, metadaValue):
