@@ -1541,8 +1541,10 @@ class JobGeneratorThread(WorkerThread):
                             jobSpec.maxWalltime = jobSpec.maxCpuCount
                             if taskSpec.baseWalltime is not None:
                                 jobSpec.maxWalltime += taskSpec.baseWalltime
-                        if jobSpec.minRamCount != [None, "NULL"]:
+
+                        if jobSpec.minRamCount in [None, "NULL"]:
                             jobSpec.minRamCount = 0
+
                     # set retry RAM count
                     if self.time_profile_level >= TIME_PROFILE_ON:
                         tmpLog.debug(stop_watch.get_elapsed_time("resource_type"))
@@ -1853,10 +1855,21 @@ class JobGeneratorThread(WorkerThread):
             jobSpec.gshare = taskSpec.gshare
             jobSpec.container_name = taskSpec.container_name
             jobSpec.metadata = ""
+            # for the memory, we are going to use 2GB as a default value, as this was the usual ATLAS slot memory and it has always fit the build jobs.
+            # There is no other major reason and it could be over-dimensioned.
             if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0] or siteSpec.sitename != siteSpec.get_unified_name():
                 jobSpec.coreCount = 1
+                if siteSpec.maxrss:
+                    jobSpec.minRamCount = min(2000, siteSpec.maxrss)
+                else:
+                    jobSpec.minRamCount = 2000
             else:
                 jobSpec.coreCount = siteSpec.coreCount
+                if siteSpec.maxrss:
+                    jobSpec.minRamCount = min(2000 * jobSpec.coreCount, siteSpec.maxrss)
+                else:
+                    jobSpec.minRamCount = 2000 * jobSpec.coreCount
+
             try:
                 jobSpec.resource_type = JobUtils.get_resource_type_job(self.resource_types, jobSpec)
             except Exception:
