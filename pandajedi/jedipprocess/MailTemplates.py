@@ -37,6 +37,9 @@ Report Panda problems of any sort to
 
   the eGroup for help request
     hn-atlas-dist-analysis-help@cern.ch
+    
+  the Discourse forum for distributed computing help  
+    https://atlas-talk.web.cern.ch/c/distributed-computing-help
 
   the JIRA portal for software bug
     https://its.cern.ch/jira/browse/ATLASPANDA
@@ -172,6 +175,7 @@ jedi_task_html_body = """
     <h3>Panda Problem Reporting</h3>
     <ul>
         <li>The eGroup for help request: <a href="mailto:hn-atlas-dist-analysis-help@cern.ch">hn-atlas-dist-analysis-help@cern.ch</a></li>
+        <li>The Discourse forum for distributed computing help: <a href="https://atlas-talk.web.cern.ch/c/distributed-computing-help">https://atlas-talk.web.cern.ch/c/distributed-computing-help</a></li>
         <li>The JIRA portal for software bug: <a href="https://its.cern.ch/jira/browse/ATLASPANDA">https://its.cern.ch/jira/browse/ATLASPANDA</a></li>
     </ul>
 </body>
