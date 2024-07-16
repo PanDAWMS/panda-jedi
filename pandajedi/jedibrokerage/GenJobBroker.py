@@ -2,6 +2,7 @@ import random
 import re
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jedicore import Interaction, JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
@@ -223,6 +224,28 @@ class GenJobBroker(JobBrokerBase):
                 tmpLog.error("no candidates")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
+        ######################################
+        # selection with processing types
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            allowed_list = tmpSiteSpec.get_allowed_processing_types()
+            exclude_list = tmpSiteSpec.get_excluded_processing_types()
+            if allowed_list is not None:
+                if taskSpec.processingType not in allowed_list:
+                    tmpLog.debug(f"  skip {tmpSiteName} due to processing type not in allowed list")
+                    continue
+            if exclude_list is not None:
+                if taskSpec.processingType in exclude_list:
+                    tmpLog.debug(f"  skip {tmpSiteName} due to processing type in excluded list")
+                    continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.debug(f"{len(scanSiteList)} candidates passed allowed/excluded processing type check")
+        if not scanSiteList:
+            tmpLog.error("no candidates")
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
         ######################################
         # selection for nPilot
         nWNmap = self.taskBufferIF.getCurrentSiteData()

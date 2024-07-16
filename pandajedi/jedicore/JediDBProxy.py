@@ -1190,9 +1190,9 @@ class DBProxy(OraDBProxy.DBProxy):
                                 newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr]["newPandingFID"][: tmpInputChunk.getMasterUsedIndex()]
                             pendingFID = newPendingFID
                             tmpLog.debug(
-                                f"respecting SR nFilesToActivate={total_pending_files_to_activate} nChunksToActivate={total_pending_chunks} "
-                                f"isEnough={enough_pending_files_to_activate} nFilesPerJob={taskSpec.getNumFilesPerJob()} maxSizePerJob={maxSizePerJob} "
-                                f"maxNumChunks={max_num_bunches}"
+                                f"respecting SR nFilesToActivate={total_pending_files_to_activate} nChunksToActivate={total_pending_chunks} minChunks={nChunks} "
+                                f"isEnough={enough_pending_files_to_activate} nFilesPerJob={taskSpec.getNumFilesPerJob()} "
+                                f"maxSizePerJob={int(maxSizePerJob/1024/1024) if maxSizePerJob else None} "
                             )
                         if num_pending_files_in_first_bunch is None:
                             num_pending_files_in_first_bunch = 0
