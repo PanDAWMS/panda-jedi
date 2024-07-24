@@ -39,63 +39,7 @@ class AtlasProdTaskBroker(TaskBrokerBase):
 
     # main to check
     def doCheck(self, taskSpecList):
-        # make logger
-        tmpLog = MsgWrapper(logger)
-        tmpLog.debug("start doCheck")
-        # return for failure
-        retFatal = self.SC_FATAL, {}
-        retTmpError = self.SC_FAILED, {}
-        # get list of jediTaskIDs
-        taskIdList = []
-        taskSpecMap = {}
-        for taskSpec in taskSpecList:
-            taskIdList.append(taskSpec.jediTaskID)
-            taskSpecMap[taskSpec.jediTaskID] = taskSpec
-        # check with panda
-        tmpLog.debug("check with panda")
-        tmpPandaStatus, cloudsInPanda = PandaClient.seeCloudTask(taskIdList)
-        if tmpPandaStatus != 0:
-            tmpLog.error("failed to see clouds")
-            return retTmpError
-        # make return map
-        retMap = {}
-        for tmpTaskID, tmpCoreName in cloudsInPanda.items():
-            tmpLog.debug(f"jediTaskID={tmpTaskID} -> {tmpCoreName}")
-            if tmpCoreName not in ["NULL", "", None]:
-                taskSpec = taskSpecMap[tmpTaskID]
-                if taskSpec.useWorldCloud():
-                    # get destinations for WORLD cloud
-                    ddmIF = self.ddmIF.getInterface(taskSpec.vo)
-                    # get site
-                    siteSpec = self.siteMapper.getSite(tmpCoreName)
-                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(
-                        siteSpec, taskSpec.prodSourceLabel, JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType)
-                    )
-                    # get nucleus
-                    nucleus = siteSpec.pandasite
-                    # get output/log datasets
-                    tmpStat, tmpDatasetSpecs = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(tmpTaskID, ["output", "log"])
-                    # get destinations
-                    retMap[tmpTaskID] = {"datasets": [], "nucleus": nucleus}
-                    for datasetSpec in tmpDatasetSpecs:
-                        # skip distributed datasets
-                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
-                            continue
-                        # get token
-                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output[scopeSiteSpec_output], datasetSpec.storageToken)
-                        # use default endpoint
-                        if token is None:
-                            token = siteSpec.ddm_output[scopeSiteSpec_output]
-                        # add original token
-                        if datasetSpec.storageToken not in ["", None]:
-                            token += f"/{datasetSpec.storageToken}"
-                        retMap[tmpTaskID]["datasets"].append({"datasetID": datasetSpec.datasetID, "token": f"dst:{token}", "destination": tmpCoreName})
-                else:
-                    retMap[tmpTaskID] = tmpCoreName
-        tmpLog.debug(f"ret {str(retMap)}")
-        # return
-        tmpLog.debug("done")
-        return self.SC_SUCCEEDED, retMap
+        return self.SC_SUCCEEDED, {}
 
     # main to assign
     def doBrokerage(self, inputList, vo, prodSourceLabel, workQueue, resource_name):
