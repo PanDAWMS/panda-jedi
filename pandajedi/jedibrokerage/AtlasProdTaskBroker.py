@@ -45,100 +45,26 @@ class AtlasProdTaskBroker(TaskBrokerBase):
     def doBrokerage(self, inputList, vo, prodSourceLabel, workQueue, resource_name):
         # list with a lock
         inputListWorld = ListWithLock([])
-        # variables for submission
-        maxBunchTask = 100
+
         # make logger
         tmpLog = MsgWrapper(logger)
         tmpLog.debug("start doBrokerage")
+
         # return for failure
-        retFatal = self.SC_FATAL
         retTmpError = self.SC_FAILED
         tmpLog.debug(f"vo={vo} label={prodSourceLabel} queue={workQueue.queue_name} resource_name={resource_name} nTasks={len(inputList)}")
-        # loop over all tasks
+
+        # build the map with Remaining Work by priority
         allRwMap = {}
-        prioMap = {}
-        tt2Map = {}
-        expRWs = {}
-        jobSpecList = []
+
+        # loop over all tasks and build the list of WORLD tasks. Nowadays all tasks are WORLD
         for tmpJediTaskID, tmpInputList in inputList:
             for taskSpec, cloudName, inputChunk in tmpInputList:
-                # collect tasks for WORLD
                 if taskSpec.useWorldCloud():
                     inputListWorld.append((taskSpec, inputChunk))
-                    continue
-                # make JobSpec to be submitted for TaskAssigner
-                jobSpec = JobSpec()
-                jobSpec.taskID = taskSpec.jediTaskID
-                jobSpec.jediTaskID = taskSpec.jediTaskID
-                # set managed to trigger TA
-                jobSpec.prodSourceLabel = "managed"
-                jobSpec.processingType = taskSpec.processingType
-                jobSpec.workingGroup = taskSpec.workingGroup
-                jobSpec.metadata = taskSpec.processingType
-                jobSpec.assignedPriority = taskSpec.taskPriority
-                jobSpec.currentPriority = taskSpec.currentPriority
-                jobSpec.maxDiskCount = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) // 1024 // 1024
-                if taskSpec.useWorldCloud():
-                    # use destinationSE to trigger task brokerage in WORLD cloud
-                    jobSpec.destinationSE = taskSpec.cloud
-                prodDBlock = None
-                setProdDBlock = False
-                for datasetSpec in inputChunk.getDatasets():
-                    prodDBlock = datasetSpec.datasetName
-                    if datasetSpec.isMaster():
-                        jobSpec.prodDBlock = datasetSpec.datasetName
-                        setProdDBlock = True
-                    for fileSpec in datasetSpec.Files:
-                        tmpInFileSpec = fileSpec.convertToJobFileSpec(datasetSpec)
-                        jobSpec.addFile(tmpInFileSpec)
-                # use secondary dataset name as prodDBlock
-                if setProdDBlock is False and prodDBlock is not None:
-                    jobSpec.prodDBlock = prodDBlock
-                # append
-                jobSpecList.append(jobSpec)
-                prioMap[jobSpec.taskID] = jobSpec.currentPriority
-                tt2Map[jobSpec.taskID] = jobSpec.processingType
-                # get RW for a priority
-                if jobSpec.currentPriority not in allRwMap:
-                    tmpRW = self.taskBufferIF.calculateRWwithPrio_JEDI(vo, prodSourceLabel, workQueue, jobSpec.currentPriority)
-                    if tmpRW is None:
-                        tmpLog.error(f"failed to calculate RW with prio={jobSpec.currentPriority}")
-                        return retTmpError
-                    allRwMap[jobSpec.currentPriority] = tmpRW
-                # get expected RW
-                expRW = self.taskBufferIF.calculateTaskRW_JEDI(jobSpec.jediTaskID)
-                if expRW is None:
-                    tmpLog.error(f"failed to calculate RW for jediTaskID={jobSpec.jediTaskID}")
-                    return retTmpError
-                expRWs[jobSpec.taskID] = expRW
-        # for old clouds
-        if jobSpecList != []:
-            # get fullRWs
-            fullRWs = self.taskBufferIF.calculateRWwithPrio_JEDI(vo, prodSourceLabel, None, None)
-            if fullRWs is None:
-                tmpLog.error("failed to calculate full RW")
-                return retTmpError
-            # set metadata
-            for jobSpec in jobSpecList:
-                rwValues = allRwMap[jobSpec.currentPriority]
-                jobSpec.metadata = f"{jobSpec.metadata};{str(rwValues)};{str(expRWs)};{str(prioMap)};{str(fullRWs)};{str(tt2Map)}"
-            tmpLog.debug(f"run task assigner for {len(jobSpecList)} tasks")
-            nBunchTask = 0
-            while nBunchTask < len(jobSpecList):
-                # get a bunch
-                jobsBunch = jobSpecList[nBunchTask : nBunchTask + maxBunchTask]
-                strIDs = "jediTaskID="
-                for tmpJobSpec in jobsBunch:
-                    strIDs += f"{tmpJobSpec.taskID},"
-                strIDs = strIDs[:-1]
-                tmpLog.debug(strIDs)
-                # increment index
-                nBunchTask += maxBunchTask
-                # run task brokerge
-                stS, outSs = PandaClient.runTaskAssignment(jobsBunch)
-                tmpLog.debug(f"{stS}:{str(outSs)}")
-        # for WORLD
-        if len(inputListWorld) > 0:
+
+        # broker WORLD tasks
+        if inputListWorld:
             # thread pool
             threadPool = ThreadPool()
             # get full RW for WORLD
@@ -154,6 +80,7 @@ class AtlasProdTaskBroker(TaskBrokerBase):
                         tmpLog.error(f"failed to calculate RW with prio={taskSpec.currentPriority}")
                         return retTmpError
                     allRwMap[taskSpec.currentPriority] = tmpRW
+
             # live counter for RWs
             liveCounter = MapWithLock(allRwMap)
             # make workers
