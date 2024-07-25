@@ -176,36 +176,25 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             if tmpStat is not True:
                 tmpLog.error("failed to get datasets")
                 continue
-            # update DB
-            if not taskSpec.useWorldCloud():
-                # update cloudtasks
-                tmpStat = self.taskBufferIF.setCloudTaskByUser("jedi", taskSpec.jediTaskID, taskSpec.cloud, "assigned", True)
-                if tmpStat != "SUCCEEDED":
-                    tmpLog.error("failed to update CloudTasks")
-                    continue
-                # check cloud
-                if not siteMapper.checkCloud(taskSpec.cloud):
-                    tmpLog.error(f"cloud={taskSpec.cloud} doesn't exist")
-                    continue
-            else:
-                # re-run task brokerage
-                if taskSpec.nucleus in [None, ""]:
-                    taskSpec.status = "assigning"
-                    taskSpec.oldStatus = None
-                    taskSpec.setToRegisterDatasets()
-                    self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, setOldModTime=True)
-                    tmpLog.debug(f"#ATM #KV label=managed action=trigger_new_brokerage by setting task_status={taskSpec.status}")
-                    continue
 
-                # get nucleus
-                nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
-                if nucleusSpec is None:
-                    tmpLog.error(f"nucleus={taskSpec.nucleus} doesn't exist")
-                    continue
+            # re-run task brokerage
+            if taskSpec.nucleus in [None, ""]:
+                taskSpec.status = "assigning"
+                taskSpec.oldStatus = None
+                taskSpec.setToRegisterDatasets()
+                self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, setOldModTime=True)
+                tmpLog.debug(f"#ATM #KV label=managed action=trigger_new_brokerage by setting task_status={taskSpec.status}")
+                continue
 
-                # set nucleus
-                retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec, datasetSpecList)}
-                tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
+            # get nucleus
+            nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
+            if nucleusSpec is None:
+                tmpLog.error(f"nucleus={taskSpec.nucleus} doesn't exist")
+                continue
+
+            # set nucleus
+            retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec, datasetSpecList)}
+            tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
 
             # get T1/nucleus
             if not taskSpec.useWorldCloud():
