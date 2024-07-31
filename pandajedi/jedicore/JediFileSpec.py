@@ -219,12 +219,6 @@ class JediFileSpec(object):
         # return
         return
 
-    # check if event-level splitting is used
-    def doEventLevelSplit(self):
-        if self.startEvent is None:
-            return False
-        return True
-
     # get effective number of events
     def getEffectiveNumEvents(self):
         if self.endEvent is not None and self.startEvent is not None:

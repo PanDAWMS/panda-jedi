@@ -743,16 +743,6 @@ class JediTaskSpec(object):
 
     commandStatusMap = classmethod(commandStatusMap)
 
-    # set task status to active
-    def setInActive(self):
-        # change status
-        if self.status == "pending":
-            self.status = self.oldStatus
-            self.oldStatus = None
-            self.errorDialog = None
-        # reset error dialog
-        self.setErrDiag(None)
-
     # set error dialog
     def setErrDiag(self, diag, append=False, prepend=False):
         # check if message can be encoded with UTF-8
@@ -871,10 +861,6 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return True
         return False
-
-    # disable input prestaging
-    def disableInputPreStaging(self):
-        self.setSplitRule("inputPreStaging", self.enum_inputPreStaging["notUse"])
 
     # set DDM backend
     def setDdmBackEnd(self, backEnd):
@@ -1219,10 +1205,6 @@ class JediTaskSpec(object):
     # use zip files to pin input files
     def useZipToPin(self):
         return self.check_split_rule("useZipToPin")
-
-    # require OS matching
-    def osMatching(self):
-        return self.check_split_rule("osMatching")
 
     # architecture: sw_platform<@base_platform><#host_cpu_spec><&host_gpu_spec>
     # host_cpu_spec: architecture<-vendor<-instruction_set>>

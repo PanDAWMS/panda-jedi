@@ -158,18 +158,6 @@ class dom_parser:
             s.check()
 
     @staticmethod
-    def break_regex(v, N=100):
-        """breaks up a very long regex into a comma-separeted list of filters"""
-        _REGEXLIM = 2**15 - 1000
-        spl = v.split("|")
-        res = []
-        for i in range(0, len(spl), N):
-            piece = "|".join(spl[i : i + N])
-            assert len(piece) < _REGEXLIM, "Input dataset contains very long filenames. You must reduce parameter N in break_regex()"
-            res.append(piece)
-        return ",".join(res)
-
-    @staticmethod
     def true(v):
         """define True"""
         return v in ("1", "true", "True", "TRUE", "yes", "Yes", "YES")
@@ -282,10 +270,6 @@ class dom_parser:
                 DSs.add(ds)
         return list(DSs)
 
-    def outDS(s):
-        """output dataset"""
-        return s.outds
-
     def inDS(s):
         """chooses a dataset we'll call inDS; others will become secondaryDS"""
         # user manually labeled one of datasets as primary, so make it inDS:
@@ -298,25 +282,6 @@ class dom_parser:
     def secondaryDSs(s):
         """returns all secondaryDSs. This excludes inDS, unless inDS is managed by prun"""
         return [d for d in s.input_datasets() if d != s.inDS()]
-
-    def secondaryDSs_config(s, filter=True):
-        """returns secondaryDSs string in prun format:
-        StreamName:nFilesPerJob:DatasetName[:MatchingPattern[:nSkipFiles]]
-        nFilesPerJob is set to zero, so that it is updated later from actual file count.
-        MatchingPattern is an OR-separated list of actual file names.
-        """
-        out = []
-        DSs = s.secondaryDSs()
-        for i, DS in enumerate(DSs):
-            if DS in s.inds:
-                stream = s.inds[DS]
-            else:
-                stream = "IN%d" % (i + 1,)
-            if filter:
-                out.append(f"{stream}:0:{DS}:{s.files_in_DS(DS, regex=True)}")
-            else:
-                out.append(f"{stream}:0:{DS}")
-        return ",".join(out)
 
     def writeInputToTxt(s):
         """Prepares prun option --writeInputToTxt
@@ -347,9 +312,6 @@ class dom_parser:
             return "|".join(sorted(list(set(files))))
         else:
             return sorted(list(set(files)))
-
-    def nFiles_in_DS(s, DS):
-        return len(s.files_in_DS(DS))
 
     def nJobs(s):
         return len(s.jobs)

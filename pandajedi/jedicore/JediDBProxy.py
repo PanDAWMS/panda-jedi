@@ -558,7 +558,6 @@ class DBProxy(OraDBProxy.DBProxy):
             uniqueFileKeyList = []
             nRemEvents = nEventsPerJob
             totalEventNumber = firstEventNumber
-            foundFileList = []
             uniqueLfnList = {}
             totalNumEventsF = 0
             lumiBlockNr = None
@@ -5271,100 +5270,6 @@ class DBProxy(OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
-
-    # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI_OLD(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
-        comment = " /* JediDBProxy.getHighestPrioJobStat_JEDI */"
-        methodName = self.getMethodName(comment)
-        methodName += f" <cloud={cloudName} queue={workQueue.queue_name} resource_name={resource_name}>"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        varMapO = {}
-        varMapO[":cloud"] = cloudName
-        varMapO[":prodSourceLabel"] = prodSourceLabel
-
-        # sqlS has the where conditions
-        sqlS = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
-        sqlS += "AND processingType<>:pmerge AND (eventService IS NULL OR eventService<>:esmerge) "
-        sqlS += "AND cloud=:cloud "
-        if resource_name:
-            sqlS += "AND resource_type=:resource_type "
-            varMapO[":resource_type"] = resource_name
-        if workQueue.is_global_share:
-            sqlS += "AND gshare=:wq_name "
-            sqlS += "AND workqueue_id IN ("
-            sqlS += "SELECT UNIQUE workqueue_id FROM {0} "
-            sqlS += "MINUS "
-            sqlS += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
-            varMapO[":wq_name"] = workQueue.queue_name
-        else:
-            sqlS += "AND workQueue_ID=:wq_id "
-            varMapO[":wq_id"] = workQueue.queue_id
-
-        # sql for highest current priority
-        sql0 = "SELECT max(currentPriority) FROM {0} "
-        sql0 += sqlS
-
-        # sqlC counts the jobs with highest priority
-        sqlC = "SELECT COUNT(*) FROM {0} "
-        sqlC += sqlS
-        sqlC += "AND currentPriority=:currentPriority"
-
-        tables = [f"{jedi_config.db.schemaPANDA}.jobsActive4", f"{jedi_config.db.schemaPANDA}.jobsDefined4"]
-
-        # make return map
-        prioKey = "highestPrio"
-        nNotRunKey = "nNotRun"
-        retMap = {prioKey: 0, nNotRunKey: 0}
-        try:
-            for table in tables:
-                # start transaction
-                self.conn.begin()
-                varMap = copy.copy(varMapO)
-                # select
-                if table == f"{jedi_config.db.schemaPANDA}.jobsActive4":
-                    varMap[":jobStatus1"] = "activated"
-                    varMap[":jobStatus2"] = "dummy"
-                else:
-                    varMap[":jobStatus1"] = "defined"
-                    varMap[":jobStatus2"] = "assigned"
-                varMap[":pmerge"] = "pmerge"
-                varMap[":esmerge"] = EventServiceUtils.esMergeJobFlagNumber
-                self.cur.arraysize = 100
-                tmpLog.debug((sql0 + comment).format(table) + str(varMap))
-                self.cur.execute((sql0 + comment).format(table), varMap)
-                res = self.cur.fetchone()
-                # if there is a job
-                if res is not None and res[0] is not None:
-                    maxPriority = res[0]
-                    getNumber = False
-                    if retMap[prioKey] < maxPriority:
-                        retMap[prioKey] = maxPriority
-                        # reset
-                        retMap[nNotRunKey] = 0
-                        getNumber = True
-                    elif retMap[prioKey] == maxPriority:
-                        getNumber = True
-                    # get number of jobs with highest prio
-                    if getNumber:
-                        varMap[":currentPriority"] = maxPriority
-                        self.cur.arraysize = 10
-                        tmpLog.debug((sqlC + comment).format(table))
-                        self.cur.execute((sqlC + comment).format(table), varMap)
-                        resC = self.cur.fetchone()
-                        retMap[nNotRunKey] += resC[0]
-                # commit
-                if not self._commit():
-                    raise RuntimeError("Commit error")
-            # return
-            tmpLog.debug(str(retMap))
-            return True, retMap
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return False, None
 
     # get highest prio jobs with workQueueID
     def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
@@ -13520,42 +13425,6 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmp_log)
             return {}
 
-    # get nQ/nR ratio
-    def get_nq_nr_ratio_JEDI(self, source_label):
-        comment = " /* JediDBProxy.get_nq_nr_ratio_JEDI */"
-        methodName = self.getMethodName(comment)
-        methodName += f" < label={source_label} >"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        try:
-            retMap = dict()
-            # sql
-            sql = f"SELECT computingSite,jobStatus,COUNT(*) FROM {jedi_config.db.schemaPANDA}.{{0}} "
-            sql += "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
-            sql += "GROUP BY computingSite,jobStatus "
-            for tableName, jobStatus1, jobStatus2 in [("jobsDefined4", "defined", "assigned"), ("jobsActive4", "activated, " "running")]:
-                varMap = dict()
-                varMap[":jobStatus1"] = jobStatus1
-                varMap[":jobStatus2"] = jobStatus2
-                # begin transaction
-                self.conn.begin()
-                self.cur.execute(sql.format(tableName) + comment, varMap)
-                resFL = self.cur.fetchall()
-                # commit
-                if not self._commit():
-                    raise RuntimeError("Commit error")
-                for computingSite, jobStatus, nJobs in resFL:
-                    retMap.setdefault(computingSite, {"nRunning": 0, "nQueue": 0})
-                retMap[computingSite] = avg
-            tmpLog.debug("done")
-            return retMap
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return {}
-
     # update input files stage-in done according to message from idds
     def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
         comment = " /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */"
@@ -14103,49 +13972,6 @@ class DBProxy(OraDBProxy.DBProxy):
         self.cur.execute(sqlUTA + comment, varMap)
         tmpLog.debug("done")
 
-    # task progress
-    def get_task_progress(self, jedi_task_id):
-        comment = " /* JediDBProxy.get_task_progress */"
-        methodName = self.getMethodName(comment)
-        methodName += f" < jediTaskID={jedi_task_id} >"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        try:
-            varMap = dict()
-            varMap[":jediTaskID"] = jedi_task_id
-            # sql
-            sqlT = (
-                "SELECT d.jediTaskID,SUM(d.nFiles),SUM(d.nFilesFinished),SUM(d.nFilesFailed) "
-                "FROM {0}.JEDI_Datasets d "
-                "WHERE d.jediTaskID= AND d.type in ('input', 'pseudo_input') "
-            ).format(jedi_config.db.schemaJEDI)
-            self.cur.execute(sqlT + comment, varMap)
-            # result
-            jediTaskID, nFiles, nFilesFinished, nFilesFailed = self.cur.fetchone()
-            n_files_processed = nFilesFinished + nFilesFailed
-            n_files_remaining = nFiles - n_files_processed
-            ret_dict = {
-                "jediTaskID": jediTaskID,
-                "nFiles": nFiles,
-                "nFilesFinished": nFilesFinished,
-                "nFilesFailed": nFilesFailed,
-                "n_files_remaining": n_files_remaining,
-                "finished_ratio": nFilesFinished / nFiles if nFiles > 0 else 0,
-                "failed_ratio": nFilesFailed / nFiles if nFiles > 0 else 0,
-                "remaining_ratio": n_files_remaining / nFiles if nFiles > 0 else 0,
-                "progress": n_files_processed / nFiles if nFiles > 0 else 0,
-            }
-
-            # return
-            tmpLog.debug("done")
-            return ret_dict
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return None
-
     # get usage breakdown by users and sites
     def getUsageBreakdown_JEDI(self, prod_source_label="user"):
         comment = " /* JediDBProxy.getUsageBreakdown_JEDI */"
@@ -14276,57 +14102,6 @@ class DBProxy(OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
-
-    # add events
-    def add_events_jedi(self, jedi_task_id, start_number, end_number, max_attempt):
-        comment = " /* JediDBProxy.add_events_jedi */"
-        methodName = self.getMethodName(comment)
-        methodName += f" < jediTaskID={jedi_task_id} >"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug(f"start start={start_number} end={end_number}")
-        varMap = dict()
-        varMap[":jediTaskID"] = jedi_task_id
-        varMap[":modificationHost"] = socket.getfqdn()
-        # sql
-        sqlJediEvent = (
-            "INSERT INTO {0}.JEDI_Events "
-            "(jediTaskID,datasetID,PandaID,fileID,attemptNr,status,"
-            "job_processID,def_min_eventID,def_max_eventID,processed_upto_eventID,"
-            "event_offset) "
-            "VALUES(:jediTaskID,:datasetID,:pandaID,:fileID,:attemptNr,:eventStatus,"
-            ":startEvent,:startEvent,:lastEvent,:processedEvent,"
-            ":eventOffset) "
-        ).format(jedi_config.db.schemaJEDI)
-        varMaps = []
-        i = start_number
-        while i <= end_number:
-            varMap = dict()
-            varMap[":jediTaskID"] = jedi_task_id
-            varMap[":datasetID"] = 0
-            varMap[":pandaID"] = 0
-            varMap[":fileID"] = 0
-            varMap[":attemptNr"] = max_attempt
-            varMap[":eventStatus"] = EventServiceUtils.ST_ready
-            varMap[":processedEvent"] = 0
-            varMap[":startEvent"] = i
-            varMap[":lastEvent"] = i
-            varMap[":eventOffset"] = 0
-            varMaps.append(varMap)
-            i += 1
-        try:
-            self.conn.begin()
-            self.cur.executemany(sqlJediEvent + comment, varMaps)
-            # commit
-            if not self._commit():
-                raise RuntimeError("Commit error")
-            tmpLog.debug(f"added {end_number - start_number + 1} events")
-            return True
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return False
 
     # insert HPO pseudo event according to message from idds
     def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):

@@ -2628,16 +2628,6 @@ class JobGeneratorThread(WorkerThread):
                         largestAttemptNr = tmpFileSpec.attemptNr
         return largestAttemptNr + 1
 
-    # get the largest ramCount
-    def getLargestRamCount(self, inSubChunk):
-        largestRamCount = 0
-        for tmpDatasetSpec, tmpFileSpecList in inSubChunk:
-            if tmpDatasetSpec.isMaster():
-                for tmpFileSpec in tmpFileSpecList:
-                    if tmpFileSpec.ramCount is not None and tmpFileSpec.ramCount > largestRamCount:
-                        largestRamCount = tmpFileSpec.ramCount
-        return largestRamCount
-
     # touch sandbox fles
     def touchSandoboxFiles(self, task_spec, task_param_map, tmp_log):
         # get task parameter map

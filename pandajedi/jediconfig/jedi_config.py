@@ -1,15 +1,14 @@
 import json
 import os
-import re
 import sys
 
 from liveconfigparser.LiveConfigParser import LiveConfigParser, expand_values
 
 # get ConfigParser
-tmpConf = LiveConfigParser()
+tmp_conf = LiveConfigParser()
 
 # read
-tmpConf.read("panda_jedi.cfg")
+tmp_conf.read("panda_jedi.cfg")
 
 
 # dummy section class
@@ -27,15 +26,15 @@ if "PANDA_HOME" in os.environ:
             config_map_data = json.load(f)
 
 # loop over all sections
-for tmpSection in tmpConf.sections():
+for tmp_section in tmp_conf.sections():
     # read section
-    tmpDict = getattr(tmpConf, tmpSection)
+    tmp_dict = getattr(tmp_conf, tmp_section)
     # load configmap
-    if tmpSection in config_map_data:
-        tmpDict.update(config_map_data[tmpSection])
+    if tmp_section in config_map_data:
+        tmp_dict.update(config_map_data[tmp_section])
     # make section class
-    tmpSelf = _SectionClass()
+    tmp_self = _SectionClass()
     # update module dict
-    sys.modules[__name__].__dict__[tmpSection] = tmpSelf
+    sys.modules[__name__].__dict__[tmp_section] = tmp_self
     # expand all values
-    expand_values(tmpSelf, tmpDict)
+    expand_values(tmp_self, tmp_dict)

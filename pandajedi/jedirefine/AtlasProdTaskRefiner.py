@@ -149,17 +149,3 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
             raise e
         tmpLog.debug("done")
         return self.SC_SUCCEEDED
-
-    # insert string
-    def insertString(self, paramName, tmpStr, origStr):
-        items = shlex.split(origStr, posix=False)
-        newStr = ""
-        for item in items:
-            if paramName not in item:
-                newStr += item
-            else:
-                newStr += item[:-1]
-                newStr += tmpStr
-                newStr += item[-1]
-            newStr += " "
-        return newStr

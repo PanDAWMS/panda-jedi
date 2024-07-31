@@ -431,8 +431,3 @@ class JEDIFatalError(Exception):
 # exception for timeout error
 class JEDITimeoutError(Exception):
     pass
-
-
-# exception for no child error
-class JEDINoChildError(Exception):
-    pass
