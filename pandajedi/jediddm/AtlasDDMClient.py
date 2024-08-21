@@ -17,7 +17,6 @@ except Exception:
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice import DataServiceUtils, ddm
-from pandaserver.srvcore import CoreUtils
 from rucio.client import Client as RucioClient
 from rucio.common.exception import (
     DataIdentifierAlreadyExists,
@@ -262,47 +261,6 @@ class AtlasDDMClient(DDMClientBase):
         if se_name in self.endPointDict:
             return [self.endPointDict[se_name]["site"]]
         return None
-
-    # get associated endpoints
-    def getAssociatedEndpoints(self, altName):
-        self.updateEndPointDict()
-        epList = []
-        for seName, seVal in self.endPointDict.items():
-            if seVal["site"] == altName:
-                epList.append(seName)
-        return epList
-
-    # convert token to endpoint
-    def convertTokenToEndpoint(self, baseSeName, token):
-        self.updateEndPointDict()
-        try:
-            altName = self.getSiteAlternateName(baseSeName)[0]
-            if altName is not None:
-                for seName, seVal in self.endPointDict.items():
-                    if seVal["site"] == altName:
-                        # space token
-                        if seVal["token"] == token:
-                            return seName
-                        # pattern matching
-                        if re.search(token, seName) is not None:
-                            return seName
-        except Exception:
-            pass
-        return None
-
-    # get cloud for an endpoint
-    def getCloudForEndPoint(self, endPoint):
-        self.updateEndPointDict()
-        if endPoint in self.endPointDict:
-            return self.endPointDict[endPoint]["cloud"]
-        return None
-
-    # check if endpoint is NG
-    def checkNGEndPoint(self, endPoint, ngList):
-        for ngPatt in ngList:
-            if re.search(ngPatt, endPoint) is not None:
-                return True
-        return False
 
     def SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset):
         """
@@ -1160,61 +1118,6 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
-    # find lost files
-    def findLostFiles(self, datasetName, fileMap):
-        methodName = "findLostFiles"
-        methodName += f" pid={self.pid}"
-        methodName += f" <datasetName={datasetName}>"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        try:
-            # get replicas
-            tmpStat, tmpOut = self.listDatasetReplicas(datasetName)
-            if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error(f"faild to get dataset replicas with {tmpOut}")
-                return tmpStat, tmpOut
-            # check if complete replica is available
-            hasCompReplica = False
-            datasetReplicaMap = tmpOut
-            for tmpEndPoint in datasetReplicaMap.keys():
-                if (
-                    datasetReplicaMap[tmpEndPoint][-1]["found"] is not None
-                    and datasetReplicaMap[tmpEndPoint][-1]["total"] == datasetReplicaMap[tmpEndPoint][-1]["found"]
-                ):
-                    hasCompReplica = True
-                    break
-            # no lost files
-            if hasCompReplica:
-                tmpLog.debug("done with no lost files")
-                return self.SC_SUCCEEDED, {}
-            # get LFNs and scopes
-            lfnMap = {}
-            scopeMap = {}
-            for tmpGUID in fileMap.keys():
-                tmpLFN = fileMap[tmpGUID]["lfn"]
-                lfnMap[tmpGUID] = tmpLFN
-                scopeMap[tmpLFN] = fileMap[tmpGUID]["scope"]
-
-            # get SURLs
-            seList = list(datasetReplicaMap.keys())
-            tmpStat, tmpRetMap = self.jedi_list_replicas_with_dataset(datasetName)
-            if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error(f"failed to get SURLs with {tmpRetMap}")
-                return tmpStat, tmpRetMap
-            # look for missing files
-            lfnMap = {}
-            for tmpGUID, tmpLFN in lfnMap.items():
-                if tmpLFN not in tmpRetMap:
-                    lfnMap[tmpGUID] = tmpLFN
-
-            tmpLog.debug("done with lost " + ",".join(str(tmpLFN) for tmpLFN in lfnMap.values()))
-            return self.SC_SUCCEEDED, lfnMap
-        except Exception as e:
-            errType = e
-            errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, f"{methodName} : {errMsg}"
-
     # convert output of listDatasetReplicas
     def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False, skip_incomplete_element=False):
         retMap = {}
@@ -1361,21 +1264,6 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.error(errMsg)
             return errCode, f"{methodName} : {errMsg}"
         return
-
-    # check if the endpoint is backlisted
-    def isBlackListedEP(self, endPoint):
-        methodName = "isBlackListedEP"
-        methodName += f" pid={self.pid}"
-        methodName += f" <endPoint={endPoint}>"
-        tmpLog = MsgWrapper(logger, methodName)
-        try:
-            # update BL
-            self.updateBlackList()
-            if endPoint in self.blackListEndPoints:
-                return self.SC_SUCCEEDED, True
-        except Exception:
-            pass
-        return self.SC_SUCCEEDED, False
 
     # update endpoint dict
     def updateEndPointDict(self):

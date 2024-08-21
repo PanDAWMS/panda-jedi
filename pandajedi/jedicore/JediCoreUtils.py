@@ -69,24 +69,6 @@ def checkProcess(pid):
 wallTimeOffset = 10 * 60
 
 
-# add offset to walltime
-def addOffsetToWalltime(oldWalltime):
-    if oldWalltime > 0:
-        # add offset of 10min
-        oldWalltime += wallTimeOffset
-    return oldWalltime
-
-
-# reduce offset from walltime
-def reduceOffsetFromWalltime(oldWalltime):
-    if oldWalltime > 0:
-        # add offset of 10min
-        oldWalltime -= wallTimeOffset
-        if oldWalltime < 0:
-            oldWalltime = 0
-    return oldWalltime
-
-
 # convert config parameters
 def convert_config_params(itemStr):
     items = itemStr.split(":")
@@ -117,7 +99,7 @@ def parse_init_params(par):
 # get config param for vo and prodSourceLabel
 def getConfigParam(configStr, vo, sourceLabel):
     try:
-        for tmpConfigStr in configStr.split(","):
+        for _ in configStr.split(","):
             items = configStr.split(":")
             vos = items[0].split("|")
             sourceLabels = items[1].split("|")

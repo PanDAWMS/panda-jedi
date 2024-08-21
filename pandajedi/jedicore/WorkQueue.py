@@ -215,18 +215,6 @@ class WorkQueue(object):
             return True
         return False
 
-    # check if there is workload
-    def hasWorkload(self, queue_list):
-        # inactive
-        if not self.isActive():
-            return False
-
-        if self.queue_id in queue_list:
-            return True
-
-        # not found
-        return False
-
     # return column names for INSERT
     def column_names(cls):
         ret = ""

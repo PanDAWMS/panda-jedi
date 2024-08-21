@@ -201,16 +201,6 @@ class JediDatasetSpec(object):
             self.attributes += ","
         self.attributes += attr
 
-    # get the total size of files
-    def getSize(self):
-        totalSize = 0
-        checkedList = []
-        for tmpFileSpec in self.Files:
-            if tmpFileSpec.lfn not in checkedList:
-                totalSize += tmpFileSpec.fsize
-                checkedList.append(tmpFileSpec.lfn)
-        return totalSize
-
     # return list of status to update contents
     def statusToUpdateContents(cls):
         return ["defined", "toupdate"]

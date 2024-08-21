@@ -63,9 +63,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         scanSiteList = []
         # problematic sites
         problematic_sites_dict = {}
-        # used and max queue length of each site for the user
-        user_q_len_dict = {}
-        max_q_len_dict = {}
         # get list of site access
         siteAccessList = self.taskBufferIF.listSiteAccess(None, taskSpec.userName)
         siteAccessMap = {}
@@ -263,63 +260,38 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     usage_percent = min(usage_percent, l1_share_usage_dict["eqiv_usage_perc"] * 100)
                 task_class_value = task_eval_dict["class"]
                 usage_slot_ratio_A = 0.5
-                usage_slot_ratio_B = 0.5
                 if user_eval_dict:
                     usage_slot_ratio_A = 1.0 - user_eval_dict["rem_slots_A"] / threshold_A
-                    usage_slot_ratio_B = 1.0 - user_eval_dict["rem_slots_B"] / threshold_B
+
                 if task_class_value == -1 and usage_percent > user_analyis_to_throttle_threshold_perc_C:
                     # C-tasks to throttle
-                    if False:
-                        # dry run
-                        tmpLog.error(
-                            "(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C
-                            )
+                    tmpLog.error(
+                        "throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C".format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C
                         )
-                    else:
-                        tmpLog.error(
-                            "throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C
-                            )
-                        )
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        return retTmpError
+                    )
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
                 elif task_class_value == 0 and usage_percent > user_analyis_to_throttle_threshold_perc_B:
                     # B-tasks to throttle
-                    if False:
-                        # dry run
-                        tmpLog.error(
-                            "(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B
-                            )
+                    tmpLog.error(
+                        "throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B".format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B
                         )
-                    else:
-                        tmpLog.error(
-                            "throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B
-                            )
-                        )
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        return retTmpError
+                    )
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
                 elif (
                     task_class_value == 1 and usage_percent * usage_slot_ratio_A * user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A
                 ):
                     # A-tasks to throttle
-                    if False:
-                        # dry run
-                        tmpLog.error(
-                            "(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold:.3%} of target and task in class A".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_throttle_intensity_A / (usage_slot_ratio_A + 2**-20)
-                            )
+                    tmpLog.error(
+                        "throttle to generate jobs due to gshare {gshare} > {threshold:.3%} of target and task in class A".format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_throttle_intensity_A / (usage_slot_ratio_A + 2**-20)
                         )
-                    else:
-                        tmpLog.error(
-                            "throttle to generate jobs due to gshare {gshare} > {threshold:.3%} of target and task in class A".format(
-                                gshare=taskSpec.gshare, threshold=user_analyis_throttle_intensity_A / (usage_slot_ratio_A + 2**-20)
-                            )
-                        )
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        return retTmpError
+                    )
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
             except Exception as e:
                 tmpLog.error(f"got error when checking low-ranked tasks to throttle; skipped : {e}")
 
@@ -466,9 +438,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 scanSiteListUnion = None
                 scanSiteListOnDiskUnion = None
                 scanSiteWoVpUnion = None
-                normFactor = 0
+
                 for datasetName, tmpDataSite in self.dataSiteMap.items():
-                    normFactor += 1
                     useIncomplete = datasetName in ddsList
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True, use_incomplete=useIncomplete)
@@ -1579,8 +1550,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
             nWorkers = 0
             nWorkersCutoff = 20
             if tmpSiteName in workerStat:
-                for tmpHarvesterID, tmpLabelStat in workerStat[tmpSiteName].items():
-                    for tmpHarvesterID, tmpResStat in tmpLabelStat.items():
+                for _, tmpLabelStat in workerStat[tmpSiteName].items():
+                    for _, tmpResStat in tmpLabelStat.items():
                         for tmpResType, tmpCounts in tmpResStat.items():
                             for tmpStatus, tmpNum in tmpCounts.items():
                                 if tmpStatus in ["running", "submitted"]:

@@ -134,18 +134,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             timeLimit=5,
         )
 
-    # release lock
-    def _release_lock(self):
-        return self.taskBufferIF.unlockProcess_JEDI(
-            vo=self.vo,
-            prodSourceLabel="managed",
-            cloud=None,
-            workqueue_id=None,
-            resource_name=None,
-            component="AtlasQueueFillerWatchDog.preassign",
-            pid=self.pid,
-        )
-
     # get map of site to list of RSEs
     def get_site_rse_map(self, prod_source_label):
         site_rse_map = {}
@@ -706,9 +694,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             self.undo_preassign()
             # preassign tasks to sites
             ret_map = self.do_preassign()
-            # unlock
-            # self._release_lock()
-            # origTmpLog.debug('released lock')
             # to-reassign map
             to_reassign_map = ret_map["to_reassign"]
             if to_reassign_map:

@@ -602,16 +602,6 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, jo
     return ret_map
 
 
-# get lists of mandatory or inconvertible architectures
-def getOkNgArchList(task_spec):
-    if task_spec.termCondition:
-        if ".el6." in task_spec.termCondition:
-            return (None, ["x86_64-centos7-%"])
-        if ".el7." in task_spec.termCondition:
-            return (["x86_64-centos7-%"], None)
-    return (None, None)
-
-
 # get to-running rate of sites from various resources
 CACHE_SiteToRunRateStats = {}
 
