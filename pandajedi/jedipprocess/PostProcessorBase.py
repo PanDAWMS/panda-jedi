@@ -3,9 +3,10 @@ import smtplib
 import time
 import uuid
 
-from pandajedi.jedicore import Interaction
 from pandaserver.config import panda_config
 from pandaserver.taskbuffer import EventServiceUtils
+
+from pandajedi.jedicore import Interaction
 
 # port for SMTP server
 smtpPortList = [25, 587]
@@ -88,6 +89,8 @@ class PostProcessorBase(object):
             if datasetSpec.type in ["output", "log", "lib"]:
                 datasetSpec.nFiles = datasetSpec.nFilesFinished
             self.taskBufferIF.updateDataset_JEDI(datasetSpec, {"datasetID": datasetSpec.datasetID, "jediTaskID": datasetSpec.jediTaskID})
+        # trigger internal dataset cleanup
+        self.taskBufferIF.trigger_cleanup_internal_datasets(taskSpec.jediTaskID)
         # end time
         taskSpec.endTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         # update task
