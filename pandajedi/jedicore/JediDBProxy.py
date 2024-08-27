@@ -7195,8 +7195,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":timeLimit"] = timeToCheck
                 if vo is not None:
                     varMap[":vo"] = vo
-                sqlEA = "SELECT jediTaskID,t_status,COUNT(*),SUM(CASE WHEN f_status='finished' THEN 1 ELSE 0 END) FROM "
-                sqlEA += "(SELECT DISTINCT tabT.jediTaskID,tabT.status as t_status,tabF.PandaID,tabF.status as f_status "
+                sqlEA = "SELECT jediTaskID,t_status,walltimeUnit, COUNT(*),SUM(CASE WHEN f_status='finished' THEN 1 ELSE 0 END) FROM "
+                sqlEA += "(SELECT DISTINCT tabT.jediTaskID,tabT.status as t_status,tabT.walltimeUnit,tabF.PandaID,tabF.status as f_status "
                 sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabF ".format(
                     jedi_config.db.schemaJEDI
                 )
@@ -7219,7 +7219,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlEA += ") "
                 sqlEA += "AND tabF.PandaID IS NOT NULL "
                 sqlEA += ") "
-                sqlEA += "GROUP BY jediTaskID,t_status "
+                sqlEA += "GROUP BY jediTaskID,t_status,walltimeUnit "
                 # get tasks
                 tmpLog.debug(sqlEA + comment + str(varMap))
                 self.cur.execute(sqlEA + comment, varMap)
@@ -7229,7 +7229,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) "
                 sqlLK += "AND (status=:scouting OR (status=:running AND walltimeUnit IS NULL)) "
                 # append to list
-                for jediTaskID, taskstatus, totJobs, totFinished in resList:
+                for jediTaskID, taskstatus, walltimeUnit, totJobs, totFinished in resList:
                     # update assessmentTime to avoid frequent check
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -7238,13 +7238,16 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":running"] = "running"
                     self.cur.execute(sqlLK + comment, varMap)
                     nRow = self.cur.rowcount
-                    if nRow and totFinished and totFinished >= totJobs * minSuccessScouts / 10:
-                        if jediTaskID not in jediTaskIDstatusMap:
-                            if taskstatus == "running":
-                                set_scout_data_only.add(jediTaskID)
-                                msg_piece = "reset in running"
-                            else:
-                                msg_piece = "early avalanche"
+                    if nRow and totFinished and jediTaskID not in jediTaskIDstatusMap:
+                        to_trigger = False
+                        if taskstatus == "scouting" and totFinished >= totJobs * minSuccessScouts / 10:
+                            msg_piece = "early avalanche"
+                            to_trigger = True
+                        elif totFinished >= 1 and walltimeUnit is None:
+                            set_scout_data_only.add(jediTaskID)
+                            msg_piece = f"reset in {taskstatus}"
+                            to_trigger = True
+                        if to_trigger:
                             jediTaskIDstatusMap[jediTaskID] = taskstatus
                             tmpLog.debug(f"got jediTaskID={jediTaskID} {totFinished}/{totJobs} finished for {msg_piece}")
 
@@ -7253,6 +7256,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 taskstatus = "scouting"
                 varMap = {}
                 varMap[":taskstatus"] = taskstatus
+                varMap[":walltimeUnit"] = "ava"
                 sqlFA = "SELECT jediTaskID "
                 sqlFA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sqlFA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -7263,7 +7267,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if vo is not None:
                     sqlFA += "AND tabT.vo=:vo "
                     varMap[":vo"] = vo
-                sqlFA += "AND tabT.walltimeUnit IS NOT NULL "
+                sqlFA += "AND tabT.walltimeUnit=:walltimeUnit "
                 # get tasks
                 tmpLog.debug(sqlFA + comment + str(varMap))
                 self.cur.execute(sqlFA + comment, varMap)
