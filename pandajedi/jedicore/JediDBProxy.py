@@ -7467,7 +7467,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     errorDialog = "no scout jobs succeeded"
                                 else:
                                     errorDialog = "not enough scout jobs succeeded"
-                    elif taskSpec.status in ["running", "merging", "preprocessing", "ready"]:
+                    elif taskSpec.status in ["running", "merging", "preprocessing", "ready", "throttled"]:
                         # get input datasets
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
