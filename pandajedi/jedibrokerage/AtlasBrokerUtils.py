@@ -431,17 +431,7 @@ def skipProblematicSites(candidateSpecList, ngSites, sitesUsedByTask, preSetSite
 
 
 # get mapping between sites and input storage endpoints
-def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, job_label, ignore_cc=False):
-    # make a map of the t1 to its respective cloud
-    t1_map = {}
-    for tmp_cloud_name in site_mapper.getCloudList():
-        # get cloud
-        tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
-        # get T1
-        tmp_t1_name = tmp_cloud_spec["source"]
-        # append
-        t1_map[tmp_t1_name] = tmp_cloud_name
-
+def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, job_label):
     # make a map of panda sites to ddm endpoints
     ret_map = {}
     for site_name in site_list:
@@ -455,14 +445,6 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, jo
         # add the schedconfig.ddm endpoints
         ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input[scope_input].all.keys())
 
-        # add the cloudconfig.tier1SE for T1s
-        if not ignore_cc and site_name in t1_map:
-            tmp_cloud_name = t1_map[site_name]
-            tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
-            for tmp_endpoint in tmp_cloud_spec["tier1SE"]:
-                if tmp_endpoint and tmp_endpoint not in ret_map[site_name]:
-                    ret_map[site_name].append(tmp_endpoint)
-    # return
     return ret_map
 
 

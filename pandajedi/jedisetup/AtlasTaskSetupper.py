@@ -1,10 +1,10 @@
-import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .TaskSetupperBase import TaskSetupperBase
 
@@ -22,10 +22,11 @@ class AtlasTaskSetupper(TaskSetupperBase):
         # make logger
         tmpLog = MsgWrapper(logger, f"< jediTaskID={taskSpec.jediTaskID} >")
         tmpLog.info(f"start label={taskSpec.prodSourceLabel} taskType={taskSpec.taskType}")
+
         # returns
         retFatal = self.SC_FATAL
-        retTmpError = self.SC_FAILED
         retOK = self.SC_SUCCEEDED
+
         try:
             # get DDM I/F
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
@@ -95,15 +96,6 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                             locForRule = datasetSpec.destination
                                         elif DataServiceUtils.getDestinationSE(datasetSpec.storageToken) is not None:
                                             location = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
-                                        elif taskSpec.cloud is not None:
-                                            # use T1 SE
-                                            tmpT1Name = siteMapper.getCloud(taskSpec.cloud)["source"]
-                                            location = siteMapper.getDdmEndpoint(
-                                                tmpT1Name,
-                                                datasetSpec.storageToken,
-                                                taskSpec.prodSourceLabel,
-                                                JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType),
-                                            )
                                     else:
                                         tmpLog.info(f"site={datasetSpec.site} token={datasetSpec.storageToken}")
                                         location = siteMapper.getDdmEndpoint(
