@@ -14,63 +14,6 @@ from pandaserver.taskbuffer import JobUtils, ProcessGroups
 from pandajedi.jedicore import Interaction
 
 
-# get hospital queues
-def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None, cloudForNucleus=None):
-    retMap = {}
-    # hospital words
-    goodWordList = ["CORE$", "VL$", "MEM$", "MP\d+$", "LONG$", "_HIMEM", "_\d+$", "SHORT$"]
-    # loop over all clouds
-    if siteInNucleus is None:
-        cloudList = siteMapper.getCloudList()
-    else:
-        # WORLD
-        cloudList = [cloudForNucleus]
-    for tmpCloudName in cloudList:
-        # get cloud
-        tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-        if siteInNucleus is None:
-            # get T1
-            tmpT1Name = tmpCloudSpec["source"]
-        else:
-            tmpT1Name = siteInNucleus
-        tmpT1Spec = siteMapper.getSite(tmpT1Name)
-        scope_t1_input, scope_t1_output = select_scope(tmpT1Spec, prodSourceLabel, job_label)
-        # skip if DDM is undefined
-        if not tmpT1Spec.ddm_output[scope_t1_output]:
-            continue
-        # loop over all sites
-        for tmpSiteName in tmpCloudSpec["sites"]:
-            # skip T1 defined in cloudconfig
-            if tmpSiteName == tmpT1Name:
-                continue
-            # check hospital words
-            checkHospWord = False
-            for tmpGoodWord in goodWordList:
-                if re.search(tmpGoodWord, tmpSiteName) is not None:
-                    checkHospWord = True
-                    break
-            if not checkHospWord:
-                continue
-            # check site
-            if not siteMapper.checkSite(tmpSiteName):
-                continue
-            tmpSiteSpec = siteMapper.getSite(tmpSiteName)
-            scope_tmpSite_input, scope_tmpSite_output = select_scope(tmpSiteSpec, prodSourceLabel, job_label)
-            # check DDM
-            if (
-                scope_t1_output in tmpT1Spec.ddm_output
-                and scope_tmpSite_output in tmpSiteSpec.ddm_output
-                and tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]
-            ):
-                # append
-                if tmpCloudName not in retMap:
-                    retMap[tmpCloudName] = []
-                if tmpSiteName not in retMap[tmpCloudName]:
-                    retMap[tmpCloudName].append(tmpSiteName)
-    # return
-    return retMap
-
-
 # get nuclei where data is available
 def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=False):
     # get replicas
