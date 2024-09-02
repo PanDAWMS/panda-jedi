@@ -6819,14 +6819,16 @@ class DBProxy(OraDBProxy.DBProxy):
             # check cpuTime
             if taskSpec.useHS06() and "cpuTime" in scoutData and "execTime" in extraInfo:
                 minExecTime = 24
+                safety_margin = self.getConfigValue("dbproxy", f"SCOUT_CPUTIME_SAFETY_MARGIN", "jedi")
+                if safety_margin is None:
+                    safety_margin = 2
                 if (
-                    extraInfo["oldCpuTime"] not in [0, None]
-                    and scoutData["cpuTime"] > 2 * extraInfo["oldCpuTime"]
+                    safety_margin > 0
+                    and extraInfo["oldCpuTime"] not in [0, None]
+                    and scoutData["cpuTime"] > safety_margin * extraInfo["oldCpuTime"]
                     and extraInfo["execTime"] > datetime.timedelta(hours=minExecTime)
                 ):
-                    errMsg = "#KV #ATM action=set_exhausted reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})".format(
-                        scoutData["cpuTime"], extraInfo["oldCpuTime"]
-                    )
+                    errMsg = f"""#KV #ATM action=set_exhausted reason=scout_cpuTime ({scoutData["cpuTime"]}) is larger than {safety_margin}*task_cpuTime ({extraInfo["oldCpuTime"]}) and execTime ({extraInfo["execTime"]}) > {minExecTime} hours"""
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = "exhausted"
@@ -7127,6 +7129,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":taskstatus3"] = "merging"
                 varMap[":taskstatus4"] = "preprocessing"
                 varMap[":taskstatus5"] = "ready"
+                varMap[":taskstatus6"] = "throttled"
                 varMap[":dsEndStatus1"] = "finished"
                 varMap[":dsEndStatus2"] = "done"
                 varMap[":dsEndStatus3"] = "failed"
@@ -7137,7 +7140,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql = "SELECT tabT.jediTaskID,tabT.status "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-                sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3,:taskstatus4,:taskstatus5) "
+                sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3,:taskstatus4,:taskstatus5,:taskstatus6) "
                 if vo is not None:
                     sql += "AND tabT.vo=:vo "
                 if prodSourceLabel is not None:
@@ -7464,7 +7467,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                     errorDialog = "no scout jobs succeeded"
                                 else:
                                     errorDialog = "not enough scout jobs succeeded"
-                    elif taskSpec.status in ["running", "merging", "preprocessing", "ready"]:
+                    elif taskSpec.status in ["running", "merging", "preprocessing", "ready", "throttled"]:
                         # get input datasets
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
