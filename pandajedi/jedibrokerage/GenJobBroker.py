@@ -251,13 +251,14 @@ class GenJobBroker(JobBrokerBase):
         nWNmap = self.taskBufferIF.getCurrentSiteData()
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
+            tmp_site_spec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             nPilot = 0
             if tmpSiteName in nWNmap:
                 nPilot = nWNmap[tmpSiteName]["getJob"] + nWNmap[tmpSiteName]["updateJob"]
-            if nPilot == 0 and taskSpec.prodSourceLabel not in ["test"]:
+            if nPilot == 0 and taskSpec.prodSourceLabel not in ["test"] and not tmp_site_spec.hasValueInCatchall("allow_no_pilot"):
                 tmpLog.debug(f"  skip {tmpSiteName} due to no pilot")
-                # continue
+                continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug(f"{len(scanSiteList)} candidates passed pilot activity check")

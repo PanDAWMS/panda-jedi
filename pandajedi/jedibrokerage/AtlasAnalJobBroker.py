@@ -435,7 +435,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if self.dataSiteMap[datasetName] == {} or (
                         not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName] and not datasetSpec.isDistributed()
                     ):
-                        err_msg = f"complete {datasetName} is unavailable at any online site/endpoint. "
+                        err_msg = f"{datasetName} is incomplete at online sites/endpoints. "
                         tmpLog.error(err_msg)
                         taskSpec.setErrDiag(err_msg)
                         retVal = retTmpError
