@@ -194,13 +194,10 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
 
             # set nucleus
             retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec, datasetSpecList)}
-            tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
+            self.taskBufferIF.setCloudToTasks_JEDI(retMap)
 
-            # get T1/nucleus
-            if not taskSpec.useWorldCloud():
-                t1SiteName = siteMapper.getCloud(taskSpec.cloud)["dest"]
-            else:
-                t1SiteName = nucleusSpec.getOnePandaSite()
+            # get nucleus
+            t1SiteName = nucleusSpec.getOnePandaSite()
             t1Site = siteMapper.getSite(t1SiteName)
 
             # loop over all datasets
