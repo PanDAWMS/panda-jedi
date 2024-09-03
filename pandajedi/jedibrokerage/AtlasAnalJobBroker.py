@@ -428,9 +428,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                         # disable VP since distributed datasets triggers transfers
                                         useVP = False
                                         avoidVP = True
-                    tmpLog.debug(f"disk replica: {complete_disk_ok[datasetName]}, tape replica: {complete_tape_ok[datasetName]}")
+                    tmpLog.debug(
+                        f"disk replica: {complete_disk_ok[datasetName]}, tape replica: {complete_tape_ok[datasetName]}, distributed={datasetSpec.isDistributed()}"
+                    )
                     # check if the data is available at somewhere
-                    if self.dataSiteMap[datasetName] == {} or (not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName]):
+                    if self.dataSiteMap[datasetName] == {} or (
+                        not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName] and not datasetSpec.isDistributed()
+                    ):
                         err_msg = f"complete {datasetName} is unavailable at any online site/endpoint. "
                         tmpLog.error(err_msg)
                         taskSpec.setErrDiag(err_msg)
@@ -496,7 +500,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
                         scanSiteWoVpUnion = scanSiteWoVpUnion.union(tmpNonVpSiteList)
                     tmpLog.debug(
-                        f"{datasetName} is available at {len(scanSiteList)} sites. complete disk replica: {complete_disk_ok[datasetName]} complete tape replica: {complete_tape_ok[datasetName]}"
+                        f"{datasetName} is available at {len(scanSiteList)} sites. complete disk replica: {complete_disk_ok[datasetName]}, complete tape replica: {complete_tape_ok[datasetName]}"
                     )
                     tmpLog.debug(f"{datasetName} is available at {len(scanSiteListOnDisk)} sites on DISK")
                 # check for preassigned
