@@ -275,6 +275,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getJobStatisticsWithWorkQueue_JEDI(vo, prodSourceLabel, minPriority)
 
+    # get core statistics with VO and prodSourceLabel
+    def get_core_statistics(self, vo, prod_source_label):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_core_statistics(vo, prod_source_label)
+
     # get job statistics by global share
     def getJobStatisticsByGlobalShare(self, vo, exclude_rwq=False):
         with self.proxyPool.get() as proxy:

@@ -45,6 +45,7 @@ class AtlasDDMClient(DDMClientBase):
         self.fatalErrors = []
         # list of blacklisted endpoints
         self.blackListEndPoints = []
+        self.bad_endpoint_read = []
         # time of last update for blacklist
         self.lastUpdateBL = None
         # how frequently update DN/token map
@@ -1241,12 +1242,12 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
-    # update backlist
+    # update blacklist
     def updateBlackList(self):
         methodName = "updateBlackList"
         methodName += f" pid={self.pid}"
         tmpLog = MsgWrapper(logger, methodName)
-        # check freashness
+        # check freshness
         timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         if self.lastUpdateBL is not None and timeNow - self.lastUpdateBL < self.timeIntervalBL:
             return
@@ -1257,13 +1258,19 @@ class AtlasDDMClient(DDMClientBase):
             with open("/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmblacklisting.json") as f:
                 ddd = json.load(f)
                 self.blackListEndPoints = [k for k in ddd if "write_wan" in ddd[k] and ddd[k]["write_wan"]["status"]["value"] == "OFF"]
-            tmpLog.debug(f"{len(self.blackListEndPoints)} endpoints blacklisted")
+                self.bad_endpoint_read = [k for k in ddd if "read_wan" in ddd[k] and ddd[k]["read_wan"]["status"]["value"] == "OFF"]
+            tmpLog.debug(f"{len(self.blackListEndPoints)} bad endpoints for write, {len(self.bad_endpoint_read)} bad endpoints for read")
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
             return errCode, f"{methodName} : {errMsg}"
         return
+
+    # get bad endpoints for read
+    def get_bad_endpoint_read(self):
+        self.updateBlackList()
+        return self.bad_endpoint_read
 
     # update endpoint dict
     def updateEndPointDict(self):
