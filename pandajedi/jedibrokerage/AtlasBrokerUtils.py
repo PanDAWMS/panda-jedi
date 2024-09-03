@@ -153,7 +153,24 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True, element_list=element_list)
     except Exception:
         errtype, errvalue = sys.exc_info()[:2]
-        return errtype, f"ddmIF.listDatasetReplicas failed with {errvalue}"
+        return errtype, f"ddmIF.listDatasetReplicas failed with {errvalue}", None, None
+
+    # check if complete replica is available at online RSE
+    complete_disk = False
+    complete_tape = False
+    bad_rse_list = set(ddmIF.get_bad_endpoint_read())
+    for tmp_rse, tmp_data_list in replicaMap[datasetName].items():
+        # blacklisted
+        if tmp_rse in bad_rse_list:
+            continue
+        # look for complete replicas
+        for tmp_data in tmp_data_list:
+            if tmp_data["found"] == tmp_data["total"] and not tmp_data.get("vp"):
+                if tmp_data.get("is_tape") == "Y":
+                    complete_tape = True
+                else:
+                    complete_disk = True
+
     # loop over all clouds
     retMap = {}
     for tmpSiteName in siteList:
@@ -223,7 +240,7 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
                 if "vp" in tmpStatistics:
                     retMap[tmpSiteName][tmpSE]["vp"] = tmpStatistics["vp"]
     # return
-    return Interaction.SC_SUCCEEDED, retMap
+    return Interaction.SC_SUCCEEDED, retMap, complete_disk, complete_tape
 
 
 # get analysis sites where data is available at disk

@@ -381,12 +381,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if inputChunk.getDatasets() != [] and checkDataLocality:
                 oldScanSiteList = copy.copy(scanSiteList)
                 oldScanUnifiedSiteList = self.get_unified_sites(oldScanSiteList)
+                complete_disk_ok = {}
+                complete_tape_ok = {}
                 for datasetSpec in inputChunk.getDatasets():
                     datasetName = datasetSpec.datasetName
                     if datasetName not in self.dataSiteMap:
                         # get the list of sites where data is available
                         tmpLog.debug(f"getting the list of sites where {datasetName} is available")
-                        tmpSt, tmpRet = AtlasBrokerUtils.getAnalSitesWithData(
+                        tmpSt, tmpRet, tmp_complete_disk_ok, tmp_complete_tape_ok = AtlasBrokerUtils.getAnalSitesWithData(
                             self.get_unified_sites(scanSiteList), self.siteMapper, self.ddmIF, datasetName, element_map.get(datasetSpec.datasetName)
                         )
                         if tmpSt in [Interaction.JEDITemporaryError, Interaction.JEDITimeoutError]:
@@ -399,6 +401,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             return retFatal
                         # append
                         self.dataSiteMap[datasetName] = tmpRet
+                        complete_disk_ok[datasetName] = tmp_complete_disk_ok
+                        complete_tape_ok[datasetName] = tmp_complete_tape_ok
                         if datasetName.startswith("ddo"):
                             tmpLog.debug(f" {len(tmpRet)} sites")
                         else:
@@ -424,14 +428,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                         # disable VP since distributed datasets triggers transfers
                                         useVP = False
                                         avoidVP = True
+                    tmpLog.debug(f"disk replica: {complete_disk_ok[datasetName]}, tape replica: {complete_tape_ok[datasetName]}")
                     # check if the data is available at somewhere
-                    if self.dataSiteMap[datasetName] == {}:
-                        for tmpSiteName in scanSiteList:
-                            # tmpLog.info('  skip site={0} data is unavailable criteria=-input'.format(tmpSiteName))
-                            pass
-                        tmpLog.error(f"{datasetName} is unavailable at any site")
-                        retVal = retFatal
-                        continue
+                    if self.dataSiteMap[datasetName] == {} or (not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName]):
+                        err_msg = f"complete {datasetName} is unavailable at any online site/endpoint. "
+                        tmpLog.error(err_msg)
+                        taskSpec.setErrDiag(err_msg)
+                        retVal = retTmpError
+                        return retVal
                 # get the list of sites where data is available
                 scanSiteList = None
                 scanSiteListOnDisk = None
@@ -472,25 +476,28 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         scanSiteListUnion = set(scanSiteList)
                         scanSiteListOnDiskUnion = set(scanSiteListOnDisk)
                         scanSiteWoVpUnion = set(scanSiteWoVP)
-                        continue
-                    # pickup sites which have all data
-                    newScanList = []
-                    for tmpSiteName in tmpSiteList:
-                        if tmpSiteName in scanSiteList and tmpSiteName not in newScanList:
-                            newScanList.append(tmpSiteName)
-                        scanSiteListUnion.add(tmpSiteName)
-                    scanSiteList = newScanList
-                    tmpLog.debug(f"{datasetName} is available at {len(scanSiteList)} sites")
-                    # pickup sites which have all data on DISK
-                    newScanListOnDisk = set()
-                    for tmpSiteName in tmpDiskSiteList:
-                        if tmpSiteName in scanSiteListOnDisk:
-                            newScanListOnDisk.add(tmpSiteName)
-                        scanSiteListOnDiskUnion.add(tmpSiteName)
-                    scanSiteListOnDisk = newScanListOnDisk
-                    # get common elements
-                    scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
-                    scanSiteWoVpUnion = scanSiteWoVpUnion.union(tmpNonVpSiteList)
+                    else:
+                        # pickup sites which have all data
+                        newScanList = []
+                        for tmpSiteName in tmpSiteList:
+                            if tmpSiteName in scanSiteList and tmpSiteName not in newScanList:
+                                newScanList.append(tmpSiteName)
+                            scanSiteListUnion.add(tmpSiteName)
+                        scanSiteList = newScanList
+                        tmpLog.debug(f"{datasetName} is available at {len(scanSiteList)} sites")
+                        # pickup sites which have all data on DISK
+                        newScanListOnDisk = set()
+                        for tmpSiteName in tmpDiskSiteList:
+                            if tmpSiteName in scanSiteListOnDisk:
+                                newScanListOnDisk.add(tmpSiteName)
+                            scanSiteListOnDiskUnion.add(tmpSiteName)
+                        scanSiteListOnDisk = newScanListOnDisk
+                        # get common elements
+                        scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
+                        scanSiteWoVpUnion = scanSiteWoVpUnion.union(tmpNonVpSiteList)
+                    tmpLog.debug(
+                        f"{datasetName} is available at {len(scanSiteList)} sites. complete disk replica: {complete_disk_ok[datasetName]} complete tape replica: {complete_tape_ok[datasetName]}"
+                    )
                     tmpLog.debug(f"{datasetName} is available at {len(scanSiteListOnDisk)} sites on DISK")
                 # check for preassigned
                 if sitePreAssigned:
@@ -522,8 +529,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
                     tmpLog.error("no candidates")
-                    retVal = retFatal
+                    retVal = retTmpError
                     continue
+
             ######################################
             # selection for status
             newScanSiteList = []

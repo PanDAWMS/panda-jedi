@@ -2603,6 +2603,45 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False, {}
 
+    # get core statistics with VO and prodSourceLabel
+    def get_core_statistics(self, vo: str, prod_source_label: str) -> [bool, dict]:
+        comment = " /* DBProxy.get_core_statistics */"
+        methodName = self.getMethodName(comment)
+        methodName += f" < vo={vo} label={prod_source_label} >"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        sql0 = f"SELECT /*+ RESULT_CACHE */ computingSite,jobStatus,SUM(num_of_jobs*num_of_cores) FROM {jedi_config.db.schemaPANDA}.MV_JOBSACTIVE4_STATS "
+        sql0 += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
+        sql0 += "GROUP BY computingSite,cloud,prodSourceLabel,jobStatus "
+        var_map = {":vo": vo, ":prodSourceLabel": prod_source_label}
+        return_map = {}
+        try:
+            self.conn.begin()
+            # select
+            self.cur.arraysize = 10000
+            self.cur.execute(sql0 + comment, var_map)
+            res = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # create map
+            for computing_site, job_status, n_core in res:
+                # add site
+                return_map.setdefault(computing_site, {})
+                # add status
+                return_map[computing_site].setdefault(job_status, 0)
+                # add num cores
+                return_map[computing_site][job_status] += n_core
+            # return
+            tmpLog.debug("done")
+            return True, return_map
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False, {}
+
     # get job statistics by global share
     def getJobStatisticsByGlobalShare(self, vo, exclude_rwq):
         """
@@ -6819,16 +6858,16 @@ class DBProxy(OraDBProxy.DBProxy):
             # check cpuTime
             if taskSpec.useHS06() and "cpuTime" in scoutData and "execTime" in extraInfo:
                 minExecTime = 24
-                safety_margin = self.getConfigValue("dbproxy", f"SCOUT_CPUTIME_SAFETY_MARGIN", "jedi")
-                if safety_margin is None:
-                    safety_margin = 2
+                wrong_cputime_thr = self.getConfigValue("dbproxy", "SCOUT_WRONG_CPUTIME_THRESHOLD", "jedi")
+                if wrong_cputime_thr is None:
+                    wrong_cputime_thr = 2
                 if (
-                    safety_margin > 0
+                    wrong_cputime_thr > 0
                     and extraInfo["oldCpuTime"] not in [0, None]
-                    and scoutData["cpuTime"] > safety_margin * extraInfo["oldCpuTime"]
+                    and scoutData["cpuTime"] > wrong_cputime_thr * extraInfo["oldCpuTime"]
                     and extraInfo["execTime"] > datetime.timedelta(hours=minExecTime)
                 ):
-                    errMsg = f"""#KV #ATM action=set_exhausted reason=scout_cpuTime ({scoutData["cpuTime"]}) is larger than {safety_margin}*task_cpuTime ({extraInfo["oldCpuTime"]}) and execTime ({extraInfo["execTime"]}) > {minExecTime} hours"""
+                    errMsg = f"""#KV #ATM action=set_exhausted reason=scout_cpuTime ({scoutData["cpuTime"]}) is larger than {wrong_cputime_thr}*task_cpuTime ({extraInfo["oldCpuTime"]}) and execTime ({extraInfo["execTime"]}) > {minExecTime} hours"""
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = "exhausted"

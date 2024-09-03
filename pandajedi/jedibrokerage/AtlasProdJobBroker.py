@@ -132,6 +132,18 @@ class AtlasProdJobBroker(JobBrokerBase):
         # new maxwdir
         newMaxwdir = {}
 
+        # short of work
+        work_shortage = self.taskBufferIF.getConfigValue("core", "WORK_SHORTAGE", APP, VO)
+        if work_shortage is True:
+            tmp_status, core_statistics = self.taskBufferIF.get_core_statistics(taskSpec.vo, taskSpec.prodSourceLabel)
+            if not tmp_status:
+                tmpLog.error("failed to get core statistics")
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+            tmpLog.debug(f"Work shortage is {work_shortage}")
+        else:
+            core_statistics = {}
+
         # get sites in the cloud
         siteSkippedTmp = dict()
         sitePreAssigned = False
@@ -1146,6 +1158,41 @@ class AtlasProdJobBroker(JobBrokerBase):
             tmpLog.error("no candidates")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
+
+        ######################################
+        # selection for pledge when work is short
+        if not sitePreAssigned and work_shortage:
+            newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
+            for tmpSiteName in self.get_unified_sites(scanSiteList):
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if tmpSiteSpec.is_opportunistic():
+                    # skip opportunistic sites when plenty of work is unavailable
+                    tmpMsg = f"  skip site={tmpSiteName} to avoid opportunistic in case of work shortage "
+                    tmpMsg += "criteria=-non_pledged"
+                    tmpLog.info(tmpMsg)
+                    continue
+                elif tmpSiteSpec.pledgedCPU is not None and tmpSiteSpec.pledgedCPU > 0:
+                    # check number of cores
+                    tmp_stat_dict = core_statistics.get(tmpSiteName, {})
+                    n_running_cores = tmp_stat_dict.get("running", 0)
+                    n_starting_cores = tmp_stat_dict.get("starting", 0)
+                    tmpLog.debug(f"  {tmpSiteName} running={n_running_cores} starting={n_starting_cores}")
+                    if n_running_cores + n_starting_cores > tmpSiteSpec.pledgedCPU:
+                        tmpMsg = f"  skip site={tmpSiteName} since nCores(running+starting)={n_running_cores+n_starting_cores} more than pledgedCPU={tmpSiteSpec.pledgedCPU} "
+                        tmpMsg += "in case of work shortage "
+                        tmpMsg += "criteria=-over_pledged"
+                        tmpLog.info(tmpMsg)
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+            tmpLog.info(f"{len(scanSiteList)} candidates passed pledge check")
+            self.add_summary_message(oldScanSiteList, scanSiteList, "pledge check")
+            if not scanSiteList:
+                self.dump_summary(tmpLog)
+                tmpLog.error("no candidates")
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
 
         ######################################
         # selection for T1 weight
