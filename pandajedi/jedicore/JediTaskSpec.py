@@ -1491,6 +1491,10 @@ class JediTaskSpec(object):
     def is_msg_driven(self):
         return is_msg_driven(self.splitRule)
 
+    # check if incomplete input datasets are allowed
+    def allow_incomplete_input(self):
+        return self.check_split_rule("allowIncompleteInDS")
+
 
 # utils
 
