@@ -432,14 +432,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         f"disk replica: {complete_disk_ok[datasetName]}, tape replica: {complete_tape_ok[datasetName]}, distributed={datasetSpec.isDistributed()}"
                     )
                     # check if the data is available at somewhere
-                    if self.dataSiteMap[datasetName] == {} or (
-                        not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName] and not datasetSpec.isDistributed()
-                    ):
-                        err_msg = f"{datasetName} is incomplete at online sites/endpoints. "
-                        tmpLog.error(err_msg)
-                        taskSpec.setErrDiag(err_msg)
-                        retVal = retTmpError
-                        return retVal
+                    if not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName] and not datasetSpec.isDistributed():
+                        err_msg = f"{datasetName} is incomplete/missing at online endpoints. "
+                        if not taskSpec.allow_incomplete_input():
+                            tmpLog.error(err_msg)
+                            taskSpec.setErrDiag(err_msg)
+                            retVal = retTmpError
+                            return retVal
+                        else:
+                            err_msg += "However, the task allows incomplete input."
+                            tmpLog.info(err_msg)
                 # get the list of sites where data is available
                 scanSiteList = None
                 scanSiteListOnDisk = None
