@@ -210,6 +210,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             return retTmpError
 
         # get destination for WORLD cloud
+        nucleusSpec = None
         if not hintForTB:
             # get nucleus
             nucleusSpec = self.siteMapper.getNucleus(taskSpec.nucleus)
