@@ -24,6 +24,14 @@ RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x
 RUN yum install --nogpgcheck -y postgresql16
 RUN  yum clean all && rm -rf /var/cache/yum
 
+
+# install Oracle Instant Client and tnsnames.ora
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-basic-linuxx64.rpm -P /tmp/ && \
+    yum install /tmp/oracle-instantclient-basic-linuxx64.rpm -y && \
+    wget https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-sqlplus-linuxx64.rpm -P /tmp/ && \
+    yum install /tmp/oracle-instantclient-sqlplus-linuxx64.rpm -y && \
+    rpm -ivh http://linuxsoft.cern.ch/cern/centos/7/cernonly/x86_64/Packages/oracle-instantclient-tnsnames.ora-1.4.4-1.el7.cern.noarch.rpm
+
 # setup venv with pythonX.Y
 RUN python$(echo ${PYTHON_VERSION} | sed -E 's/\.[0-9]+$//') -m venv /opt/panda
 RUN /opt/panda/bin/pip install --no-cache-dir -U pip
