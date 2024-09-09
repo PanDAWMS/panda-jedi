@@ -252,6 +252,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if max_expected_wait_hour is None:
             max_expected_wait_hour = 12.0
 
+        max_missing_input_files = self.taskBufferIF.getConfigValue("anal_jobbroker", "MAX_MISSING_INPUT_FILES", "jedi", taskSpec.vo)
+        if max_missing_input_files is None:
+            max_missing_input_files = 10
+        min_input_completeness = self.taskBufferIF.getConfigValue("anal_jobbroker", "MIN_INPUT_COMPLETENESS", "jedi", taskSpec.vo)
+        if min_input_completeness is None:
+            min_input_completeness = 90
+
         # throttle User Analysis tasks when close to gshare target
         if taskSpec.gshare in ["User Analysis"] and gshare_usage_dict and task_eval_dict:
             try:
@@ -389,7 +396,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         # get the list of sites where data is available
                         tmpLog.debug(f"getting the list of sites where {datasetName} is available")
                         tmpSt, tmpRet, tmp_complete_disk_ok, tmp_complete_tape_ok = AtlasBrokerUtils.getAnalSitesWithData(
-                            self.get_unified_sites(scanSiteList), self.siteMapper, self.ddmIF, datasetName, element_map.get(datasetSpec.datasetName)
+                            self.get_unified_sites(scanSiteList),
+                            self.siteMapper,
+                            self.ddmIF,
+                            datasetName,
+                            element_map.get(datasetSpec.datasetName),
+                            max_missing_input_files,
+                            min_input_completeness,
                         )
                         if tmpSt in [Interaction.JEDITemporaryError, Interaction.JEDITimeoutError]:
                             tmpLog.error(f"temporary failed to get the list of sites where data is available, since {tmpRet}")
