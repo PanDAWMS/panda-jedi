@@ -89,7 +89,7 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
 
 
 # get analysis sites where data is available
-def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list):
+def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list, max_missing_input_files, min_input_completeness):
     # get replicas
     try:
         replicaMap = {}
@@ -108,7 +108,20 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
             continue
         # look for complete replicas
         for tmp_data in tmp_data_list:
-            if tmp_data["found"] == tmp_data["total"] and not tmp_data.get("vp"):
+            if not tmp_data.get("vp"):
+                if tmp_data["found"] == tmp_data["total"]:
+                    pass
+                elif (
+                    tmp_data["total"]
+                    and tmp_data["found"]
+                    and (
+                        tmp_data["total"] - tmp_data["found"] <= max_missing_input_files
+                        or tmp_data["found"] / tmp_data["total"] * 100 >= min_input_completeness
+                    )
+                ):
+                    pass
+                else:
+                    continue
                 if tmp_data.get("is_tape") == "Y":
                     complete_tape = True
                 else:
