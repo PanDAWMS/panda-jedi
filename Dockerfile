@@ -29,8 +29,7 @@ RUN  yum clean all && rm -rf /var/cache/yum
 RUN wget https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-basic-linuxx64.rpm -P /tmp/ && \
     yum install /tmp/oracle-instantclient-basic-linuxx64.rpm -y && \
     wget https://download.oracle.com/otn_software/linux/instantclient/oracle-instantclient-sqlplus-linuxx64.rpm -P /tmp/ && \
-    yum install /tmp/oracle-instantclient-sqlplus-linuxx64.rpm -y && \
-    rpm -ivh http://linuxsoft.cern.ch/cern/centos/7/cernonly/x86_64/Packages/oracle-instantclient-tnsnames.ora-1.4.4-1.el7.cern.noarch.rpm \
+    yum install /tmp/oracle-instantclient-sqlplus-linuxx64.rpm -y
 
 # Grab the latest version of the Oracle tnsnames.ora file
 RUN ln -fs /data/panda/tnsnames.ora /etc/tnsnames.ora
