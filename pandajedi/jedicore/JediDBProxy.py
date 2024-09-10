@@ -91,6 +91,8 @@ class DBProxy(OraDBProxy.DBProxy):
 
         # mb proxy
         self.jedi_mb_proxy_dict = None
+        
+        self.backend = jedi_config.db.backend
 
     # connect to DB (just for INTR)
     def connect(
@@ -3681,22 +3683,41 @@ class DBProxy(OraDBProxy.DBProxy):
                 jedi_config.db.schemaJEDI
             )
             # sql to get number of ready HPO workers
-            sqlNRH = (
-                "SELECT COUNT(*),datasetID FROM ("
-                "(SELECT j.PandaID,f.datasetID FROM {0}.jobsDefined4 j, {0}.filesTable4 f "
-                "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
-                "UNION "
-                "SELECT j.PandaID,f.datasetID FROM {0}.jobsWaiting4 j, {0}.filesTable4 f "
-                "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
-                "UNION "
-                "SELECT j.PandaID,f.datasetID FROM {0}.jobsActive4 j, {0}.filesTable4 f "
-                "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type) "
-                "MINUS "
-                "SELECT PandaID,datasetID FROM {1}.JEDI_Events "
-                "WHERE  jediTaskID=:jediTaskID AND "
-                "status IN (:esSent,:esRunning)"
-                ") GROUP BY datasetID"
-            ).format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
+            if self.backend == 'oracle':
+                sqlNRH = (
+                    "SELECT COUNT(*),datasetID FROM ("
+                    "(SELECT j.PandaID,f.datasetID FROM {0}.jobsDefined4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
+                    "UNION "
+                    "SELECT j.PandaID,f.datasetID FROM {0}.jobsWaiting4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
+                    "UNION "
+                    "SELECT j.PandaID,f.datasetID FROM {0}.jobsActive4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type) "
+                    "MINUS "
+                    "SELECT PandaID,datasetID FROM {1}.JEDI_Events "
+                    "WHERE  jediTaskID=:jediTaskID AND "
+                    "status IN (:esSent,:esRunning)"
+                    ") GROUP BY datasetID"
+                ).format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
+            elif self.backend == 'postgres':
+                sqlNRH = (
+                    "SELECT COUNT(*),datasetID FROM ("
+                    "(SELECT j.PandaID,f.datasetID FROM {0}.jobsDefined4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
+                    "UNION "
+                    "SELECT j.PandaID,f.datasetID FROM {0}.jobsWaiting4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
+                    "UNION "
+                    "SELECT j.PandaID,f.datasetID FROM {0}.jobsActive4 j, {0}.filesTable4 f "
+                    "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type) "
+                    "EXCEPT "
+                    "SELECT PandaID,datasetID FROM {1}.JEDI_Events "
+                    "WHERE  jediTaskID=:jediTaskID AND "
+                    "status IN (:esSent,:esRunning)"
+                    ") GROUP BY datasetID"
+                ).format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
+                
             # sql to set frozenTime
             sqlFZT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID "
             # sql to check files
@@ -5334,7 +5355,10 @@ class DBProxy(OraDBProxy.DBProxy):
             sql_where += "AND gshare=:wq_name "
             sql_where += "AND workqueue_id IN ("
             sql_where += f"SELECT UNIQUE workqueue_id FROM {jedi_config.db.schemaPANDA}.JOB_STATS_HP "
-            sql_where += "MINUS "
+            if self.backend == 'oracle':
+                sql_where += "MINUS "
+            elif self.backend == 'postgres':
+                sql_where += "EXCEPT "
             sql_where += f"SELECT queue_id FROM {jedi_config.db.schemaPANDA}.jedi_work_queue WHERE queue_function = 'Resource') "
             var_map[":wq_name"] = workQueue.queue_name
         else:
@@ -11935,7 +11959,10 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlWM = "SELECT distinct outPandaID "
         sqlWM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
-        sqlWM += "MINUS "
+        if self.backend == 'oracle':
+            sqlWM += "MINUS "
+        elif self.backend == 'postgres':
+            sqlWM += "EXCEPT "
         sqlWM += "SELECT distinct PandaID "
         sqlWM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
@@ -11957,7 +11984,10 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlCM += "FROM {0}.JEDI_Dataset_Contents c1,{0}.JEDI_Dataset_Contents c2,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
         sqlCM += "WHERE d.jediTaskID=:jediTaskID AND c1.jediTaskID=d.jediTaskID AND c1.datasetID=d.datasetID AND d.templateID=:templateID "
         sqlCM += "AND c1.jediTaskID=c2.jediTaskID AND c2.datasetID=:outDatasetID AND c1.pandaID=c2.pandaID and c2.status IN (:statT1,:statT2) "
-        sqlCM += "MINUS "
+        if self.backend == 'oracle':
+            sqlCM += "MINUS "
+        elif self.backend == 'postgres':
+            sqlCM += "EXCEPT "
         sqlCM += "SELECT distinct PandaID "
         sqlCM += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
         sqlCM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
