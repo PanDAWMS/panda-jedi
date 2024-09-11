@@ -7,8 +7,9 @@ import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer import EventServiceUtils
+
+from pandajedi.jedirefine import RefinerUtils
 
 from .MailTemplates import html_head, jedi_task_html_body, jedi_task_plain
 from .PostProcessorBase import PostProcessorBase
@@ -225,6 +226,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                         output_datasets.append(datasetSpec.containerName)
                 # process summary
                 if datasetSpec.isMasterInput():
+                    if datasetSpec.status == "removed":
+                        continue
                     try:
                         n_total_jobs += datasetSpec.nFiles
                         n_succeeded_jobs += datasetSpec.nFilesFinished

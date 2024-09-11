@@ -154,6 +154,8 @@ class PostProcessorBase(object):
         totalOkEvents = 0
         for datasetSpec in taskSpec.datasetSpecList:
             if datasetSpec.isMasterInput():
+                if datasetSpec.status == "removed":
+                    continue
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
                 try:

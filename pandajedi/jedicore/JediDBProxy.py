@@ -3315,6 +3315,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":dsOKStatus4"] = "registered"
                 varMap[":dsOKStatus5"] = "failed"
                 varMap[":dsOKStatus6"] = "finished"
+                varMap[":dsOKStatus7"] = "removed"
                 varMap[":timeLimit"] = timeLimit
                 varMap[":useJumboLack"] = JediTaskSpec.enum_useJumbo["lack"]
                 sql = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
@@ -3387,7 +3388,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         mapKey = ":type_" + tmpType
                         sql += f"{mapKey},"
                 sql = sql[:-1]
-                sql += ") AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5,:dsOKStatus6)) "
+                sql += ") AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5,:dsOKStatus6,:dsOKStatus7)) "
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
@@ -7172,6 +7173,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":dsEndStatus1"] = "finished"
                 varMap[":dsEndStatus2"] = "done"
                 varMap[":dsEndStatus3"] = "failed"
+                varMap[":dsEndStatus4"] = "removed"
                 if vo is not None:
                     varMap[":vo"] = vo
                 if prodSourceLabel is not None:
@@ -7193,7 +7195,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     sql += f"{mapKey},"
                     varMap[mapKey] = tmpType
                 sql = sql[:-1]
-                sql += ") AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ("
+                sql += ") AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3,:dsEndStatus4) AND ("
                 sql += "nFilesToBeUsed>nFilesFinished+nFilesFailed "
                 sql += "OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) "
                 sql += "OR (nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>nFilesFinished+nFilesFailed)) "
@@ -9771,7 +9773,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # get input datasets
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
-                        sqlDS = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed," "status,state,type,datasetName,nFilesMissing "
+                        sqlDS = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,type,datasetName,nFilesMissing "
                         sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -10120,10 +10122,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     tmpLog.debug(msgStr)
                 else:
                     timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    # list of master dataset names
+                    master_dataset_names = [datasetSpec.datasetName for datasetSpec in inMasterDatasetSpecList]
                     # get existing input datasets
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
-                    sqlDS = "SELECT datasetName,status,nFilesTobeUsed,nFilesUsed,masterID "
+                    sqlDS = "SELECT datasetName,datasetID,status,nFilesTobeUsed,nFilesUsed,masterID "
                     sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                     sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
@@ -10134,17 +10138,34 @@ class DBProxy(OraDBProxy.DBProxy):
                     sqlDS += ") "
                     self.cur.execute(sqlDS + comment, varMap)
                     resDS = self.cur.fetchall()
+                    # check if existing datasets are available, and update status if necessary
+                    sql_ex = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
                     existingDatasets = {}
-                    for datasetName, datasetStatus, nFilesTobeUsed, nFilesUsed, masterID in resDS:
-                        existingDatasets[datasetName] = datasetStatus
-                        # remaining master files
+                    for datasetName, dataset_id, datasetStatus, nFilesTobeUsed, nFilesUsed, masterID in resDS:
+                        # only master datasets with remaining files
                         try:
                             if masterID is None and (nFilesTobeUsed - nFilesUsed > 0 or datasetStatus in JediDatasetSpec.statusToUpdateContents()):
-                                goDefined = True
-                                if datasetStatus in JediDatasetSpec.statusToUpdateContents():
-                                    refreshContents = True
+                                # the dataset was removed before and then added to the container again
+                                to_update_status = False
+                                if datasetStatus == "removed" and datasetName in master_dataset_names:
+                                    to_update_status = True
+                                    var_map = {":status": "defined", ":jediTaskID": jediTaskID, ":datasetID": dataset_id}
+                                # the dataset was removed
+                                elif datasetStatus != "removed" and datasetName not in master_dataset_names:
+                                    to_update_status = True
+                                    var_map = {":status": "removed", ":jediTaskID": jediTaskID, ":datasetID": dataset_id}
+                                # update status for removed/recovered dataset
+                                if to_update_status:
+                                    tmpLog.debug(f"""set status={var_map[":status"]} from {datasetStatus} for {datasetName}""")
+                                    self.cur.execute(sql_ex + comment, var_map)
+                                    datasetStatus = var_map[":status"]
+                                if datasetStatus != "removed":
+                                    goDefined = True
+                                    if datasetStatus in JediDatasetSpec.statusToUpdateContents():
+                                        refreshContents = True
                         except Exception:
                             pass
+                        existingDatasets[datasetName] = datasetStatus
                     # insert datasets
                     sqlID = f"INSERT INTO {jedi_config.db.schemaJEDI}.JEDI_Datasets ({JediDatasetSpec.columnNames()}) "
                     sqlID += JediDatasetSpec.bindValuesExpression()
@@ -10152,7 +10173,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     for datasetSpec in inMasterDatasetSpecList:
                         # skip existing datasets
                         if datasetSpec.datasetName in existingDatasets:
-                            # check dataset status and remaiing files
+                            # check dataset status and remaining files
                             if existingDatasets[datasetSpec.datasetName] in JediDatasetSpec.statusToUpdateContents():
                                 goDefined = True
                             continue
@@ -10161,6 +10182,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap = datasetSpec.valuesMap(useSeq=True)
                         varMap[":newDatasetID"] = self.cur.var(varNUMBER)
                         # insert dataset
+                        tmpLog.debug(f"append {datasetSpec.datasetName}")
                         self.cur.execute(sqlID + comment, varMap)
                         val = self.getvalue_corrector(self.cur.getvalue(varMap[":newDatasetID"]))
                         datasetID = int(val)

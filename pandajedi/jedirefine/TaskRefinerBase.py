@@ -604,8 +604,9 @@ class TaskRefinerBase(object):
                                     tmpDatasetNameList = tmpIF.listDatasets(datasetName)
                         i_element = 0
                         for elementDatasetName in tmpDatasetNameList:
-                            if nIn > 0 or elementDatasetName not in tmpItem["expandedList"] or self.taskSpec.is_work_segmented():
-                                tmpItem["expandedList"].append(elementDatasetName)
+                            if "expandedList" in tmpItem:
+                                if elementDatasetName not in tmpItem["expandedList"]:
+                                    tmpItem["expandedList"].append(elementDatasetName)
                                 inDatasetSpec = copy.copy(datasetSpec)
                                 inDatasetSpec.datasetName = elementDatasetName
                                 if nIn > 0 or not self.taskSpec.is_hpo_workflow():
