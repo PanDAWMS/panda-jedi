@@ -3316,6 +3316,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":dsOKStatus5"] = "failed"
                 varMap[":dsOKStatus6"] = "finished"
                 varMap[":dsOKStatus7"] = "removed"
+                varMap[":dsStatusRemoved"] = "removed"
                 varMap[":timeLimit"] = timeLimit
                 varMap[":useJumboLack"] = JediTaskSpec.enum_useJumbo["lack"]
                 sql = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
@@ -3348,7 +3349,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql += "AND tabT.modificationTime<:timeLimit "
                 sql += "AND "
                 sql += "(tabT.useJumbo=:useJumboLack "
-                sql += "OR (nFilesToBeUsed > nFilesUsed AND type IN ("
+                sql += "OR (nFilesToBeUsed > nFilesUsed AND tabD.status<>:dsStatusRemoved AND type IN ("
                 if mergeUnThrottled is True:
                     for tmpType in JediDatasetSpec.getMergeProcessTypes():
                         mapKey = ":type_" + tmpType
@@ -3425,7 +3426,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     sql = sql[:-1]
                     sql += ") "
                 if not fullSimulation:
-                    sql += "AND nFilesToBeUsed > nFilesUsed "
+                    varMap[":dsStatusRemoved"] = "removed"
+                    sql += "AND nFilesToBeUsed > nFilesUsed AND tabD.status<>:dsStatusRemoved "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 100000
@@ -6237,7 +6239,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 else:
                     extraInfo["successRate"] = 0
                 tmpLog.debug(
-                    f"scout total={scTotal} finished={scOK} failed={scNG} target_rate={scoutSuccessRate/10} " f"""actual_rate={extraInfo["successRate"]}"""
+                    f"""scout total={scTotal} finished={scOK} failed={scNG} target_rate={None if scoutSuccessRate is None else scoutSuccessRate/10} actual_rate={extraInfo["successRate"]}"""
                 )
                 if scoutSuccessRate and scTotal and extraInfo["successRate"] < scoutSuccessRate / 10:
                     tmpLog.debug("not enough scouts succeeded")
