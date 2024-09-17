@@ -2610,7 +2610,7 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName += f" < vo={vo} label={prod_source_label} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        sql0 = f"SELECT /*+ RESULT_CACHE */ computingSite,jobStatus,SUM(num_of_jobs*num_of_cores) FROM {jedi_config.db.schemaPANDA}.MV_JOBSACTIVE4_STATS "
+        sql0 = f"SELECT /*+ RESULT_CACHE */ computingSite,jobStatus,SUM(num_of_cores) FROM {jedi_config.db.schemaPANDA}.MV_JOBSACTIVE4_STATS "
         sql0 += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
         sql0 += "GROUP BY computingSite,cloud,prodSourceLabel,jobStatus "
         var_map = {":vo": vo, ":prodSourceLabel": prod_source_label}
