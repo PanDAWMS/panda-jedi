@@ -9634,7 +9634,16 @@ class DBProxy(OraDBProxy.DBProxy):
 
     # retry or incrementally execute a task
     def retryTask_JEDI(
-        self, jediTaskID, commStr, maxAttempt=5, useCommit=True, statusCheck=True, retryChildTasks=True, discardEvents=False, release_unstaged=False
+        self,
+        jediTaskID,
+        commStr,
+        maxAttempt=5,
+        useCommit=True,
+        statusCheck=True,
+        retryChildTasks=True,
+        discardEvents=False,
+        release_unstaged=False,
+        keep_share_priority=False,
     ):
         comment = " /* JediDBProxy.retryTask_JEDI */"
         methodName = self.getMethodName(comment)
@@ -9642,10 +9651,11 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug(f"start command={commStr} retryChildTasks={retryChildTasks}")
         newTaskStatus = None
+        retried_tasks = []
         # check command
         if commStr not in ["retry", "incexec"]:
             tmpLog.debug(f"unknown command={commStr}")
-            return False, None
+            return False, None, retried_tasks
         try:
             # sql to retry files without maxFailure
             sqlRFO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
@@ -9691,6 +9701,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlUTN = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,"
             sqlUTN += "stateChangeTime=CURRENT_DATE,startTime=NULL,attemptNr=attemptNr+1,frozenTime=NULL "
+            if not keep_share_priority:
+                sqlUTN += ",currentPriority=taskPriority "
             sqlUTN += "WHERE jediTaskID=:jediTaskID "
             # sql to update DEFT task status
             sqlTT = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
@@ -10056,6 +10068,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.push_task_status_message(None, jediTaskID, newTaskStatus)
                     # task attempt start log
                     self.log_task_attempt_start(jediTaskID)
+                    retried_tasks.append(jediTaskID)
                 else:
                     tmpLog.debug(f"back to taskStatus={newTaskStatus} for command={commStr}")
                     varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
@@ -10076,21 +10089,22 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.cur.execute(sqlUO + comment, varMap)
                 # retry or reactivate child tasks
                 if retryChildTasks and newTaskStatus != taskOldStatus:
-                    self.retryChildTasks_JEDI(jediTaskID, useCommit=False)
+                    _, tmp_retried_tasks = self.retryChildTasks_JEDI(jediTaskID, keep_share_priority=keep_share_priority, useCommit=False)
+                    retried_tasks += tmp_retried_tasks
             if useCommit:
                 # commit
                 if not self._commit():
                     raise RuntimeError("Commit error")
             # return
             tmpLog.debug("done")
-            return True, newTaskStatus
+            return True, newTaskStatus, retried_tasks
         except Exception:
             if useCommit:
                 # roll back
                 self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None, None
+            return None, None, retried_tasks
 
     # append input datasets for incremental execution
     def appendDatasets_JEDI(self, jediTaskID, inMasterDatasetSpecList, inSecDatasetSpecList):
@@ -10749,13 +10763,13 @@ class DBProxy(OraDBProxy.DBProxy):
             return False
 
     # retry child tasks
-    def retryChildTasks_JEDI(self, jediTaskID, useCommit=True):
+    def retryChildTasks_JEDI(self, jediTaskID, keep_share_priority=False, useCommit=True):
         comment = " /* JediDBProxy.retryChildTasks_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" <jediTaskID={jediTaskID}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        retTasks = []
+        retried_tasks = []
         try:
             # sql to get output datasets of parent task
             sqlPD = f"SELECT datasetName,containerName FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
@@ -10839,21 +10853,24 @@ class DBProxy(OraDBProxy.DBProxy):
                 elif cTaskStatus not in ["ready", "running", "scouting", "scouted"]:
                     # incexec child task
                     tmpLog.debug(f"incremental execution for child jediTaskID={cJediTaskID}")
-                    self.retryTask_JEDI(cJediTaskID, "incexec", useCommit=False, statusCheck=False)
+                    _, _, tmp_retried_tasks = self.retryTask_JEDI(
+                        cJediTaskID, "incexec", useCommit=False, statusCheck=False, keep_share_priority=keep_share_priority
+                    )
+                    retried_tasks += tmp_retried_tasks
             # commit
             if useCommit:
                 if not self._commit():
                     raise RuntimeError("Commit error")
             # return
             tmpLog.debug("done")
-            return True
+            return True, retried_tasks
         except Exception:
             # roll back
             if useCommit:
                 self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return False, retried_tasks
 
     # set super status
     def setSuperStatus_JEDI(self, jediTaskID, superStatus):

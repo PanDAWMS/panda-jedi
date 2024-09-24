@@ -101,3 +101,32 @@ def useRandomSeed(taskParamMap):
                 if "${RNDMSEED}" in tmpItem["value"]:
                     return True
     return False
+
+
+# get initial global share
+def get_initial_global_share(task_buffer, task_id, task_spec=None, task_param_map=None):
+    """
+    Get the initial global share for a task
+    :param task_buffer: task buffer interface
+    :param task_id: task ID
+    :param task_spec: task specification object. read through task_buffer if None
+    :param task_param_map: task parameter map. read through task_buffer if None
+    :return:
+    """
+    if task_param_map is None:
+        # get task parameters from DB
+        tmp_str = task_buffer.getTaskParamsWithID_JEDI(task_id)
+        task_param_map = decodeJSON(tmp_str)
+    if "gshare" in task_param_map and task_buffer.is_valid_share(task_param_map["gshare"]):
+        # global share was already specified in ProdSys
+        gshare = task_param_map["gshare"]
+    else:
+        if task_spec is None:
+            # get task specification from DB
+            _, task_spec = task_buffer.getTaskWithID_JEDI(task_id)
+        # get share based on definition
+        gshare = task_buffer.get_share_for_task(task_spec)
+        if gshare is None:
+            error_message = "task definition does not match any global share"
+            raise RuntimeError(error_message)
+    return gshare

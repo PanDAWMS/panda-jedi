@@ -269,8 +269,18 @@ class TaskCommandoThread(WorkerThread):
                             releaseUnstaged = True
                         else:
                             releaseUnstaged = False
-                        tmpRet, newTaskStatus = self.taskBufferIF.retryTask_JEDI(
-                            jediTaskID, commandStr, retryChildTasks=retryChildTasks, discardEvents=discardEvents, release_unstaged=releaseUnstaged
+                        # keep gshare and priority
+                        if "keep " in commentStr:
+                            keep_share_priority = True
+                        else:
+                            keep_share_priority = False
+                        tmpRet, newTaskStatus, retried_tasks = self.taskBufferIF.retryTask_JEDI(
+                            jediTaskID,
+                            commandStr,
+                            retryChildTasks=retryChildTasks,
+                            discardEvents=discardEvents,
+                            release_unstaged=releaseUnstaged,
+                            keep_share_priority=keep_share_priority,
                         )
                         if tmpRet is True:
                             tmpMsg = f"set task_status={newTaskStatus}"
@@ -292,6 +302,17 @@ class TaskCommandoThread(WorkerThread):
                                             tmpLog.debug("pushed trigger message to jedi_job_generator")
                                         else:
                                             tmpLog.warning("failed to push trigger message to jedi_job_generator")
+                            # reset global share and priority
+                            if not keep_share_priority:
+                                for task_id in retried_tasks:
+                                    try:
+                                        global_share = RefinerUtils.get_initial_global_share(self.taskBufferIF, task_id)
+                                        self.taskBufferIF.reassignShare([task_id], global_share, True)
+                                        tmp_msg = f"reset gshare={global_share} to jediTaskID={task_id}"
+                                        tmpLog.info(tmp_msg)
+                                    except Exception as e:
+                                        tmpLog.error(f"failed to reset gshare for {task_id} with {str(e)}")
+
                         tmpLog.info(f"done with {tmpRet}")
                     else:
                         tmpLog.error("unknown command")
