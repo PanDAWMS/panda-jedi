@@ -7,6 +7,7 @@ import traceback
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 
@@ -127,9 +128,9 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
 class DataLocalityUpdaterThread(WorkerThread):
     # constructor
     def __init__(self, taskDsList, threadPool, taskbufferIF, ddmIF, pid, loggerObj):
-        # initialize woker with no semaphore
+        # initialize worker with no semaphore
         WorkerThread.__init__(self, None, threadPool, loggerObj)
-        # attributres
+        # attributes
         self.taskDsList = taskDsList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
@@ -157,7 +158,7 @@ class DataLocalityUpdaterThread(WorkerThread):
                     for tmpRSE, tmpList in dataset_replicas_map.items():
                         tmpStatistics = tmpList[-1]
                         # exclude unknown
-                        if tmpStatistics["found"] is None:
+                        if tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]:
                             continue
                         # update dataset locality table
                         self.taskBufferIF.updateDatasetLocality_JEDI(jedi_taskid=jediTaskID, datasetid=datasetID, rse=tmpRSE)
