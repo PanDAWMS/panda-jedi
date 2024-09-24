@@ -435,16 +435,7 @@ class TaskRefinerBase(object):
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
         # Initialize the global share
-        if "gshare" in taskParamMap and self.taskBufferIF.is_valid_share(taskParamMap["gshare"]):
-            # global share was already specified in ProdSys
-            gshare = taskParamMap["gshare"]
-        else:
-            # get share based on definition
-            gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
-            if gshare is None:
-                error_message = "task definition does not match any global share"
-                raise RuntimeError(error_message)
-        self.taskSpec.gshare = gshare
+        self.taskSpec.gshare = RefinerUtils.get_initial_global_share(self.taskBufferIF, self.taskSpec.jediTaskID, taskSpec, taskParamMap)
 
         # Initialize the resource type
         try:
