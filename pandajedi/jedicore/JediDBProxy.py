@@ -3578,7 +3578,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlLock = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks  "
             sqlLock += "SET lockedBy=:newLockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL AND modificationTime<:timeLimit "
-            # sql to put the task in pending
+            # sql to update task status
             sqlPDG = ("UPDATE {0}.JEDI_Tasks " "SET lockedBy=NULL,lockedTime=NULL,status=:status,errorDialog=:err " "WHERE jediTaskID=:jediTaskID ").format(
                 jedi_config.db.schemaJEDI
             )
@@ -3869,7 +3869,16 @@ class DBProxy(OraDBProxy.DBProxy):
                             if origTaskSpec.userName in ["", None]:
                                 # DN is empty
                                 toSkip = True
-                                tmpLog.error(f"skipped since DN is empty for {origTaskSpec.userName} jediTaskID={jediTaskID}")
+                                err_msg = f"{origTaskSpec.origUserName} has an empty DN"
+                                tmpLog.error(f"{err_msg} for jediTaskID={jediTaskID}")
+                                varMap = {}
+                                varMap[":jediTaskID"] = jediTaskID
+                                varMap[":status"] = "tobroken"
+                                varMap[":err"] = err_msg
+                                self.cur.execute(sqlPDG + comment, varMap)
+                                if not self._commit():
+                                    raise RuntimeError("Commit error")
+                                continue
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr("userName")
@@ -5652,7 +5661,7 @@ class DBProxy(OraDBProxy.DBProxy):
             return None
 
     # get task parameters with jediTaskID
-    def getTaskParamsWithID_JEDI(self, jediTaskID):
+    def getTaskParamsWithID_JEDI(self, jediTaskID, use_commit=True):
         comment = " /* JediDBProxy.getTaskParamsWithID_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" <jediTaskID={jediTaskID}>"
@@ -5663,8 +5672,9 @@ class DBProxy(OraDBProxy.DBProxy):
             sql = f"SELECT taskParams FROM {jedi_config.db.schemaJEDI}.JEDI_TaskParams WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            # begin transaction
-            self.conn.begin()
+            if use_commit:
+                # begin transaction
+                self.conn.begin()
             self.cur.arraysize = 100
             self.cur.execute(sql + comment, varMap)
             retStr = ""
@@ -5673,14 +5683,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 retStr = tmpItem
                 totalSize += len(tmpItem)
                 break
-            # commit
-            if not self._commit():
-                raise RuntimeError("Commit error")
+            if use_commit:
+                # commit
+                if not self._commit():
+                    raise RuntimeError("Commit error")
             tmpLog.debug(f"read {len(retStr)}/{totalSize} bytes")
             return retStr
         except Exception:
-            # roll back
-            self._rollback()
+            if use_commit:
+                # roll back
+                self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return None
@@ -5964,7 +5976,16 @@ class DBProxy(OraDBProxy.DBProxy):
 
     # get scout job data
     def getScoutJobData_JEDI(
-        self, jediTaskID, useTransaction=False, scoutSuccessRate=None, mergeScout=False, flagJob=False, setPandaID=None, site_mapper=None, task_spec=None
+        self,
+        jediTaskID,
+        useTransaction=False,
+        scoutSuccessRate=None,
+        mergeScout=False,
+        flagJob=False,
+        setPandaID=None,
+        site_mapper=None,
+        task_spec=None,
+        task_params_map=None,
     ):
         comment = " /* JediDBProxy.getScoutJobData_JEDI */"
         methodName = self.getMethodName(comment)
@@ -5987,16 +6008,10 @@ class DBProxy(OraDBProxy.DBProxy):
             cpuTimeRank = 95
 
         # sql to get preset values
-        if not mergeScout:
-            sqlGPV = "SELECT "
-            sqlGPV += "prodSourceLabel, outDiskCount, outDiskUnit, walltime, ramCount, ramUnit, baseRamCount, "
-            sqlGPV += "workDiskCount, cpuTime, cpuEfficiency, baseWalltime, splitRule, cpuTimeUnit, "
-            sqlGPV += "memory_leak_core, memory_leak_x2 "
-        else:
-            sqlGPV = "SELECT "
-            sqlGPV += "prodSourceLabel, outDiskCount, outDiskUnit, mergeWalltime, mergeRamCount, ramUnit, baseRamCount, "
-            sqlGPV += "workDiskCount, cpuTime, cpuEfficiency, baseWalltime, splitRule, cpuTimeUnit, "
-            sqlGPV += "memory_leak_core, memory_leak_x2 "
+        sqlGPV = "SELECT "
+        sqlGPV += "prodSourceLabel, outDiskUnit, walltime, ramUnit, baseRamCount, "
+        sqlGPV += "workDiskCount, cpuEfficiency, baseWalltime, splitRule, "
+        sqlGPV += "memory_leak_core, memory_leak_x2 "
         sqlGPV += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
 
@@ -6114,52 +6129,27 @@ class DBProxy(OraDBProxy.DBProxy):
         if resGPV is not None:
             (
                 prodSourceLabel,
-                preOutDiskCount,
                 preOutDiskUnit,
                 preWalltime,
-                preRamCount,
                 preRamUnit,
                 preBaseRamCount,
                 preWorkDiskCount,
-                preCpuTime,
                 preCpuEfficiency,
                 preBaseWalltime,
                 splitRule,
-                preCpuTimeUnit,
                 memory_leak_core,
                 memory_leak_x2,
             ) = resGPV
-            # get preOutDiskCount in kB
-            if preOutDiskCount not in [0, None]:
-                if preOutDiskUnit is not None:
-                    if preOutDiskUnit.startswith("GB"):
-                        preOutDiskCount = preOutDiskCount * 1024 * 1024
-                    elif preOutDiskUnit.startswith("MB"):
-                        preOutDiskCount = preOutDiskCount * 1024
-                    elif preOutDiskUnit.startswith("kB"):
-                        pass
-                    else:
-                        preOutDiskCount = preOutDiskCount // 1024
-            # get preCpuTime in sec
-            try:
-                if preCpuTimeUnit.startswith("m"):
-                    preCpuTime = float(preCpuTime) / 1000.0
-            except Exception:
-                pass
         else:
             prodSourceLabel = None
-            preOutDiskCount = 0
             preOutDiskUnit = None
             preWalltime = 0
-            preRamCount = 0
             preRamUnit = None
             preBaseRamCount = 0
             preWorkDiskCount = 0
-            preCpuTime = 0
             preCpuEfficiency = None
             preBaseWalltime = None
             splitRule = None
-            preCpuTimeUnit = None
         if preOutDiskUnit is not None and preOutDiskUnit.endswith("PerEvent"):
             preOutputScaleWithEvents = True
         else:
@@ -6171,6 +6161,26 @@ class DBProxy(OraDBProxy.DBProxy):
         # don't use baseRamCount for pmerge
         if mergeScout:
             preBaseRamCount = 0
+        # use original ramCount if available
+        if task_params_map is not None:
+            preCpuTime = task_params_map.get("cpuTime")
+            preCpuTimeUnit = task_params_map.get("cpuTimeUnit")
+            if preCpuTime and not preCpuTimeUnit:
+                preCpuTimeUnit = "HS06sPerEvent"
+            if mergeScout:
+                preRamCount = task_params_map.get("mergeRamCount")
+            else:
+                preRamCount = task_params_map.get("ramCount")
+        else:
+            preCpuTime = None
+            preRamCount = None
+            preCpuTimeUnit = None
+        # get preCpuTime in sec
+        try:
+            if preCpuTime and preCpuTimeUnit and preCpuTimeUnit.startswith("m"):
+                preCpuTime = float(preCpuTime) / 1000.0
+        except Exception:
+            pass
         extraInfo["oldCpuTime"] = preCpuTime
         extraInfo["oldRamCount"] = preRamCount
         # get minimum ram count
@@ -6806,9 +6816,16 @@ class DBProxy(OraDBProxy.DBProxy):
         if useCommit:
             # begin transaction
             self.conn.begin()
+        task_params_str = self.getTaskParamsWithID_JEDI(jediTaskID, use_commit=False)
+        task_params_map = json.loads(task_params_str)
         # set average job data
         scoutSucceeded, scoutData, extraInfo = self.getScoutJobData_JEDI(
-            jediTaskID, scoutSuccessRate=scoutSuccessRate, flagJob=True, site_mapper=site_mapper, task_spec=taskSpec
+            jediTaskID,
+            scoutSuccessRate=scoutSuccessRate,
+            flagJob=True,
+            site_mapper=site_mapper,
+            task_spec=taskSpec,
+            task_params_map=task_params_map,
         )
         # sql to update task data
         if scoutData != {}:
@@ -6839,7 +6856,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # set average merge job data
         mergeScoutSucceeded = None
         if taskSpec.mergeOutput():
-            mergeScoutSucceeded, mergeScoutData, mergeExtraInfo = self.getScoutJobData_JEDI(jediTaskID, mergeScout=True)
+            mergeScoutSucceeded, mergeScoutData, mergeExtraInfo = self.getScoutJobData_JEDI(jediTaskID, mergeScout=True, task_params_map=task_params_map)
             if mergeScoutData != {}:
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
@@ -6884,7 +6901,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     and extraInfo["oldRamCount"] < ramThr < scoutData["ramCount"]
                 ):
                     errMsg = f"#KV #ATM action=set_exhausted reason=scout_ramCount {scoutData['ramCount']} MB is larger than {ramThr} MB "
-                    errMsg += f"while task_ramCount {extraInfo['oldRamCount']} MB is less than {ramThr} MB"
+                    errMsg += f"while requested task_ramCount {extraInfo['oldRamCount']} MB is less than {ramThr} MB"
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = "exhausted"
