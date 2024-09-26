@@ -63,11 +63,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         scanSiteList = []
         # problematic sites
         problematic_sites_dict = {}
-        # get list of site access
-        siteAccessList = self.taskBufferIF.listSiteAccess(None, taskSpec.userName)
-        siteAccessMap = {}
-        for tmpSiteName, tmpAccess in siteAccessList:
-            siteAccessMap[tmpSiteName] = tmpAccess
         # disable VP for merging, scouts, and forceStaged
         if inputChunk.isMerging or taskSpec.avoid_vp() or taskSpec.useScout() or taskSpec.useLocalIO():
             useVP = False

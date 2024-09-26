@@ -6,8 +6,9 @@ import traceback
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandaserver.dataservice.activator import Activator
+
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .TypicalWatchDogBase import TypicalWatchDogBase
 
@@ -334,32 +335,13 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                     if toBeBoostedSites == []:
                         tmpLog.debug("no sites to be boosted")
                         continue
-                    # check special prioritized site
-                    siteAccessForUser = {}
-                    varMap = {}
-                    varMap[":dn"] = prodUserName
-                    sql = "SELECT pandaSite,pOffset,status,workingGroups FROM ATLAS_PANDAMETA.siteAccess WHERE dn=:dn"
-                    res = self.taskBufferIF.querySQL(sql, varMap, arraySize=10000)
-                    if res is not None:
-                        for pandaSite, pOffset, pStatus, workingGroups in res:
-                            # ignore special working group for now
-                            if workingGroups not in ["", None]:
-                                continue
-                            # only approved sites
-                            if pStatus != "approved":
-                                continue
-                            # no priority boost
-                            if pOffset == 0:
-                                continue
-                            # append
-                            siteAccessForUser[pandaSite] = pOffset
+
                     # set weight
                     totalW = 0
                     defaultW = 100
-                    for computingSite in toBeBoostedSites:
+                    for _ in toBeBoostedSites:
                         totalW += defaultW
-                        if computingSite in siteAccessForUser:
-                            totalW += siteAccessForUser[computingSite]
+
                     totalW = float(totalW)
                     # the total number of jobs to be boosted
                     numBoostedJobs = globalAverageRunDone - float(userTotalRunDone)
@@ -371,8 +353,6 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                     highestPrio = 1000
                     for computingSite in toBeBoostedSites:
                         weight = float(defaultW)
-                        if computingSite in siteAccessForUser:
-                            weight += float(siteAccessForUser[computingSite])
                         weight /= totalW
                         # the number of boosted jobs at the site
                         numBoostedJobsSite = int(numBoostedJobs * weight / quotaFactor)
