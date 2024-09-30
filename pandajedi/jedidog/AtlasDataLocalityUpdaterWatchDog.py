@@ -58,7 +58,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             # make thread pool
             thread_pool = ThreadPool()
             # make workers
-            n_workers = 4
+            n_workers = 8
             for _ in range(n_workers):
                 thr = DataLocalityUpdaterThread(
                     taskDsList=datasets_list, threadPool=thread_pool, taskbufferIF=self.taskBufferIF, ddmIF=self.ddmIF, pid=self.pid, loggerObj=tmpLog
@@ -140,6 +140,11 @@ class DataLocalityUpdaterThread(WorkerThread):
 
     # main
     def runImpl(self):
+        # initialize
+        n_updated_ds = 0
+        n_skipped_ds = 0
+        n_updated_replicas = 0
+        n_skipped_replicas = 0
         while True:
             try:
                 # get part of datasets
@@ -147,21 +152,27 @@ class DataLocalityUpdaterThread(WorkerThread):
                 taskDsList = self.taskDsList.get(nDatasets)
                 if len(taskDsList) == 0:
                     # no more datasets, quit
-                    self.logger.debug(f"{self.name} terminating since no more items")
+                    self.logger.debug(
+                        f"{self.name} terminating since no more items; updated {n_updated_ds} datasets and {n_updated_replicas} replicas; skipped {n_skipped_ds} datasets and {n_skipped_replicas} replicas"
+                    )
                     return
                 # loop over these datasets
                 for item in taskDsList:
                     if item is None:
+                        n_skipped_ds += 1
                         continue
                     jediTaskID, datasetID, datasetName = item
                     dataset_replicas_map = self.ddmIF.listDatasetReplicas(datasetName)
                     for tmpRSE, tmpList in dataset_replicas_map.items():
                         tmpStatistics = tmpList[-1]
-                        # exclude unknown
+                        # skip unknown and incomplete
                         if tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]:
+                            n_skipped_replicas += 1
                             continue
                         # update dataset locality table
                         self.taskBufferIF.updateDatasetLocality_JEDI(jedi_taskid=jediTaskID, datasetid=datasetID, rse=tmpRSE)
+                        n_updated_replicas += 1
+                    n_updated_ds += 1
             except Exception as e:
                 self.logger.error(f"{self.__class__.__name__} failed in runImpl() with {str(e)}: {traceback.format_exc()}")
                 return

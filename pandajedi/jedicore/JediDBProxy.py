@@ -14569,7 +14569,6 @@ class DBProxy(OraDBProxy.DBProxy):
                 "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                 "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
-                "AND tabT.prodSourceLabel='managed' "
                 "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
             ).format(jedi_config.db.schemaJEDI)
             # start transaction

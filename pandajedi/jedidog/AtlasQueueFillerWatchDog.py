@@ -286,7 +286,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.refresh()
         # list of resource type
         resource_type_list = [rt.resource_name for rt in self.taskBufferIF.load_resource_types()]
-        # threshold of time duration in second that the queue keeps empty to trigger preassignment
+        # threshold of time duration in second that the queue keeps empty to trigger preassigning
         empty_duration_threshold = 1800
         # return map
         ret_map = {
@@ -325,7 +325,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 if site not in site_empty_since_map_orig:
                     site_empty_since_map[site] = now_time_ts
             self._update_to_ses_cache(site_empty_since_map)
-            # evaluate sites to preaassign according to cache
+            # evaluate sites to preassign according to cache
             # get blacklisted_tasks_map from cache
             blacklisted_tasks_map = self._get_from_bt_cache()
             blacklisted_tasks_set = set()
@@ -440,7 +440,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     task_orig_attr_map = self._get_from_attr_cache()
                     # number of tasks already preassigned
                     n_preassigned_tasks = len(preassigned_tasks_cached)
-                    # nuber of tasks to preassign
+                    # number of tasks to preassign
                     n_tasks_to_preassign = max(max_preassigned_tasks - n_preassigned_tasks, 0)
                     # preassign
                     if n_tasks_to_preassign <= 0:
@@ -523,7 +523,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.refresh()
         # busy sites
         busy_sites_dict = self.get_busy_sites()
-        # loop to undo preassignment
+        # loop to undo preassigning
         for prod_source_label in self.prodSourceLabelList:
             # parameter from GDP config
             max_preassigned_tasks = self.taskBufferIF.getConfigValue("queue_filler", f"MAX_PREASSIGNED_TASKS_{prod_source_label}", "jedi", self.vo)
@@ -556,12 +556,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # clean up task_orig_attr_map in cache
             task_orig_attr_map_orig = self._get_from_attr_cache()
             task_orig_attr_map = copy.deepcopy(task_orig_attr_map_orig)
-            all_preassiged_taskids = set()
+            all_preassigned_taskids = set()
             for taskid_list in preassigned_tasks_map_orig.values():
-                all_preassiged_taskids |= set(taskid_list)
+                all_preassigned_taskids |= set(taskid_list)
             for taskid_str in task_orig_attr_map_orig:
                 taskid = int(taskid_str)
-                if taskid not in all_preassiged_taskids:
+                if taskid not in all_preassigned_taskids:
                     del task_orig_attr_map[taskid_str]
             self._update_to_attr_cache(task_orig_attr_map)
             # loop on preassigned tasks in cache
@@ -636,7 +636,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             # Kibana log
                             for taskid in updated_tasks:
                                 tmp_log.debug(
-                                    f"#ATM #KV jediTaskID={taskid} action=undo_preassign site={site} rtype={resource_type} un-preassinged since {reason_str}"
+                                    f"#ATM #KV jediTaskID={taskid} action=undo_preassign site={site} rtype={resource_type} un-preassigned since {reason_str}"
                                 )
                 # update preassigned_tasks_map into cache
                 if had_undo:
