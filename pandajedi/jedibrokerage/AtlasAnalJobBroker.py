@@ -247,10 +247,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if max_expected_wait_hour is None:
             max_expected_wait_hour = 12.0
 
-        max_missing_input_files = self.taskBufferIF.getConfigValue("anal_jobbroker", "MAX_MISSING_INPUT_FILES", "jedi", taskSpec.vo)
+        max_missing_input_files = self.taskBufferIF.getConfigValue("jobbroker", "MAX_MISSING_INPUT_FILES", "jedi", taskSpec.vo)
         if max_missing_input_files is None:
             max_missing_input_files = 10
-        min_input_completeness = self.taskBufferIF.getConfigValue("anal_jobbroker", "MIN_INPUT_COMPLETENESS", "jedi", taskSpec.vo)
+        min_input_completeness = self.taskBufferIF.getConfigValue("jobbroker", "MIN_INPUT_COMPLETENESS", "jedi", taskSpec.vo)
         if min_input_completeness is None:
             min_input_completeness = 90
 
@@ -390,7 +390,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if datasetName not in self.dataSiteMap:
                         # get the list of sites where data is available
                         tmpLog.debug(f"getting the list of sites where {datasetName} is available")
-                        tmpSt, tmpRet, tmp_complete_disk_ok, tmp_complete_tape_ok = AtlasBrokerUtils.getAnalSitesWithData(
+                        tmpSt, tmpRet, tmp_complete_disk_ok, tmp_complete_tape_ok = AtlasBrokerUtils.get_sites_with_data(
                             self.get_unified_sites(scanSiteList),
                             self.siteMapper,
                             self.ddmIF,

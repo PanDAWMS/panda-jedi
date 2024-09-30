@@ -145,6 +145,14 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             core_statistics = {}
 
+        # thresholds for incomplete datasets
+        max_missing_input_files = self.taskBufferIF.getConfigValue("jobbroker", "MAX_MISSING_INPUT_FILES", "jedi", taskSpec.vo)
+        if max_missing_input_files is None:
+            max_missing_input_files = 10
+        min_input_completeness = self.taskBufferIF.getConfigValue("jobbroker", "MIN_INPUT_COMPLETENESS", "jedi", taskSpec.vo)
+        if min_input_completeness is None:
+            min_input_completeness = 90
+
         # get sites in the cloud
         siteSkippedTmp = dict()
         sitePreAssigned = False
@@ -263,6 +271,37 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         # init summary list
         self.init_summary_list("Job brokerage summary", None, scanSiteList)
+
+        ######################################
+        # check dataset completeness
+        if inputChunk.getDatasets():
+            for datasetSpec in inputChunk.getDatasets():
+                datasetName = datasetSpec.datasetName
+                # skip distributed datasets
+                is_distributed = self.ddmIF.isDistributedDataset(datasetName)
+                if is_distributed:
+                    tmpLog.debug(f"completeness check disabled for {datasetName} since it is distributed")
+                    continue
+                # check if complete replicas are available at online endpoints
+                tmpSt, tmpRet, tmp_complete_disk_ok, tmp_complete_tape_ok = AtlasBrokerUtils.get_sites_with_data(
+                    [],
+                    self.siteMapper,
+                    self.ddmIF,
+                    datasetName,
+                    [],
+                    max_missing_input_files,
+                    min_input_completeness,
+                )
+                if tmpSt != Interaction.SC_SUCCEEDED:
+                    tmpLog.error(f"failed to get available storage endpoints with {datasetName}")
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
+                # pending if the dataset is incomplete or missing at online endpoints
+                if not tmp_complete_disk_ok and not tmp_complete_tape_ok:
+                    tmpLog.error(f"dataset={datasetName} is incomplete/missing at online endpoints")
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
+                tmpLog.debug(f"complete replicas of {datasetName} are available at online endpoints")
 
         ######################################
         # selection for status

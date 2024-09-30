@@ -1322,9 +1322,9 @@ class AtlasDDMClient(DDMClientBase):
                     break
                 elif isDDS is None:
                     isDDS = True
-            # use False when there is no rule
+            # regarded as distributed when there is no rule
             if isDDS is None:
-                isDDS = False
+                isDDS = True
         except Exception as e:
             isOK = False
             errType = e

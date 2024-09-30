@@ -88,8 +88,8 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
     return Interaction.SC_SUCCEEDED, retMap
 
 
-# get analysis sites where data is available
-def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list, max_missing_input_files, min_input_completeness):
+# get sites where data is available and check if complete replica is available at online RSE
+def get_sites_with_data(siteList, siteMapper, ddmIF, datasetName, element_list, max_missing_input_files, min_input_completeness):
     # get replicas
     try:
         replicaMap = {}
