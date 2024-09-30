@@ -11,8 +11,8 @@ logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 # class for input
 class InputChunk:
-    # default output size 2G + 500MB (safety merging)
-    defaultOutputSize = 2500 * 1024 * 1024
+    # default output size 1G + 500MB (safety merging)
+    defaultOutputSize = 1500 * 1024 * 1024
     # max input size for scouts in MB
     maxInputSizeScouts = 50000
     # max input size for jobs after avalanche in MB
