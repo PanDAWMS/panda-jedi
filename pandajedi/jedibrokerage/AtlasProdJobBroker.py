@@ -1236,7 +1236,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         t1Weight = taskSpec.getT1Weight()
         if t1Weight == 0:
             tmpLog.info(f"IO intensity {taskSpec.ioIntensity}")
-            # use T1 weight in cloudconfig if IO intensive
+            # use T1 weight if IO intensive
             t1Weight = 1
             if taskSpec.ioIntensity is not None and taskSpec.ioIntensity > 500:
                 t1Weight = WORLD_NUCLEUS_WEIGHT
