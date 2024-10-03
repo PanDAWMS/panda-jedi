@@ -4,7 +4,6 @@ import glob
 import grp
 import json
 import os
-import pwd
 import re
 import socket
 import stat
@@ -27,7 +26,7 @@ def get_repo_info() -> object:
         repo_name = match.group(1)
         branch_name = match.group(2)
     else:
-        repo_name = repo_url.rstrip(".git")
+        repo_name = repo_url.removesuffix(".git")
         branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
 
     # Commit hash
@@ -56,12 +55,8 @@ def mm_notification():
     headers = {"Content-Type": "application/json"}
     try:
         response = requests.post(mm_webhook_url, data=json.dumps(mm_message), headers=headers)
-        if response.status_code == 200:
-            print("Message sent successfully to Mattermost")
-        else:
-            print(f"Failed to send message: {response.status_code}, {response.text}")
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+        pass
 
 
 class CustomBuildHook(BuildHookInterface):
@@ -141,4 +136,7 @@ class CustomBuildHook(BuildHookInterface):
                     os.chmod(out_f, tmp_st.st_mode | stat.S_IEXEC | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
         # update the mattermost chat-ops channel
-        mm_notification()
+        try:
+            mm_notification()
+        except:
+            pass
