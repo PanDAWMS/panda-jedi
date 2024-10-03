@@ -30,7 +30,7 @@ def get_repo_info() -> object:
             branch_name = match.group(2)
             file.write(f"branch_name {branch_name}")
         else:
-            repo_name = repo_url.rstrip(".git")
+            repo_name = repo_url.removesuffix(".git")
             file.write(f"repo_name(2) {repo_name}")
             branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
             file.write(f"branch_name(2) {branch_name}")
@@ -146,4 +146,7 @@ class CustomBuildHook(BuildHookInterface):
                     os.chmod(out_f, tmp_st.st_mode | stat.S_IEXEC | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
         # update the mattermost chat-ops channel
-        mm_notification()
+        try:
+            mm_notification()
+        except:
+            pass
