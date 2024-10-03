@@ -4,7 +4,6 @@ import glob
 import grp
 import json
 import os
-import pwd
 import re
 import socket
 import stat
@@ -18,20 +17,26 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 def get_repo_info() -> object:
     # Get the current remote URL of the repository
-    repo_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"]).strip().decode()
+    with open("/tmp/output.txt", "w") as file:
+        repo_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"]).strip().decode()
+        file.write(f"repo_url {repo_url}")
 
-    # Get the repo and branch name
-    match = re.match(r"https://github.com/(.*).git@(.*)", repo_url)
+        # Get the repo and branch name
+        match = re.match(r"https://github.com/(.*).git@(.*)", repo_url)
 
-    if match:
-        repo_name = match.group(1)
-        branch_name = match.group(2)
-    else:
-        repo_name = repo_url.rstrip(".git")
-        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
+        if match:
+            repo_name = match.group(1)
+            file.write(f"repo_name {repo_name}")
+            branch_name = match.group(2)
+            file.write(f"branch_name {branch_name}")
+        else:
+            repo_name = repo_url.rstrip(".git")
+            file.write(f"repo_name(2) {repo_name}")
+            branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
+            file.write(f"branch_name(2) {branch_name}")
 
-    # Commit hash
-    commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
+        # Commit hash
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
 
     return repo_name, branch_name, commit_hash
 
