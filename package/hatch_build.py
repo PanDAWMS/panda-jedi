@@ -54,12 +54,12 @@ def mm_notification():
         "text": f":lightsaber:**Package upgrade on:** `{server_name}`.",
         "props": {
             "card": f"""
-    | **Property** | **Value** |
-    |--------------|-----------|
-    | **Package**  | {repo_name} |
-    | **Branch**   | `{branch_name}` |
-    | **Commit**   | `{commit_hash}` |
-    """
+| **Property** | **Value** |
+|--------------|-----------|
+| **Package**  | {repo_name} |
+| **Branch**   | `{branch_name}` |
+| **Commit**   | `{commit_hash}` |
+"""
         },
     }
     headers = {"Content-Type": "application/json"}
