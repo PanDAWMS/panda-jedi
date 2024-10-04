@@ -51,7 +51,16 @@ def mm_notification():
     # On the repository name we enter an empty space to prevent the URLs to preview on Mattermost
     # We shorten the commit hash to the first seven characters, as they are usually enough to identify a commit
     mm_message = {
-        "text": f":lightsaber:**Install Information.** **Server Name:** `{server_name}`. **Package:** {repo_name[:7]}\u200B{repo_name[7:]}. **Branch:** `{branch_name}`. **Commit:** `{commit_hash[:7]}`."
+        "text": f":lightsaber:**Package upgrade on:** `{server_name}`.",
+        "props": {
+            "card": f"""
+    | **Property** | **Value** |
+    |--------------|-----------|
+    | **Package**  | {repo_name} |
+    | **Branch**   | `{branch_name}` |
+    | **Commit**   | `{commit_hash}` |
+    """
+        },
     }
     headers = {"Content-Type": "application/json"}
     try:
