@@ -57,8 +57,8 @@ def mm_notification():
 | **Property** | **Value** |
 |--------------|-----------|
 | **Package**  | {repo_name} |
-| **Branch**   | `{branch_name}` |
-| **Commit**   | `{commit_hash}` |
+| **Branch**   | [`{branch_name}`]({repo_name}/tree/{branch_name}) |
+| **Commit**   |  [`{commit_hash}`]({repo_name}/commit/{commit_hash}) |
 """
         },
     }
