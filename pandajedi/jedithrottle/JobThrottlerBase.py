@@ -39,7 +39,7 @@ class JobThrottlerBase(object):
         self.maxNumJobs = None
         self.minPriority = None
         self.underNqLimit = False
-        self.siteMapper = self.taskBufferIF.getSiteMapper()
+        self.siteMapper = self.taskBufferIF.get_site_mapper()
 
     # set maximum number of jobs to be submitted
     def setMaxNumJobs(self, maxNumJobs):

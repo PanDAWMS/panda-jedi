@@ -161,7 +161,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         # get DDM I/F
         ddmIF = self.ddmIF.getInterface(self.vo)
         # get site mapper
-        siteMapper = self.taskBufferIF.getSiteMapper()
+        siteMapper = self.taskBufferIF.get_site_mapper()
         # get tasks to get reassigned
         taskList = self.taskBufferIF.getTasksToReassign_JEDI(self.vo, self.prodSourceLabel)
 

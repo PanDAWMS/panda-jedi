@@ -33,7 +33,7 @@ class TaskRefinerBase(object):
 
     # refresh
     def refresh(self):
-        self.siteMapper = self.taskBufferIF.getSiteMapper()
+        self.siteMapper = self.taskBufferIF.get_site_mapper()
 
     # initialize
     def initializeRefiner(self, tmpLog):

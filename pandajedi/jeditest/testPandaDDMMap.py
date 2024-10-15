@@ -5,7 +5,7 @@ tb_if = JediTaskBufferInterface()
 tb_if.setupInterface()
 
 # Get the site mapper
-site_mapper = tb_if.getSiteMapper()
+site_mapper = tb_if.get_site_mapper()
 
 # Define a random site of panda sites
 panda_sites = [

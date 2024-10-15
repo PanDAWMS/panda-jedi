@@ -1,10 +1,7 @@
 # DB API for JEDI
 
-import datetime
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandaserver.brokerage.SiteMapper import SiteMapper
 from pandaserver.taskbuffer import TaskBuffer
 
 from pandajedi.jediconfig import jedi_config
@@ -24,24 +21,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         CommandReceiveInterface.__init__(self, conn)
         TaskBuffer.TaskBuffer.__init__(self)
         TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost, jedi_config.db.dbpasswd, nDBConnection=nDBConnection)
-        # site mapper
-        self.siteMapper = SiteMapper(self)
-        # update time for site mapper
-        self.dateTimeForSM = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         logger.debug("__init__")
 
     # query an SQL
     def querySQL(self, sql, varMap, arraySize=1000):
         with self.proxyPool.get() as proxy:
             return proxy.querySQLS(sql, varMap, arraySize)[1]
-
-    # get SiteMapper
-    def getSiteMapper(self):
-        timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        if datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - self.dateTimeForSM > datetime.timedelta(minutes=10):
-            self.siteMapper = SiteMapper(self)
-            self.dateTimeForSM = timeNow
-        return self.siteMapper
 
     # get work queue map
     def getWorkQueueMap(self):
@@ -445,12 +430,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     # set tasks to be assigned
     def setScoutJobDataToTasks_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.setScoutJobDataToTasks_JEDI(vo, prodSourceLabel, self.siteMapper)
+            tmp_site_mapper = self.get_site_mapper()
+            return proxy.setScoutJobDataToTasks_JEDI(vo, prodSourceLabel, tmp_site_mapper)
 
     # prepare tasks to be finished
     def prepareTasksToBeFinished_JEDI(self, vo, prodSourceLabel, nTasks=50, simTasks=None, pid="lock", noBroken=False):
         with self.proxyPool.get() as proxy:
-            return proxy.prepareTasksToBeFinished_JEDI(vo, prodSourceLabel, nTasks, simTasks, pid, noBroken, self.siteMapper)
+            tmp_site_mapper = self.get_site_mapper()
+            return proxy.prepareTasksToBeFinished_JEDI(vo, prodSourceLabel, nTasks, simTasks, pid, noBroken, tmp_site_mapper)
 
     # get tasks to be assigned
     def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):

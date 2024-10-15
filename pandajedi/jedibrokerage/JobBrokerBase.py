@@ -31,7 +31,7 @@ class JobBrokerBase(object):
         self.task_common[attr_name] = attr_value
 
     def refresh(self):
-        self.siteMapper = self.taskBufferIF.getSiteMapper()
+        self.siteMapper = self.taskBufferIF.get_site_mapper()
 
     def setLiveCounter(self, liveCounter):
         self.liveCounter = liveCounter
