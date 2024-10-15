@@ -15157,3 +15157,103 @@ class DBProxy(OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmp_log)
             return None
+
+    # insert data carousel requests
+    def insert_data_carousel_requests_JEDI(self, task_id, dc_req_specs):
+        comment = " /* JediDBProxy.insert_data_carousel_requests_JEDI */"
+        method_name = self.getMethodName(comment)
+        method_name += f" <jediTaskID={task_id}>"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # insert requests
+            for dc_req_spec in dc_req_specs:
+                # sql to insert request
+                sql_insert_request = (
+                    f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_requests ({dc_req_spec.columnNames()}) " f"{dc_req_spec.bindValuesExpression()} "
+                )
+                # sql to insert relation
+                sql_insert_relation = (
+                    f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_relations (request_id, task_id) " f"VALUES(:request_id, :task_id) "
+                )
+                var_map = {":request_id": dc_req_spec.request_id, ":task_id": task_id}
+                # execute
+                self.cur.execute(sql_insert_request + comment, {})
+                self.cur.execute(sql_insert_relation + comment, var_map)
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"inserted {len(dc_req_specs)} requests")
+            return True
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # get data carousel requests to statge
+    def get_data_carousel_requests_to_stage_JEDI(self):
+        # to be done
+        pass
+        # comment = " /* JediDBProxy.get_data_carousel_requests_to_stage_JEDI */"
+        # method_name = self.getMethodName(comment)
+        # tmp_log = MsgWrapper(logger, method_name)
+        # tmp_log.debug("start")
+        # try:
+        #     # sql to get queuing task
+        #     sql_tasks = (
+        #         "SELECT tabT.jediTaskID, tabT.splitRule "
+        #         "FROM {0}.JEDI_Tasks tabT, {0}.JEDI_AUX_Status_MinTaskID tabA "
+        #         "WHERE tabT.status=:status AND tabA.status=tabT.status "
+        #         "AND tabT.taskType=:taskType AND tabT.modificationTime<:timeLimit".format(jedi_config.db.schemaJEDI)
+        #     )
+        #     # sql to get input dataset
+        #     sql_ds = (
+        #         "SELECT tabD.datasetID, tabD.datasetName "
+        #         "FROM {0}.JEDI_Datasets tabD "
+        #         "WHERE tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1, :type2) ".format(jedi_config.db.schemaJEDI)
+        #     )
+        #     # initialize
+        #     ret_tasks_dict = {}
+        #     # start transaction
+        #     self.conn.begin()
+        #     # get pending tasks
+        #     var_map = {":status": "pending", ":taskType": task_type}
+        #     var_map[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=time_limit_minutes)
+        #     self.cur.execute(sql_tasks + comment, var_map)
+        #     res = self.cur.fetchall()
+        #     if res:
+        #         for task_id, split_rule in res:
+        #             tmp_taskspec = JediTaskSpec()
+        #             tmp_taskspec.splitRule = split_rule
+        #             if tmp_taskspec.inputPreStaging():
+        #                 # is data carousel task
+        #                 var_map = {
+        #                     ":jediTaskID": task_id,
+        #                     ":type1": "input",
+        #                     ":type2": "pseudo_input",
+        #                 }
+        #                 self.cur.execute(sql_ds + comment, var_map)
+        #                 ds_res = self.cur.fetchall()
+        #                 if ds_res:
+        #                     ret_tasks_dict[task_id] = []
+        #                     for ds_id, ds_name in ds_res:
+        #                         ret_tasks_dict[task_id].append(ds_name)
+        #     else:
+        #         tmp_log.debug("no pending task")
+        #     # commit
+        #     if not self._commit():
+        #         raise RuntimeError("Commit error")
+        #     # return
+        #     tmp_log.debug(f"found pending dc tasks: {ret_tasks_dict}")
+        #     return ret_tasks_dict
+        # except Exception:
+        #     # roll back
+        #     self._rollback()
+        #     # error
+        #     self.dumpErrorMessage(tmp_log)
+        #     return None

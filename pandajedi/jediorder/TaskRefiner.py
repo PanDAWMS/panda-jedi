@@ -7,6 +7,7 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediException
+from pandajedi.jedicore.DataCarousel import DataCarouselInterface
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -81,15 +82,16 @@ class TaskRefiner(JediKnight, FactoryBase):
 class TaskRefinerThread(WorkerThread):
     # constructor
     def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper):
-        # initialize woker with no semaphore
+        # initialize worker with no semaphore
         WorkerThread.__init__(self, None, threadPool, logger)
-        # attributres
+        # attributes
         self.taskList = taskList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
         self.msgType = "taskrefiner"
+        self.data_carousel_interface = DataCarouselInterface(taskBufferIF, ddmIF)
 
     # main
     def runImpl(self):
@@ -146,7 +148,7 @@ class TaskRefinerThread(WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info("extracting common")
                         try:
-                            # initalize impl
+                            # initialize impl
                             impl.initializeRefiner(tmpLog)
                             impl.oldTaskStatus = taskStatus
                             # extract common parameters
@@ -183,6 +185,16 @@ class TaskRefinerThread(WorkerThread):
                         if not impl.taskSpec.checkAttrLength():
                             tmpLog.error(impl.taskSpec.errorDialog)
                             tmpStat = Interaction.SC_FAILED
+                    # data carousel (input pre-staging) ; currently only for analysis tasks
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal":
+                            ds_list_to_prestage = self.data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
+                            if not ds_list_to_prestage:
+                                # no dataset needs pre-staging; unset inputPreStaging
+                                taskParamMap["inputPreStaging"] = False
+                            else:
+                                # submit data carousel requests for dataset to pre-stage
+                                self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:

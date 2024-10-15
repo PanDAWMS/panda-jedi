@@ -1499,3 +1499,23 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"got {all_ok}, {res_dict}")
         return self.SC_SUCCEEDED, (all_ok, res_dict)
+
+    # list RSEs
+    def list_rses(self, filter=None):
+        methodName = "list_rses"
+        methodName += f" filter={filter}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        ret = None
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get RSEs
+            ret = client.list_rses(filter)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got {ret}")
+        return self.SC_SUCCEEDED, ret

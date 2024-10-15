@@ -970,3 +970,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_max_events_in_dataset(self, jedi_task_id, dataset_id):
         with self.proxyPool.get() as proxy:
             return proxy.get_max_events_in_dataset(jedi_task_id, dataset_id)
+
+    # insert data carousel requests
+    def insert_data_carousel_requests_JEDI(self, task_id, dc_req_specs):
+        with self.proxyPool.get() as proxy:
+            return proxy.insert_data_carousel_requests_JEDI(task_id, dc_req_specs)
