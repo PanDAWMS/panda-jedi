@@ -9,7 +9,7 @@ prodSourceLabel = "managed"
 cloud = "WORLD"
 
 # get SiteMapper
-siteMapper = tbIF.getSiteMapper()
+siteMapper = tbIF.get_site_mapper()
 wqMap = tbIF.getWorkQueueMap()
 
 jt = JobThrottler(vo, prodSourceLabel)

@@ -84,7 +84,7 @@ class JobGenerator(JediKnight):
             try:
                 tmpLog.debug("start")
                 # get SiteMapper
-                siteMapper = self.taskBufferIF.getSiteMapper()
+                siteMapper = self.taskBufferIF.get_site_mapper()
                 tmpLog.debug("got siteMapper")
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
@@ -781,6 +781,8 @@ class JobGeneratorThread(WorkerThread):
                                     esJobsetMap=esJobsetMap,
                                     getEsJobsetMap=True,
                                     unprocessedMap=unprocessedMap,
+                                    bulk_job_insert=True,
+                                    trust_user=True,
                                 )
                                 resSubmit += tmpResSubmit
                                 self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID, self.pid)
