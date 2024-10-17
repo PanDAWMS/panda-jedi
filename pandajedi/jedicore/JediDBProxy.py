@@ -7093,7 +7093,6 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        retJediTaskIDs = []
         try:
             # sql to get tasks to set scout job data
             varMap = {}
