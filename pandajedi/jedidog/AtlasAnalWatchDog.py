@@ -38,7 +38,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             # task share and priority boost
             self.doForTaskBoost()
             # action to set scout job data w/o scouts
-            self.doActionToSetScoutJobData(tmpLog)
+            self.doActionToSetScoutJobData(origTmpLog)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             origTmpLog.error(f"failed with {errtype} {errvalue}")
