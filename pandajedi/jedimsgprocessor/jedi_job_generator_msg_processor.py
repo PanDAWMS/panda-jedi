@@ -28,7 +28,7 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
         self.ddmIF = DDMInterface()
         self.ddmIF.setupInterface()
         # get SiteMapper
-        # siteMapper = self.tbIF.getSiteMapper()
+        # siteMapper = self.tbIF.get_site_mapper()
         # get work queue mapper
         # workQueueMapper = self.tbIF.getWorkQueueMap()
         # get TaskSetupper
@@ -83,7 +83,7 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
                     inputList = ListWithLock(tmpList)
                     # create thread
                     threadPool = ThreadPool()
-                    siteMapper = self.tbIF.getSiteMapper()
+                    siteMapper = self.tbIF.get_site_mapper()
                     taskSetupper = TaskSetupper(vo, prodSourceLabel)
                     taskSetupper.initializeMods(self.tbIF, self.ddmIF)
                     gen_thr = JobGeneratorThread(

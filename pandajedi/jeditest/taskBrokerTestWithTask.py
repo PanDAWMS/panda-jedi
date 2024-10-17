@@ -7,7 +7,7 @@ from pandajedi.jediorder.TaskBroker import TaskBroker
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 
-siteMapper = tbIF.getSiteMapper()
+siteMapper = tbIF.get_site_mapper()
 
 
 ddmIF = DDMInterface()

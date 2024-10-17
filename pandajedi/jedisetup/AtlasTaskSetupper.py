@@ -45,7 +45,7 @@ class AtlasTaskSetupper(TaskSetupperBase):
                                         datasetToRegister.append(tmpFileSpec.datasetID)
                 tmpLog.info(f"datasetToRegister={str(datasetToRegister)}")
                 # get site mapper
-                siteMapper = self.taskBufferIF.getSiteMapper()
+                siteMapper = self.taskBufferIF.get_site_mapper()
 
                 # loop over all datasets
                 avDatasetList = []

@@ -57,7 +57,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         # work queue mapper
         self.workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # site mapper
-        self.siteMapper = self.taskBufferIF.getSiteMapper()
+        self.siteMapper = self.taskBufferIF.get_site_mapper()
         # all sites
         allSiteList = []
         for siteName, tmpSiteSpec in self.siteMapper.siteSpecList.items():
