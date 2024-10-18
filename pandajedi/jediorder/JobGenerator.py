@@ -766,7 +766,7 @@ class JobGeneratorThread(WorkerThread):
                             tmpLog.info(f"submit njobs={len(pandaJobs)} jobs with FQAN={','.join(str(fqan) for fqan in fqans)}")
                             tmpLog.debug(main_stop_watch.get_elapsed_time(f"{len(pandaJobs)} job submission"))
                             iJobs = 0
-                            nJobsInBunch = 100
+                            nJobsInBunch = 500
                             resSubmit = []
                             esJobsetMap = {}
                             unprocessedMap = {}
