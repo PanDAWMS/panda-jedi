@@ -261,15 +261,6 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         else:
             gTmpLog.info(f"reactivated high priority (>{minPriority}) {tmpRet} tasks")
 
-    # action to set scout job data w/o scouts
-    def doActionToSetScoutJobData(self, gTmpLog):
-        tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo, self.prodSourceLabel)
-        if tmpRet is None:
-            # failed
-            gTmpLog.error("failed to set scout job data")
-        else:
-            gTmpLog.info("set scout job data successfully")
-
     # action to throttle jobs in paused tasks
     def doActionToThrottleJobInPausedTasks(self, gTmpLog):
         tmpRet = self.taskBufferIF.throttleJobsInPausedTasks_JEDI(self.vo, self.prodSourceLabel)

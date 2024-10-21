@@ -1,6 +1,5 @@
 import os
 import socket
-import sys
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediCoreUtils
@@ -99,6 +98,15 @@ class TypicalWatchDogBase(WatchDogBase):
             tmpLog.error("failed to rescue unlocked tasks")
         else:
             tmpLog.info(f"rescue unlocked {tmpRet} tasks")
+
+    # action to set scout job data w/o scouts
+    def doActionToSetScoutJobData(self, gTmpLog):
+        tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo, self.prodSourceLabel)
+        if tmpRet is None:
+            # failed
+            gTmpLog.error("failed to set scout job data")
+        else:
+            gTmpLog.info("set scout job data successfully")
 
 
 Interaction.installSC(TypicalWatchDogBase)

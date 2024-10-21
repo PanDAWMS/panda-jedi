@@ -4,7 +4,6 @@ import socket
 import sys
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice.activator import Activator
 
@@ -21,7 +20,6 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
     def __init__(self, taskBufferIF, ddmIF):
         TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
         self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
-        # self.cronActions = {'forPrestage': 'atlas_prs'}
 
     # main
     def doAction(self):
@@ -39,6 +37,8 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             self.doForRedoStalledJobs()
             # task share and priority boost
             self.doForTaskBoost()
+            # action to set scout job data w/o scouts
+            self.doActionToSetScoutJobData(origTmpLog)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             origTmpLog.error(f"failed with {errtype} {errvalue}")
@@ -442,19 +442,25 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
         # redo stalled analysis jobs
         tmpLog.debug("redo stalled jobs")
         try:
-            varMap = {}
-            varMap[":prodSourceLabel"] = self.prodSourceLabel
+            varMap = {":prodSourceLabel": self.prodSourceLabel}
+
             sqlJ = "SELECT jobDefinitionID,prodUserName FROM ATLAS_PANDA.jobsDefined4 "
             sqlJ += "WHERE prodSourceLabel=:prodSourceLabel AND modificationTime<CURRENT_DATE-2/24 "
             sqlJ += "GROUP BY jobDefinitionID,prodUserName"
+
             sqlP = "SELECT PandaID FROM ATLAS_PANDA.jobsDefined4 "
             sqlP += "WHERE jobDefinitionID=:jobDefinitionID ANd prodSourceLabel=:prodSourceLabel AND prodUserName=:prodUserName AND rownum <= 1"
+
             sqlF = "SELECT lfn,type,destinationDBlock FROM ATLAS_PANDA.filesTable4 WHERE PandaID=:PandaID AND status=:status"
+
             sqlL = "SELECT guid,status,PandaID,dataset FROM ATLAS_PANDA.filesTable4 WHERE lfn=:lfn AND type=:type"
+
             sqlA = "SELECT PandaID FROM ATLAS_PANDA.jobsDefined4 "
             sqlA += "WHERE jobDefinitionID=:jobDefinitionID ANd prodSourceLabel=:prodSourceLabel AND prodUserName=:prodUserName"
+
             sqlU = "UPDATE ATLAS_PANDA.jobsDefined4 SET modificationTime=CURRENT_DATE "
             sqlU += "WHERE jobDefinitionID=:jobDefinitionID ANd prodSourceLabel=:prodSourceLabel AND prodUserName=:prodUserName"
+
             # get stalled jobs
             resJ = self.taskBufferIF.querySQL(sqlJ, varMap)
             if resJ is None or len(resJ) == 0:
@@ -464,10 +470,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                 for jobDefinitionID, prodUserName in resJ:
                     tmpLog.debug(f" user:{prodUserName} jobID:{jobDefinitionID}")
                     # get stalled jobs
-                    varMap = {}
-                    varMap[":prodSourceLabel"] = self.prodSourceLabel
-                    varMap[":jobDefinitionID"] = jobDefinitionID
-                    varMap[":prodUserName"] = prodUserName
+                    varMap = {":prodSourceLabel": self.prodSourceLabel, ":jobDefinitionID": jobDefinitionID, ":prodUserName": prodUserName}
                     resP = self.taskBufferIF.querySQL(sqlP, varMap)
                     if resP is None or len(resP) == 0:
                         tmpLog.debug("  no PandaID")
@@ -546,10 +549,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                         else:
                             # wait
                             tmpLog.debug("  -> wait")
-                            varMap = {}
-                            varMap[":prodSourceLabel"] = self.prodSourceLabel
-                            varMap[":jobDefinitionID"] = jobDefinitionID
-                            varMap[":prodUserName"] = prodUserName
+                            varMap = {":prodSourceLabel": self.prodSourceLabel, ":jobDefinitionID": jobDefinitionID, ":prodUserName": prodUserName}
                             # FIXME
                             # resU = self.taskBufferIF.querySQL(sqlU, varMap)
             # done
@@ -597,19 +597,11 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             #  Assign to Express Analysis
             new_share = "Express Analysis"
             for taskID, user in res:
-                if False:
-                    # dry-run
-                    tmpLog.debug(
-                        "(dry-run) action=gshare_reassignment jediTaskID={} user={} from gshare_old={} to gshare_new={} label=user".format(
-                            taskID, user, varMap[":gshare"], new_share
-                        )
-                    )
-                else:
-                    tmpLog.info(
-                        f" >>> action=gshare_reassignment jediTaskID={taskID} from gshare_old={varMap[':gshare']} to gshare_new={new_share} #ATM #KV label=user"
-                    )
-                    self.taskBufferIF.reassignShare([taskID], new_share, True)
-                    tmpLog.info(f">>> done jediTaskID={taskID}")
+                tmpLog.info(
+                    f" >>> action=gshare_reassignment jediTaskID={taskID} from gshare_old={varMap[':gshare']} to gshare_new={new_share} #ATM #KV label=user"
+                )
+                self.taskBufferIF.reassignShare([taskID], new_share, True)
+                tmpLog.info(f">>> done jediTaskID={taskID}")
             # done
             tmpLog.debug("done")
         except Exception:
