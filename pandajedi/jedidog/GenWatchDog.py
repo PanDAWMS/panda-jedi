@@ -1,8 +1,5 @@
-import re
-import sys
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .TypicalWatchDogBase import TypicalWatchDogBase
@@ -18,9 +15,7 @@ class GenWatchDog(TypicalWatchDogBase):
 
     # main
     def doAction(self):
-        # get logger
         tmpLog = MsgWrapper(logger)
         tmpLog.debug("start")
-        # return
         tmpLog.debug("done")
         return self.SC_SUCCEEDED

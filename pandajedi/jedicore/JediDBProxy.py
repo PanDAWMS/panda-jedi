@@ -115,9 +115,13 @@ class DBProxy(OraDBProxy.DBProxy):
 
     # check if exception is from NOWAIT
     def isNoWaitException(self, errValue):
-        oraErrCode = str(errValue).split()[0]
-        oraErrCode = oraErrCode[:-1]
-        if oraErrCode == "ORA-00054":
+        # for oracle
+        ora_err_code = str(errValue).split()[0]
+        ora_err_code = ora_err_code[:-1]
+        if ora_err_code == "ORA-00054":
+            return True
+        # for postgres
+        if type(errValue).__name__ == "LockNotAvailable":
             return True
         return False
 
@@ -7093,7 +7097,6 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName += f" <vo={vo} label={prodSourceLabel}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        retJediTaskIDs = []
         try:
             # sql to get tasks to set scout job data
             varMap = {}
