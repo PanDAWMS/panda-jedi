@@ -2118,13 +2118,13 @@ class JobGeneratorThread(WorkerThread):
             for tmpFileSpec in tmpFileSpecList:
                 tmpLFNs.append(tmpFileSpec.lfn)
                 size_map[tmpFileSpec.lfn] = tmpFileSpec.fsize
-            # remove duplication for dynamic number of events
+            # remove duplication for dynamic number of events while preserving the file order
             if taskSpec.dynamicNumEvents() and not isMerging:
-                tmpLFNs = list(set(tmpLFNs))
+                tmpLFNs = list(dict.fromkeys(tmpLFNs))
             if isMerging:
                 # sort by descending size not to process empty files first
                 tmpLFNs.sort(key=lambda kkk: size_map[kkk], reverse=True)
-            elif not taskSpec.order_input_by():
+            elif not taskSpec.order_input_by() and not taskSpec.dynamicNumEvents():
                 # sort by LFN unless the order is specified
                 tmpLFNs.sort()
             # change stream name and LFNs for PFN list
