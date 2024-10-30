@@ -1409,9 +1409,6 @@ class JobGeneratorThread(WorkerThread):
                     # fake job
                     if jobSpec.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
                         jobSpec.setFakeJobToIgnore()
-                    # request type
-                    if taskSpec.requestType not in ["", None]:
-                        jobSpec.setRequestType(taskSpec.requestType)
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock is False and prodDBlock is not None:
                         jobSpec.prodDBlock = prodDBlock
@@ -2638,18 +2635,7 @@ class JobGeneratorThread(WorkerThread):
         if not tmpStat:
             return Interaction.SC_FAILED, "failed to get task parameter dict", taskParamMap
         # look for sandbox
-        sandboxName = None
-        if "fixedSandbox" in taskParamMap:
-            sandboxName = taskParamMap["fixedSandbox"]
-        elif "buildSpec" in taskParamMap:
-            sandboxName = taskParamMap["buildSpec"]["archiveName"]
-        else:
-            for tmpParam in taskParamMap["jobParameters"]:
-                if tmpParam["type"] == "constant":
-                    m = re.search("^-a ([^ ]+)$", tmpParam["value"])
-                    if m is not None:
-                        sandboxName = m.group(1)
-                        break
+        sandboxName = RefinerUtils.get_sandbox_name(taskParamMap)
         if sandboxName is not None:
             tmpRes = self.taskBufferIF.extendSandboxLifetime_JEDI(task_spec.jediTaskID, sandboxName)
             tmp_log.debug(f"extend lifetime for {sandboxName} with {tmpRes}")
