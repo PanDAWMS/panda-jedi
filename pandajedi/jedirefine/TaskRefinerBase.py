@@ -246,9 +246,6 @@ class TaskRefinerBase(object):
         # campaign
         if "campaign" in taskParamMap:
             taskSpec.campaign = taskParamMap["campaign"]
-        # request type
-        if "requestType" in taskParamMap:
-            taskSpec.requestType = taskParamMap["requestType"]
         # image name
         if "container_name" in taskParamMap:
             taskSpec.container_name = taskParamMap["container_name"]
