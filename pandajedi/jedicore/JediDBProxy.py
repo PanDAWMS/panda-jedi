@@ -15259,7 +15259,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmp_log.debug("start")
         try:
             # initialize
-            ret_list = {}
+            ret_list = []
             # start transaction
             self.conn.begin()
             # sql to query queued requests with gshare and priority info from related tasks
@@ -15296,7 +15296,62 @@ class DBProxy(OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmp_log.debug(f"got {len(ret_list)} queued request")
+            tmp_log.debug(f"got {len(ret_list)} queued requests")
+            return ret_list
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # get data carousel requests of active tasks
+    def get_data_carousel_requests_of_active_tasks_JEDI(self):
+        comment = " /* JediDBProxy.get_data_carousel_requests_of_active_tasks_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # initialize
+            ret_list = []
+            # start transaction
+            self.conn.begin()
+            # sql to query queued requests with gshare and priority info from related tasks
+            sql_query_id = (
+                f"SELECT DISTINCT rel.request_id "
+                f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations rel, {jedi_config.db.schemaJEDI}.JEDI_Tasks t "
+                f"WHERE rel.task_id=t.jediTaskID "
+                f"AND t.status NOT IN (:antistatus1, :antistatus2, :antistatus3, :antistatus4) "
+            )
+            var_map = {
+                ":antistatus1": "done",
+                ":antistatus2": "finished",
+                ":antistatus3": "broken",
+                ":antistatus4": "aborted",
+            }
+            self.cur.execute(sql_query_id + comment, var_map)
+            res_list = self.cur.fetchall()
+            if res_list:
+                for (request_id,) in res_list:
+                    # query info of related tasks
+                    sql_query_requests = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE rel.request_id=:request_id "
+                    var_map = {":request_id": request_id}
+                    self.cur.execute(sql_query_requests + comment, var_map)
+                    req_res_list = self.cur.fetchall()
+                    # make request spec
+                    dc_req_spec = DataCarouselRequestSpec()
+                    for req_res in req_res_list:
+                        dc_req_spec.pack(req_res)
+                        break
+                    # add
+                    ret_list.append(dc_req_spec)
+            else:
+                tmp_log.debug("no queued request")
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"got {len(ret_list)} requests with active tasks")
             return ret_list
         except Exception:
             # roll back

@@ -51,7 +51,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 resource_name=None,
                 component="AtlasDataCarousDog.doStageDCReq",
                 pid=self.pid,
-                timeLimit=300,
+                timeLimit=5,
             )
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
@@ -85,14 +85,14 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 resource_name=None,
                 component="AtlasDataCarousDog.doKeepRulesAlive",
                 pid=self.pid,
-                timeLimit=300,
+                timeLimit=60,
             )
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
                 return
             tmpLog.debug("got lock")
-            # TODO: to be implemented
-            pass
+            # keep alive rules
+            self.data_carousel_interface.stage_request.keep_alive_ddm_rules()
             # done
             tmpLog.debug("done")
         except Exception:

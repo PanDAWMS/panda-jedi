@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from pandacommon.pandautils.base import SpecBase
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 
@@ -218,7 +220,38 @@ class DataCarouselInterface(object):
     def _refresh_ddm_rule(self, rule_id: str, lifetime: int):
         """
         refresh lifetime of the DDM rule
+
+        Args:
+        rule_id (str): DDM rule ID
+        lifetime (int): lifetime in seconds to set
         """
         set_map = {"lifetime": lifetime}
-        ret = self.ddmIF.updateReplicationRuleByID(rule_id, set_map)
+        ret = self.ddmIF.update_rule_by_id(rule_id, set_map)
         return ret
+
+    def keep_alive_ddm_rules(self):
+        """
+        keep alive DDM rules of requests of active tasks
+        """
+        dc_req_specs = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI()
+        for dc_req_spec in dc_req_specs:
+            if dc_req_spec.status == DataCarouselRequestStatus.queued:
+                # skip requests queued
+                continue
+            # get DDM rule
+            ddm_rule_id = dc_req_spec.ddm_rule_id
+            the_rule = self.ddmIF.get_rule_by_id(ddm_rule_id)
+            if the_rule is None:
+                # got error when getting the rule
+                continue
+            # rule lifetime
+            now_time = naive_utcnow()
+            rule_lifetime = now_time - the_rule["expires_at"]
+            # trigger renewal when lifetime within the range
+            if rule_lifetime < timedelta(days=5) and rule_lifetime > timedelta(hours=2):
+                if dc_req_spec.status == DataCarouselRequestStatus.staging:
+                    # for requests staging
+                    self._refresh_ddm_rule(ddm_rule_id, 86400 * 15)
+                elif dc_req_spec.status == DataCarouselRequestStatus.done:
+                    # for requests done
+                    self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)

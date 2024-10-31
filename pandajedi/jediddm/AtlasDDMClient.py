@@ -1366,29 +1366,6 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
-    # update replication rule by rule ID
-    def updateReplicationRuleByID(self, rule_id, set_map):
-        methodName = "updateReplicationRuleByID"
-        methodName += f" pid={self.pid}"
-        methodName = f"{methodName} rule_id={rule_id}"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        isOK = True
-        try:
-            # get rucio API
-            client = RucioClient()
-            # update rule
-            client.update_replication_rule(rule_id, set_map)
-        except Exception as e:
-            isOK = False
-            errType = e
-        if not isOK:
-            errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, f"{methodName} : {errMsg}"
-        tmpLog.debug("done")
-        return self.SC_SUCCEEDED, True
-
     # get active staging rule
     def getActiveStagingRule(self, dataset_name):
         methodName = "getActiveStagingRule"
@@ -1543,3 +1520,47 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"got {ret}")
         return self.SC_SUCCEEDED, ret
+
+    # update replication rule by rule ID
+    def update_rule_by_id(self, rule_id, set_map):
+        methodName = "update_rule_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # update rule
+            client.update_replication_rule(rule_id, set_map)
+        except Exception as e:
+            isOK = False
+            errType = e
+        if not isOK:
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug("done")
+        return self.SC_SUCCEEDED, True
+
+    # get replication rule by rule ID
+    def get_rule_by_id(self, rule_id):
+        methodName = "get_rule_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        ruleID = None
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get rules
+            rule = client.get_replication_rule(rule_id)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got rule")
+        return self.SC_SUCCEEDED, rule
