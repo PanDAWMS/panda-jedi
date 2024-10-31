@@ -56,6 +56,31 @@ class TaskRefinerBase(object):
     def setJobParamsTemplate(self, jobParamsTemplate):
         self.jobParamsTemplate = jobParamsTemplate
 
+    # create a unique identifier of the payload based on the task parameters
+    def create_payload_identifier(self, task_param_map: dict) -> str:
+        """
+        Create a unique identifier of the payload based on the task parameters
+        :param task_param_map: dictionary of task parameters
+        :return: identifier string
+        """
+        # remove placeholders from job parameter template
+        if self.jobParamsTemplate:
+            job_params = re.sub(r"\$\{.*?\}", "", self.jobParamsTemplate)
+        else:
+            job_params = ""
+        # create a base string for the payload identifier
+        base_str = "+".join(
+            [
+                str(self.taskSpec.transUses),
+                str(self.taskSpec.transHome),
+                str(self.taskSpec.transPath),
+                job_params,
+                str(RefinerUtils.get_sandbox_name(task_param_map)),
+            ]
+        )
+        # create a unique identifier of the payload based on the task parameters
+        return uuid.uuid5(uuid.NAMESPACE_DNS, base_str).hex
+
     # extract common parameters
     def extractCommon(self, jediTaskID, taskParamMap, workQueueMapper, splitRule):
         # remove irrelevant
@@ -221,9 +246,6 @@ class TaskRefinerBase(object):
         # campaign
         if "campaign" in taskParamMap:
             taskSpec.campaign = taskParamMap["campaign"]
-        # request type
-        if "requestType" in taskParamMap:
-            taskSpec.requestType = taskParamMap["requestType"]
         # image name
         if "container_name" in taskParamMap:
             taskSpec.container_name = taskParamMap["container_name"]
@@ -755,6 +777,8 @@ class TaskRefinerBase(object):
         if esmergeParams is not None:
             jobParameters += esmergeParams
         self.setJobParamsTemplate(jobParameters)
+        # set payload identifier
+        self.taskSpec.requestType = self.create_payload_identifier(taskParamMap)
         # set random seed offset
         if rndmSeedOffset is not None:
             self.setSplitRule(None, rndmSeedOffset, JediTaskSpec.splitRuleToken["randomSeed"])

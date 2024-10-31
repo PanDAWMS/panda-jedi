@@ -106,8 +106,8 @@ checkInterval = 5
 [taskrefine]
 
 # interface config
-#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any,vo_example:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
-#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
+#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any,vo_example:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
+#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
 modConfig = wlcg:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
 
 # process config
