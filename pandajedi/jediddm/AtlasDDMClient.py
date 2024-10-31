@@ -1366,6 +1366,29 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug("done")
         return self.SC_SUCCEEDED, True
 
+    # update replication rule by rule ID
+    def updateReplicationRuleByID(self, rule_id, set_map):
+        methodName = "updateReplicationRuleByID"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # update rule
+            client.update_replication_rule(rule_id, set_map)
+        except Exception as e:
+            isOK = False
+            errType = e
+        if not isOK:
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug("done")
+        return self.SC_SUCCEEDED, True
+
     # get active staging rule
     def getActiveStagingRule(self, dataset_name):
         methodName = "getActiveStagingRule"
@@ -1420,7 +1443,7 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, retVal
 
     # make staging rule
-    def make_staging_rule(self, dataset_name, expression, activity, lifetime=None):
+    def make_staging_rule(self, dataset_name, expression, activity, lifetime=None, weight=None, notify="N", source_replica_expression=None):
         methodName = "make_staging_rule"
         methodName += f" pid={self.pid}"
         methodName = f"{methodName} datasetName={dataset_name} expression={expression} activity={activity} lifetime={lifetime}"
@@ -1449,15 +1472,16 @@ class AtlasDDMClient(DDMClientBase):
                     dids=dids,
                     copies=1,
                     rse_expression=expression,
-                    weight=None,
+                    weight=weight,
                     lifetime=lifetime,
                     grouping="DATASET",
                     account=client.account,
                     locked=False,
-                    notify="N",
+                    notify=notify,
                     ignore_availability=True,
                     activity=activity,
                     asynchronous=False,
+                    source_replica_expression=source_replica_expression,
                 )
                 ruleID = rule["id"]
                 tmpLog.debug(f"made new rule : ID={ruleID}")

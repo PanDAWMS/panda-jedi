@@ -91,7 +91,7 @@ class TaskRefinerThread(WorkerThread):
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
         self.msgType = "taskrefiner"
-        self.data_carousel_interface = DataCarouselInterface(taskBufferIF, ddmIF)
+        self.data_carousel_interface = DataCarouselInterface(taskbufferIF, ddmIF)
 
     # main
     def runImpl(self):

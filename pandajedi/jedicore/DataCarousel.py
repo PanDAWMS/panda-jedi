@@ -1,3 +1,4 @@
+from pandacommon.pandautils.base import SpecBase
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 
@@ -15,7 +16,7 @@ class DataCarouselRequestStatus(object):
     final_statuses = [done, cancelled]
 
 
-class DataCarouselRequestSpec(object):
+class DataCarouselRequestSpec(SpecBase):
     """
     Data carousel request specification
     """
@@ -26,7 +27,7 @@ class DataCarouselRequestSpec(object):
         "dataset",
         "source_rse",
         "destination_rse",
-        "rucio_rule_id",
+        "ddm_rule_id",
         "status",
         "total_files",
         "staged_files",
@@ -42,110 +43,6 @@ class DataCarouselRequestSpec(object):
     _zeroAttrs = ()
     # attributes to force update
     _forceUpdateAttrs = ()
-
-    # constructor
-    def __init__(self):
-        # install attributes
-        for attr in self._attributes:
-            object.__setattr__(self, attr, None)
-        # file list
-        object.__setattr__(self, "Files", [])
-        # map of changed attributes
-        object.__setattr__(self, "_changedAttrs", {})
-        # distributed
-        object.__setattr__(self, "distributed", False)
-
-    # override __setattr__ to collect the changed attributes
-    def __setattr__(self, name, value):
-        oldVal = getattr(self, name)
-        object.__setattr__(self, name, value)
-        newVal = getattr(self, name)
-        # collect changed attributes
-        if oldVal != newVal or name in self._forceUpdateAttrs:
-            self._changedAttrs[name] = value
-
-    # reset changed attribute list
-    def resetChangedList(self):
-        object.__setattr__(self, "_changedAttrs", {})
-
-    # force update
-    def forceUpdate(self, name):
-        if name in self._attributes:
-            self._changedAttrs[name] = getattr(self, name)
-
-    # return map of values
-    def valuesMap(self, onlyChanged=False):
-        ret = {}
-        for attr in self._attributes:
-            # only changed attributes
-            if onlyChanged:
-                if attr not in self._changedAttrs:
-                    continue
-            val = getattr(self, attr)
-            if val is None:
-                if attr in self._zeroAttrs:
-                    val = 0
-                else:
-                    val = None
-            ret[f":{attr}"] = val
-        return ret
-
-    # pack tuple into spec
-    def pack(self, values):
-        for i in range(len(self._attributes)):
-            attr = self._attributes[i]
-            val = values[i]
-            object.__setattr__(self, attr, val)
-
-    # return column names for INSERT
-    @classmethod
-    def columnNames(cls, prefix=None):
-        ret = ""
-        for attr in cls._attributes:
-            if prefix is not None:
-                ret += f"{prefix}."
-            ret += f"{attr},"
-        ret = ret[:-1]
-        return ret
-
-    # return expression of bind variables for INSERT
-    @classmethod
-    def bindValuesExpression(cls):
-        ret = "VALUES("
-        for attr in cls._attributes:
-            ret += f":{attr},"
-        ret = ret[:-1]
-        ret += ")"
-        return ret
-
-    # return an expression of bind variables for UPDATE to update only changed attributes
-    def bindUpdateChangesExpression(self):
-        ret = ""
-        for attr in self._attributes:
-            if attr in self._changedAttrs:
-                ret += f"{attr}=:{attr},"
-        ret = ret[:-1]
-        ret += " "
-        return ret
-
-    # set dataset attribute
-    def setDatasetAttribute(self, attr):
-        if self.attributes is None:
-            self.attributes = ""
-        else:
-            self.attributes += ","
-        self.attributes += attr
-
-    # set dataset attribute with label
-    def setDatasetAttributeWithLabel(self, label):
-        if label not in self.attrToken:
-            return
-        attr = self.attrToken[label]
-        if self.attributes is None:
-            self.attributes = ""
-        else:
-            self.attributes += ","
-        self.attributes += attr
 
 
 class DataCarouselInterface(object):
@@ -212,9 +109,17 @@ class DataCarouselInterface(object):
                 ret_list.append(ds_name)
         return ret_list
 
-    def submit_data_carousel_requests(self, task_id, dataset_list, source_rse=None):
+    def submit_data_carousel_requests(self, task_id: int, dataset_list: list[str], source_rse: str | None = None) -> bool | None:
         """
         Submit data carousel requests for a task
+
+        Args:
+        task_id (int): JEDI task ID
+        dataset_list (list[str]): list of datasets
+        source_rse (str | None): source RSE (optional)
+
+        Returns:
+            bool | None : True if submission successful, or None if failed
         """
         # fill dc request spec for each input dataset
         dc_req_spec_list = []
@@ -233,6 +138,87 @@ class DataCarouselInterface(object):
             dc_req_spec.creation_time = now_time
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
-        ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(self, task_id, dc_req_spec_list)
+        ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
         # return
+        return ret
+
+    def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:
+        """
+        Get the queued requests which should proceed to get staging
+
+        Args:
+        ? (?): ?
+
+        Returns:
+            list[DataCarouselRequestSpec] : list of requests to stage
+        """
+        ret_list = []
+        queued_requests = self.taskBufferIF.get_data_carousel_queued_requests_JEDI()
+        if queued_requests is None:
+            return ret_list
+        for dc_req_spec, task_specs in queued_requests:
+            # TODO: add algorithms to filter queued requests according to gshare, priority, etc. ; also limit length according to staging profiles
+            # FIXME: currently all queued requests are returned
+            ret_list.append(dc_req_spec)
+        # return
+        return ret_list
+
+    def _submit_ddm_rule(self, dc_req_spec: DataCarouselRequestSpec) -> str | None:
+        """
+        Submit DDM replication rule to stage the dataset of the request
+
+        Args:
+        dc_req_spec (DataCarouselRequestSpec): spec of the request
+
+        Returns:
+            str | None : DDM rule_id of the new rule if submission successful, or None if failed
+        """
+        # TODO: configurable params to get from DC config
+        expression = "type=DATADISK&datapolicynucleus=True&freespace>300"
+        lifetime = None
+        weight = None
+        source_replica_expression = None
+        # submit ddm staging rule
+        ddm_rule_id = self.ddmIF.make_staging_rule(
+            dataset_name=dc_req_spec.dataset,
+            expression=expression,
+            activity="Staging",
+            lifetime=lifetime,
+            weight=weight,
+            notify="P",
+            source_replica_expression=source_replica_expression,
+        )
+        # return
+        return ddm_rule_id
+
+    def stage_request(self, dc_req_spec: DataCarouselRequestSpec) -> bool:
+        """
+        Stage the dataset of the request and update request status to staging
+
+        Args:
+        dc_req_spec (DataCarouselRequestSpec): spec of the request
+
+        Returns:
+            bool : True for success, False otherwise
+        """
+        is_ok = False
+        # submit DDM rule
+        ddm_rule_id = self._submit_ddm_rule(dc_req_spec)
+        now_time = naive_utcnow()
+        if ddm_rule_id:
+            # DDM rule submitted; update request to be staging
+            dc_req_spec.ddm_rule_id = ddm_rule_id
+            dc_req_spec.status = DataCarouselRequestStatus.staging
+            dc_req_spec.start_time = now_time
+            ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
+            if ret is not None:
+                is_ok = True
+        return is_ok
+
+    def _refresh_ddm_rule(self, rule_id: str, lifetime: int):
+        """
+        refresh lifetime of the DDM rule
+        """
+        set_map = {"lifetime": lifetime}
+        ret = self.ddmIF.updateReplicationRuleByID(rule_id, set_map)
         return ret

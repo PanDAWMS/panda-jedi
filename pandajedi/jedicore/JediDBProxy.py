@@ -14,11 +14,13 @@ import uuid
 
 import numpy
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
 
 from pandajedi.jediconfig import jedi_config
 
 from . import JediCoreUtils, ParseJobXML
+from .DataCarousel import DataCarouselRequestSpec, DataCarouselRequestStatus
 from .InputChunk import InputChunk
 from .JediCacheSpec import JediCacheSpec
 from .JediDatasetSpec import JediDatasetSpec
@@ -15173,17 +15175,36 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             # insert requests
             for dc_req_spec in dc_req_specs:
-                # sql to insert request
-                sql_insert_request = (
-                    f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_requests ({dc_req_spec.columnNames()}) " f"{dc_req_spec.bindValuesExpression()} "
-                )
+                # sql to query request of the dataset
+                sql_query = f"SELECT request_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dataset=:dataset AND status<>:antistatus "
+                var_map = {":dataset": dc_req_spec.dataset, ":antistatus": DataCarouselRequestStatus.cancelled}
+                self.cur.execute(sql_query + comment, var_map)
+                res = self.cur.fetchall()
+                # check if already existing request for the dataset
+                the_request_id = None
+                if res:
+                    # have existing request; reuse it
+                    for (request_id,) in res:
+                        the_request_id = request_id
+                        break
+                else:
+                    # no existing request; insert new one
+                    # sql to insert request
+                    sql_insert_request = (
+                        f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_requests ({dc_req_spec.columnNames()}) "
+                        f"{dc_req_spec.bindValuesExpression()} "
+                        f"RETURNING request_id INTO :new_request_id "
+                    )
+                    var_map = {":new_request_id": self.cur.var(varNUMBER)}
+                    self.cur.execute(sql_insert_request + comment, var_map)
+                    the_request_id = int(self.getvalue_corrector(self.cur.getvalue(var_map[":new_request_id"])))
+                if the_request_id is None:
+                    raise RuntimeError("the_request_id is None")
                 # sql to insert relation
                 sql_insert_relation = (
                     f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_relations (request_id, task_id) " f"VALUES(:request_id, :task_id) "
                 )
-                var_map = {":request_id": dc_req_spec.request_id, ":task_id": task_id}
-                # execute
-                self.cur.execute(sql_insert_request + comment, {})
+                var_map = {":request_id": the_request_id, ":task_id": task_id}
                 self.cur.execute(sql_insert_relation + comment, var_map)
             # commit
             if not self._commit():
@@ -15198,65 +15219,88 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmp_log)
             return None
 
-    # get data carousel requests to statge
-    def get_data_carousel_requests_to_stage_JEDI(self):
-        # to be done
-        pass
-        # comment = " /* JediDBProxy.get_data_carousel_requests_to_stage_JEDI */"
-        # method_name = self.getMethodName(comment)
-        # tmp_log = MsgWrapper(logger, method_name)
-        # tmp_log.debug("start")
-        # try:
-        #     # sql to get queuing task
-        #     sql_tasks = (
-        #         "SELECT tabT.jediTaskID, tabT.splitRule "
-        #         "FROM {0}.JEDI_Tasks tabT, {0}.JEDI_AUX_Status_MinTaskID tabA "
-        #         "WHERE tabT.status=:status AND tabA.status=tabT.status "
-        #         "AND tabT.taskType=:taskType AND tabT.modificationTime<:timeLimit".format(jedi_config.db.schemaJEDI)
-        #     )
-        #     # sql to get input dataset
-        #     sql_ds = (
-        #         "SELECT tabD.datasetID, tabD.datasetName "
-        #         "FROM {0}.JEDI_Datasets tabD "
-        #         "WHERE tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1, :type2) ".format(jedi_config.db.schemaJEDI)
-        #     )
-        #     # initialize
-        #     ret_tasks_dict = {}
-        #     # start transaction
-        #     self.conn.begin()
-        #     # get pending tasks
-        #     var_map = {":status": "pending", ":taskType": task_type}
-        #     var_map[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=time_limit_minutes)
-        #     self.cur.execute(sql_tasks + comment, var_map)
-        #     res = self.cur.fetchall()
-        #     if res:
-        #         for task_id, split_rule in res:
-        #             tmp_taskspec = JediTaskSpec()
-        #             tmp_taskspec.splitRule = split_rule
-        #             if tmp_taskspec.inputPreStaging():
-        #                 # is data carousel task
-        #                 var_map = {
-        #                     ":jediTaskID": task_id,
-        #                     ":type1": "input",
-        #                     ":type2": "pseudo_input",
-        #                 }
-        #                 self.cur.execute(sql_ds + comment, var_map)
-        #                 ds_res = self.cur.fetchall()
-        #                 if ds_res:
-        #                     ret_tasks_dict[task_id] = []
-        #                     for ds_id, ds_name in ds_res:
-        #                         ret_tasks_dict[task_id].append(ds_name)
-        #     else:
-        #         tmp_log.debug("no pending task")
-        #     # commit
-        #     if not self._commit():
-        #         raise RuntimeError("Commit error")
-        #     # return
-        #     tmp_log.debug(f"found pending dc tasks: {ret_tasks_dict}")
-        #     return ret_tasks_dict
-        # except Exception:
-        #     # roll back
-        #     self._rollback()
-        #     # error
-        #     self.dumpErrorMessage(tmp_log)
-        #     return None
+    # update a data carousel request
+    def update_data_carousel_request_JEDI(self, dc_req_spec):
+        comment = " /* JediDBProxy.update_data_carousel_request_JEDI */"
+        method_name = self.getMethodName(comment)
+        method_name += f" <request_id={dc_req_spec.request_id}>"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # sql to update request
+            dc_req_spec.modification_time = naive_utcnow()
+            sql_update = (
+                f"UPDATE {jedi_config.db.schemaJEDI}.data_carousel_requests "
+                f"SET {dc_req_spec.bindUpdateChangesExpression()} "
+                "WHERE request_id=:request_id "
+            )
+            var_map = {":request_id": dc_req_spec.request_id}
+            self.cur.execute(sql_update + comment, var_map)
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"updated {dc_req_spec.bindUpdateChangesExpression()}")
+            return dc_req_spec
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # get data carousel queued requests and info of their related tasks
+    def get_data_carousel_queued_requests_JEDI(self):
+        comment = " /* JediDBProxy.get_data_carousel_queued_requests_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # initialize
+            ret_list = {}
+            # start transaction
+            self.conn.begin()
+            # sql to query queued requests with gshare and priority info from related tasks
+            sql_query_req = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dc.status=:status "
+            var_map = {":status": DataCarouselRequestStatus.queued}
+            self.cur.execute(sql_query_req + comment, var_map)
+            res_list = self.cur.fetchall()
+            if res_list:
+                for res in res_list:
+                    # make request spec
+                    dc_req_spec = DataCarouselRequestSpec()
+                    dc_req_spec.pack(res)
+                    # query info of related tasks
+                    sql_query_tasks = (
+                        f"SELECT t.jediTaskID, t.gshare, COALESCE(t.currentPriority, t.taskPriority) "
+                        f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations rel, {jedi_config.db.schemaJEDI}.JEDI_Tasks t "
+                        f"WHERE rel.request_id=:request_id AND rel.task_id=t.jediTaskID "
+                    )
+                    var_map = {":request_id": dc_req_spec.request_id}
+                    self.cur.execute(sql_query_tasks + comment, var_map)
+                    res_tasks = self.cur.fetchall()
+                    task_specs = []
+                    for task_id, gshare, priority in res_tasks:
+                        task_spec = JediTaskSpec()
+                        task_spec.jediTaskID = task_id
+                        task_spec.gshare = gshare
+                        task_spec.currentPriority = priority
+                        task_specs.append(task_spec)
+                    # add
+                    ret_list.append((dc_req_spec, task_specs))
+            else:
+                tmp_log.debug("no queued request")
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"got {len(ret_list)} queued request")
+            return ret_list
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None

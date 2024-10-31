@@ -962,3 +962,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def insert_data_carousel_requests_JEDI(self, task_id, dc_req_specs):
         with self.proxyPool.get() as proxy:
             return proxy.insert_data_carousel_requests_JEDI(task_id, dc_req_specs)
+
+    # update a data carousel request
+    def update_data_carousel_request_JEDI(self, dc_req_spec):
+        with self.proxyPool.get() as proxy:
+            return proxy.update_data_carousel_request_JEDI(dc_req_spec)
+
+    # get data carousel queued requests and info of their related tasks
+    def get_data_carousel_queued_requests_JEDI(self):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_data_carousel_queued_requests_JEDI()
