@@ -1,7 +1,4 @@
-# logger
 import sys
-
-from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface

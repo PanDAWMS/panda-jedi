@@ -6,7 +6,6 @@ import re
 import sys
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import JobUtils

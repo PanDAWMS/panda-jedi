@@ -1,4 +1,3 @@
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from .JobThrottlerBase import JobThrottlerBase

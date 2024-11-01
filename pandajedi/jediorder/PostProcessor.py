@@ -4,7 +4,6 @@ import socket
 import sys
 import time
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jediconfig import jedi_config
