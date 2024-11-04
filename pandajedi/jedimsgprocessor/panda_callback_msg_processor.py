@@ -2,17 +2,16 @@ import re
 
 import yaml
 from pandacommon.pandalogger import logger_utils
-from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandaserver.dataservice.ddm_handler import DDMHandler
 
-# logger
+from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
+
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 
 
 # panda dataset callback message processing plugin
 class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
     def process(self, msg_obj):
-        # logger
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         # tmp_log.info('start')

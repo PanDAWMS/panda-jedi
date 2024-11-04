@@ -1,11 +1,9 @@
 import datetime
 import os
-import re
 import socket
 import sys
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper

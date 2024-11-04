@@ -1,6 +1,5 @@
 # DB API for JEDI
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.taskbuffer import TaskBuffer
 

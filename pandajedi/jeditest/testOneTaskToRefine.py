@@ -1,4 +1,3 @@
-# logger
 import sys
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger

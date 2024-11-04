@@ -3,8 +3,6 @@ import datetime
 import re
 
 from dataservice.DataServiceUtils import select_scope
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils
@@ -31,9 +29,9 @@ ZERO_TRANSFERS = 0.00001
 URG_ACTIVITY = "Express"
 PRD_ACTIVITY = "Production Output"
 # NWS tags for FTS throughput
-FTS_1H = "fts_mbps_1h"
-FTS_1D = "fts_mbps_1d"
-FTS_1W = "fts_mbps_1w"
+FTS_1H = "dashb_mbps_1h"
+FTS_1D = "dashb_mbps_1d"
+FTS_1W = "dashb_mbps_1w"
 APP = "jedi"
 COMPONENT = "jobbroker"
 VO = "atlas"
