@@ -10,7 +10,6 @@ from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jediorder.JobGenerator import JobGeneratorThread
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
-# logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 
 
@@ -23,7 +22,6 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
         self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-pjmsg"
 
     def process(self, msg_obj, decoded_data=None):
-        # logger
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")

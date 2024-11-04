@@ -14,7 +14,6 @@ try:
 except Exception:
     pass
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice import DataServiceUtils, ddm
 from rucio.client import Client as RucioClient

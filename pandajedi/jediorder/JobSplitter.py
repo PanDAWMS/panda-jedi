@@ -1,6 +1,5 @@
 import copy
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jedicore import Interaction, JediCoreUtils

@@ -23,8 +23,6 @@ try:
 except ImportError:
     pass
 
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])

@@ -2,8 +2,8 @@ import datetime
 import sys
 import time
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.FactoryBase import FactoryBase

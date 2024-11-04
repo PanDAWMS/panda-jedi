@@ -2,17 +2,12 @@ import json
 
 from pandacommon.pandalogger import logger_utils
 
-from pandajedi.jediconfig import jedi_config
-
-# from pandajedi.jedicore.FactoryBase import FactoryBase
-# from pandajedi.jedicore.JediCoreUtils import convert_config_params, parse_init_params
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jediorder.JobGenerator import JobGeneratorThread
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
-# logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 
 
@@ -37,7 +32,6 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
         self.pid = self.get_pid()
 
     def process(self, msg_obj):
-        # logger
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
