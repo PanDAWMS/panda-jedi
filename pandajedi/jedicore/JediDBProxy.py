@@ -9741,14 +9741,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to update output/lib/log datasets
             sqlUO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUO += "SET status=:status "
-            sqlUO += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,"
-            for tmpType in JediDatasetSpec.getProcessTypes():
-                if tmpType in JediDatasetSpec.getInputTypes():
-                    continue
-                mapKey = ":type_" + tmpType
-                sqlUO += f"{mapKey},"
-            sqlUO = sqlUO[:-1]
-            sqlUO += ") "
+            sqlUO += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3) "
             # start transaction
             if useCommit:
                 self.conn.begin()
@@ -10101,11 +10094,6 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":type2"] = "lib"
                     varMap[":type3"] = "log"
                     varMap[":status"] = "done"
-                    for tmpType in JediDatasetSpec.getProcessTypes():
-                        if tmpType in JediDatasetSpec.getInputTypes():
-                            continue
-                        mapKey = ":type_" + tmpType
-                        varMap[mapKey] = tmpType
                     self.cur.execute(sqlUO + comment, varMap)
                 # retry or reactivate child tasks
                 if retryChildTasks and newTaskStatus != taskOldStatus:
