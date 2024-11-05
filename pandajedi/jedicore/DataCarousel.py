@@ -77,12 +77,12 @@ class DataCarouselInterface(object):
         """
         Get input datasets from tasks parameters
         """
-        ret_list = []
+        ret_map = {}
         for job_param in task_params_map.get("jobParameters", []):
             ds_name = job_param.get("dataset")
             if ds_name and job_param.get("param_type") in ["input", "pseudo_input"]:
-                ret_list.append({ds_name: job_param})
-        return ret_list
+                ret_map[ds_name] = job_param
+        return ret_map
 
     def _get_full_replicas_per_type(self, dataset):
         """
@@ -103,8 +103,8 @@ class DataCarouselInterface(object):
         Get the input datasets of the task which need pre-staging from tapes
         """
         ret_list = []
-        input_datasets_map = self._get_input_ds_from_task_params(task_params_map)
-        for ds_name in input_datasets_map:
+        input_dataset_map = self._get_input_ds_from_task_params(task_params_map)
+        for ds_name in input_dataset_map:
             replicas_map = self._get_full_replicas_per_type(ds_name)
             if not replicas_map["datadisk"] and replicas_map["tape"]:
                 # no replica on datadisk, but with replica on tape

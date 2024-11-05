@@ -91,7 +91,6 @@ class TaskRefinerThread(WorkerThread):
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
         self.msgType = "taskrefiner"
-        self.data_carousel_interface = DataCarouselInterface(taskbufferIF, ddmIF)
 
     # main
     def runImpl(self):
@@ -137,6 +136,13 @@ class TaskRefinerThread(WorkerThread):
                             if impl is None:
                                 # task refiner is undefined
                                 errStr = f"task refiner is undefined for vo={vo} sourceLabel={prodSourceLabel}"
+                                tmpLog.error(errStr)
+                                tmpStat = Interaction.SC_FAILED
+                            # get data carousel interface
+                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF, self.ddmIF.getInterface(vo))
+                            if data_carousel_interface is None:
+                                # data carousel interface is undefined
+                                errStr = f"data carousel interface is undefined for vo={vo}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                         except Exception:
@@ -187,14 +193,14 @@ class TaskRefinerThread(WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal":
-                            ds_list_to_prestage = self.data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
+                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
+                            ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
                             if not ds_list_to_prestage:
                                 # no dataset needs pre-staging; unset inputPreStaging
                                 taskParamMap["inputPreStaging"] = False
                             else:
                                 # submit data carousel requests for dataset to pre-stage
-                                self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:

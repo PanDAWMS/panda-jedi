@@ -33,7 +33,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         self.vo = "atlas"
         self.ddmIF = ddmIF.getInterface(self.vo)
-        self.data_carousel_interface = DataCarouselInterface(taskBufferIF, ddmIF)
+        self.data_carousel_interface = DataCarouselInterface(taskBufferIF, self.ddmIF)
 
     def doStageDCRequests(self):
         """
@@ -92,7 +92,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 return
             tmpLog.debug("got lock")
             # keep alive rules
-            self.data_carousel_interface.stage_request.keep_alive_ddm_rules()
+            self.data_carousel_interface.keep_alive_ddm_rules()
             # done
             tmpLog.debug("done")
         except Exception:

@@ -1512,6 +1512,9 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # get RSEs
             ret = client.list_rses(filter)
+            if ret:
+                # turn generator into list
+                ret = list(ret)
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)

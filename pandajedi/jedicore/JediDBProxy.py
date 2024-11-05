@@ -15263,7 +15263,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             # sql to query queued requests with gshare and priority info from related tasks
-            sql_query_req = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dc.status=:status "
+            sql_query_req = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status=:status "
             var_map = {":status": DataCarouselRequestStatus.queued}
             self.cur.execute(sql_query_req + comment, var_map)
             res_list = self.cur.fetchall()
