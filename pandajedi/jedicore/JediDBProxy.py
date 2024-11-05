@@ -15195,7 +15195,8 @@ class DBProxy(OraDBProxy.DBProxy):
                         f"{dc_req_spec.bindValuesExpression()} "
                         f"RETURNING request_id INTO :new_request_id "
                     )
-                    var_map = {":new_request_id": self.cur.var(varNUMBER)}
+                    var_map = dc_req_spec.valuesMap(useSeq=True)
+                    var_map[":new_request_id"] = self.cur.var(varNUMBER)
                     self.cur.execute(sql_insert_request + comment, var_map)
                     the_request_id = int(self.getvalue_corrector(self.cur.getvalue(var_map[":new_request_id"])))
                 if the_request_id is None:

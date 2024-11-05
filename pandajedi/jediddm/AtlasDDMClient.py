@@ -1506,22 +1506,24 @@ class AtlasDDMClient(DDMClientBase):
         methodName += f" filter={filter}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        ret = None
+        ret_list = []
         try:
             # get rucio API
             client = RucioClient()
             # get RSEs
-            ret = client.list_rses(filter)
-            if ret:
-                # turn generator into list
-                ret = list(ret)
+            result = client.list_rses(filter)
+            if result:
+                # res is a generator yielding {"rse": "name_of_rse"}
+                for x in result:
+                    rse = x["rse"]
+                    ret_list.append(rse)
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
             return errCode, f"{methodName} : {errMsg}"
-        tmpLog.debug(f"got {ret}")
-        return self.SC_SUCCEEDED, ret
+        tmpLog.debug(f"got {ret_list}")
+        return self.SC_SUCCEEDED, ret_list
 
     # update replication rule by rule ID
     def update_rule_by_id(self, rule_id, set_map):

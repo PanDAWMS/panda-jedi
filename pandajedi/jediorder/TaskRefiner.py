@@ -4,6 +4,7 @@ import time
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediException
@@ -35,7 +36,7 @@ class TaskRefiner(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            startTime = naive_utcnow()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -70,7 +71,7 @@ class TaskRefiner(JediKnight, FactoryBase):
                 tmpLog.error(f"Traceback: {traceback.format_exc()}")
             # sleep if needed
             loopCycle = jedi_config.taskrefine.loopCycle
-            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
+            timeDelta = naive_utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
@@ -194,13 +195,20 @@ class TaskRefinerThread(WorkerThread):
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
+                            tmpLog.info("checking about data carousel")
                             ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
                             if not ds_list_to_prestage:
+                                tmpLog.debug("no need to prestage")
                                 # no dataset needs pre-staging; unset inputPreStaging
                                 taskParamMap["inputPreStaging"] = False
                             else:
                                 # submit data carousel requests for dataset to pre-stage
-                                data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                tmpLog.info("to prestage, submitting data carousel requests")
+                                tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                if tmp_ret:
+                                    tmpLog.info("submitted data carousel requests")
+                                else:
+                                    tmpLog.error("failed to submit data carousel requests")
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:

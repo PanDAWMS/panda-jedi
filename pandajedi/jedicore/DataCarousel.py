@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from pandacommon.pandautils.base import SpecBase
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 
+from pandajedi.jediconfig import jedi_config
+
 
 class DataCarouselRequestStatus(object):
     """
@@ -45,6 +47,8 @@ class DataCarouselRequestSpec(SpecBase):
     _zeroAttrs = ()
     # attributes to force update
     _forceUpdateAttrs = ()
+    # mapping between sequence and attr
+    _seqAttrMap = {"request_id": f"{jedi_config.db.schemaJEDI}.JEDI_DATA_CAROUSEL_REQUEST_ID_SEQ.nextval"}
 
 
 class DataCarouselInterface(object):
@@ -67,11 +71,11 @@ class DataCarouselInterface(object):
         Update RSEs per type cached in this object
         """
         tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
-        if isinstance(tape_rses, list):
-            self.tape_rses = tape_rses
+        if tape_rses is not None:
+            self.tape_rses = list(tape_rses)
         datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
-        if isinstance(datadisk_rses, list):
-            self.datadisk_rses = datadisk_rses
+        if datadisk_rses is not None:
+            self.datadisk_rses = list(datadisk_rses)
 
     def _get_input_ds_from_task_params(self, task_params_map):
         """
