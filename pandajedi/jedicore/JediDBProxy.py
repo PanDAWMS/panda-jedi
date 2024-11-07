@@ -15225,7 +15225,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 f"SET {dc_req_spec.bindUpdateChangesExpression()} "
                 "WHERE request_id=:request_id "
             )
-            var_map = {":request_id": dc_req_spec.request_id}
+            var_map = dc_req_spec.valuesMap(useSeq=False, onlyChanged=True)
+            var_map[":request_id"] = dc_req_spec.request_id
             self.cur.execute(sql_update + comment, var_map)
             # commit
             if not self._commit():
@@ -15323,7 +15324,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if res_list:
                 for (request_id,) in res_list:
                     # query info of related tasks
-                    sql_query_requests = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE rel.request_id=:request_id "
+                    sql_query_requests = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE request_id=:request_id "
                     var_map = {":request_id": request_id}
                     self.cur.execute(sql_query_requests + comment, var_map)
                     req_res_list = self.cur.fetchall()
