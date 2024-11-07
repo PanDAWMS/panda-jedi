@@ -1,5 +1,5 @@
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.FactoryBase import FactoryBase
 

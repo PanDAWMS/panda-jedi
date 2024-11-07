@@ -14,6 +14,24 @@ import sysconfig
 import requests
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
+PACKAGE_EMOJI = ":lightsaber:"
+PACKAGE_NAME = "panda-jedi"
+
+
+def get_user():
+    # Run the 'klist' command and capture its output
+    result = subprocess.run(["klist"], capture_output=True, text=True)
+
+    # Filter the lines containing 'Default principal' and extract the last field
+    for line in result.stdout.splitlines():
+        if "Default principal" in line:
+            # Split the line by spaces and get the last element (field)
+            default_principal = line.split()[-1]
+            default_principal = default_principal.split("@")[0]
+            return default_principal
+
+    return ""
+
 
 def get_repo_info() -> object:
     # Get the current remote URL of the repository
@@ -36,29 +54,36 @@ def get_repo_info() -> object:
 
 
 def mm_notification():
+    # Environment variable to check if we should silence the notification
+    if os.environ.get("DISABLE_MM"):
+        return
+
+    # Get user that is running the upgrade
+    user = get_user()
+
     # Get repository information
     repo_name, branch_name, commit_hash = get_repo_info()
 
     # Get Server Name
     server_name = socket.gethostname()
 
-    # TODO: decide on the best path for the hook URL
     file_path = os.path.expanduser("~/mm_webhook_url.txt")
     with open(file_path, "r") as file:
         mm_webhook_url = file.read().strip()
         if not mm_webhook_url:
             return
+
     # On the repository name we enter an empty space to prevent the URLs to preview on Mattermost
     # We shorten the commit hash to the first seven characters, as they are usually enough to identify a commit
     mm_message = {
-        "text": f":lightsaber:**Package upgrade on:** `{server_name}`.",
+        "text": f"{PACKAGE_EMOJI}**{PACKAGE_NAME}@{branch_name} upgrade on:** `{server_name}` by `{user}`.",
         "props": {
             "card": f"""
 | **Property** | **Value** |
 |--------------|-----------|
 | **Package**  | {repo_name} |
-| **Branch**   | `{branch_name}` |
-| **Commit**   | `{commit_hash}` |
+| **Branch**   | [`{branch_name}`]({repo_name}/tree/{branch_name}) |
+| **Commit**   |  [`{commit_hash}`]({repo_name}/commit/{commit_hash}) |
 """
         },
     }

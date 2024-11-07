@@ -9,7 +9,7 @@ class TaskGeneratorBase(object):
         self.refresh()
 
     def refresh(self):
-        self.siteMapper = self.taskBufferIF.getSiteMapper()
+        self.siteMapper = self.taskBufferIF.get_site_mapper()
 
 
 Interaction.installSC(TaskGeneratorBase)

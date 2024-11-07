@@ -84,7 +84,7 @@ class JobGenerator(JediKnight):
             try:
                 tmpLog.debug("start")
                 # get SiteMapper
-                siteMapper = self.taskBufferIF.getSiteMapper()
+                siteMapper = self.taskBufferIF.get_site_mapper()
                 tmpLog.debug("got siteMapper")
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
@@ -766,7 +766,7 @@ class JobGeneratorThread(WorkerThread):
                             tmpLog.info(f"submit njobs={len(pandaJobs)} jobs with FQAN={','.join(str(fqan) for fqan in fqans)}")
                             tmpLog.debug(main_stop_watch.get_elapsed_time(f"{len(pandaJobs)} job submission"))
                             iJobs = 0
-                            nJobsInBunch = 100
+                            nJobsInBunch = 500
                             resSubmit = []
                             esJobsetMap = {}
                             unprocessedMap = {}
@@ -781,6 +781,8 @@ class JobGeneratorThread(WorkerThread):
                                     esJobsetMap=esJobsetMap,
                                     getEsJobsetMap=True,
                                     unprocessedMap=unprocessedMap,
+                                    bulk_job_insert=True,
+                                    trust_user=True,
                                 )
                                 resSubmit += tmpResSubmit
                                 self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID, self.pid)
@@ -1407,9 +1409,6 @@ class JobGeneratorThread(WorkerThread):
                     # fake job
                     if jobSpec.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
                         jobSpec.setFakeJobToIgnore()
-                    # request type
-                    if taskSpec.requestType not in ["", None]:
-                        jobSpec.setRequestType(taskSpec.requestType)
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock is False and prodDBlock is not None:
                         jobSpec.prodDBlock = prodDBlock
@@ -2116,12 +2115,13 @@ class JobGeneratorThread(WorkerThread):
             for tmpFileSpec in tmpFileSpecList:
                 tmpLFNs.append(tmpFileSpec.lfn)
                 size_map[tmpFileSpec.lfn] = tmpFileSpec.fsize
-            # remove duplication for dynamic number of events
-            if taskSpec.dynamicNumEvents() and not isMerging:
-                tmpLFNs = list(set(tmpLFNs))
+            # tweak file list if necessary
             if isMerging:
                 # sort by descending size not to process empty files first
                 tmpLFNs.sort(key=lambda kkk: size_map[kkk], reverse=True)
+            elif taskSpec.dynamicNumEvents():
+                # remove duplication for dynamic number of events while preserving the file order
+                tmpLFNs = list(dict.fromkeys(tmpLFNs))
             elif not taskSpec.order_input_by():
                 # sort by LFN unless the order is specified
                 tmpLFNs.sort()
@@ -2635,18 +2635,7 @@ class JobGeneratorThread(WorkerThread):
         if not tmpStat:
             return Interaction.SC_FAILED, "failed to get task parameter dict", taskParamMap
         # look for sandbox
-        sandboxName = None
-        if "fixedSandbox" in taskParamMap:
-            sandboxName = taskParamMap["fixedSandbox"]
-        elif "buildSpec" in taskParamMap:
-            sandboxName = taskParamMap["buildSpec"]["archiveName"]
-        else:
-            for tmpParam in taskParamMap["jobParameters"]:
-                if tmpParam["type"] == "constant":
-                    m = re.search("^-a ([^ ]+)$", tmpParam["value"])
-                    if m is not None:
-                        sandboxName = m.group(1)
-                        break
+        sandboxName = RefinerUtils.get_sandbox_name(taskParamMap)
         if sandboxName is not None:
             tmpRes = self.taskBufferIF.extendSandboxLifetime_JEDI(task_spec.jediTaskID, sandboxName)
             tmp_log.debug(f"extend lifetime for {sandboxName} with {tmpRes}")

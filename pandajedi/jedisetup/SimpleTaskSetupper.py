@@ -1,8 +1,7 @@
 import traceback
 
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jedicore import Interaction
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .TaskSetupperBase import TaskSetupperBase
@@ -42,7 +41,7 @@ class SimpleTaskSetupper(TaskSetupperBase):
             if datasetToRegister:
                 tmpLog.info(f"datasetToRegister={str(datasetToRegister)}")
                 # get site mapper
-                siteMapper = self.taskBufferIF.getSiteMapper()
+                siteMapper = self.taskBufferIF.get_site_mapper()
 
                 # loop over all datasets
                 avDatasetList = []

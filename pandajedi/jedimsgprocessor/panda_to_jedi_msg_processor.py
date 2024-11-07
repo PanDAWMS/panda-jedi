@@ -3,13 +3,13 @@ import os
 import socket
 
 from pandacommon.pandalogger import logger_utils
+
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jediorder.JobGenerator import JobGeneratorThread
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
-# logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 
 
@@ -22,7 +22,6 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
         self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-pjmsg"
 
     def process(self, msg_obj, decoded_data=None):
-        # logger
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")
@@ -57,7 +56,7 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
                         inputList = ListWithLock(tmpList)
                         # create thread
                         threadPool = ThreadPool()
-                        siteMapper = self.tbIF.getSiteMapper()
+                        siteMapper = self.tbIF.get_site_mapper()
                         taskSetupper = TaskSetupper(vo, prodSourceLabel)
                         taskSetupper.initializeMods(self.tbIF, self.ddmIF)
                         gen = JobGeneratorThread(

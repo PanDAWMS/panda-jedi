@@ -1,7 +1,4 @@
-# logger
 import sys
-
-from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
@@ -19,7 +16,7 @@ tmpLog = MsgWrapper(logger)
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 
-siteMapper = tbIF.getSiteMapper()
+siteMapper = tbIF.get_site_mapper()
 
 
 ddmIF = DDMInterface()

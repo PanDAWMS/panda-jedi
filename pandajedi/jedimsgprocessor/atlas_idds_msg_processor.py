@@ -1,6 +1,7 @@
 import json
 
 from pandacommon.pandalogger import logger_utils
+
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jedimsgprocessor.hpo_msg_processor import HPOMsgProcPlugin
 from pandajedi.jedimsgprocessor.processing_msg_processor import ProcessingMsgProcPlugin
@@ -8,7 +9,6 @@ from pandajedi.jedimsgprocessor.tape_carousel_msg_processor import (
     TapeCarouselMsgProcPlugin,
 )
 
-# logger
 base_logger = logger_utils.setup_logger(__name__.split(".")[-1])
 
 
@@ -27,7 +27,6 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
             _plugin.tbIF = self.tbIF
 
     def process(self, msg_obj):
-        # logger
         tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name="process")
         # start
         tmp_log.info("start")

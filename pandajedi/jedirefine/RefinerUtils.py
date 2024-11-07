@@ -130,3 +130,25 @@ def get_initial_global_share(task_buffer, task_id, task_spec=None, task_param_ma
             error_message = "task definition does not match any global share"
             raise RuntimeError(error_message)
     return gshare
+
+
+# get sandbox name
+def get_sandbox_name(task_param_map: dict) -> str | None:
+    """
+    Get the sandbox name from the task parameters
+    :param task_param_map: dictionary of task parameters
+    :return: sandbox name or None
+    """
+    sandbox_name = None
+    if "fixedSandbox" in task_param_map:
+        sandbox_name = task_param_map["fixedSandbox"]
+    elif "buildSpec" in task_param_map:
+        sandbox_name = task_param_map["buildSpec"]["archiveName"]
+    else:
+        for tmpParam in task_param_map["jobParameters"]:
+            if tmpParam["type"] == "constant":
+                m = re.search("^-a ([^ ]+)$", tmpParam["value"])
+                if m is not None:
+                    sandbox_name = m.group(1)
+                    break
+    return sandbox_name

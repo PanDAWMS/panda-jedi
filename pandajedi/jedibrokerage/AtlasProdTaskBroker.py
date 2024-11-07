@@ -187,7 +187,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
             data_location_check_period = 7
         # main
         lastJediTaskID = None
-        siteMapper = self.taskBufferIF.getSiteMapper()
+        siteMapper = self.taskBufferIF.get_site_mapper()
         while True:
             try:
                 taskInputList = self.inputList.get(1)

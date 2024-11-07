@@ -1,4 +1,3 @@
-# logger
 import os
 import socket
 import sys
@@ -12,7 +11,7 @@ from pandajedi.jediorder.TaskSetupper import TaskSetupper
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 
-siteMapper = tbIF.getSiteMapper()
+siteMapper = tbIF.get_site_mapper()
 
 ddmIF = DDMInterface()
 ddmIF.setupInterface()
