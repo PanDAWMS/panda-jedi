@@ -13616,7 +13616,6 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlUF_without_ID = sqlUF + datesetid_list_str
             sqlUF_with_datasetID = sqlUF + "AND datasetID=:datasetID "
             sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
-            sqlUF_with_fileID_list = sqlUF_fileid + "AND fileID IN (:fileids_list) "
             # update files
             if to_update_files:
                 # split into groups according to whether with ids
@@ -13644,7 +13643,8 @@ class DBProxy(OraDBProxy.DBProxy):
                         for filename, (datasetid, fileid) in chunk:
                             fileids.append(str(fileid))
                         fileids_list_str = ",".join(fileids)
-                        tmp_varMap[":fileids_list"] = fileids_list_str
+                        sqlUF_with_fileID_list = sqlUF_fileid + "AND fileID IN ({fileids_list_str}) "
+                        # tmp_varMap[":fileids_list"] = fileids_list_str
                         tmpLog.debug(f"varMap: {tmp_varMap}")
                         tmpLog.debug(f"running sql execute: {sqlUF_with_fileID_list}")
                         self.cur.execute(sqlUF_with_fileID_list + comment, tmp_varMap)
