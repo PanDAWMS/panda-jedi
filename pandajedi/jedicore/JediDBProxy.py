@@ -13616,6 +13616,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlUF_without_ID = sqlUF + datesetid_list_str
             sqlUF_with_datasetID = sqlUF + "AND datasetID=:datasetID "
             sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
+            sqlUF_with_fileID_list = sqlUF_fileid + "AND fileID IN (:fileids_list) "
             # update files
             if to_update_files:
                 # split into groups according to whether with ids
@@ -13639,13 +13640,14 @@ class DBProxy(OraDBProxy.DBProxy):
                     filenames_dict_with_fileID_items_list_chunks = [filenames_list[i:i + chunk_size] for i in range(0, len(filenames_list), chunk_size)]
                     for chunk in filenames_dict_with_fileID_items_list_chunks:
                         fileids = []
+                        tmp_varMap = varMap.copy()
                         for filename, (datasetid, fileid) in chunk:
-                            fileids.append(fileid)
+                            fileids.append(str(fileid))
                         fileids_list_str = ",".join(fileids)
-                        sqlUF_with_fileID_list = sqlUF_fileid + f"AND fileID IN ({fileids_list_str}) "
-                        tmpLog.debug(f"varMap: {varMap}")
-                        tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID}")
-                        self.cur.execute(sqlUF_with_fileID_list + comment, varMaps)
+                        tmp_varMap[":fileids_list"] = fileids_list_str
+                        tmpLog.debug(f"varMap: {tmp_varMap}")
+                        tmpLog.debug(f"running sql execute: {sqlUF_with_fileID_list}")
+                        self.cur.execute(sqlUF_with_fileID_list + comment, tmp_varMap)
                         retVal += self.cur.rowcount
                 # loop over files with datasetID
                 if filenames_dict_with_datasetID:
