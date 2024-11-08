@@ -13539,7 +13539,7 @@ class DBProxy(OraDBProxy.DBProxy):
             return {}
 
     # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500):
         comment = " /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" < jediTaskID={jeditaskid} >"
@@ -13565,6 +13565,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     "AND scope=:scope "
                     "AND lfn=:lfn "
                 ).format(jedi_config.db.schemaJEDI)
+                sqlUF_fileid = (
+                    "UPDATE {0}.JEDI_Dataset_Contents "
+                    "SET status=:new_status "
+                    "WHERE jediTaskID=:jediTaskID "
+                    "AND status=:old_status "
+                ).format(jedi_config.db.schemaJEDI)
             else:
                 sqlUF = (
                     "UPDATE {0}.JEDI_Dataset_Contents "
@@ -13573,6 +13579,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     "AND status=:old_status "
                     "AND scope IS NULL "
                     "AND lfn like :lfn "
+                ).format(jedi_config.db.schemaJEDI)
+                sqlUF_fileid = (
+                    "UPDATE {0}.JEDI_Dataset_Contents "
+                    "SET status=:new_status "
+                    "WHERE jediTaskID=:jediTaskID "
+                    "AND status=:old_status "
                 ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
@@ -13602,8 +13614,8 @@ class DBProxy(OraDBProxy.DBProxy):
             params_key_str = ",".join(params_key_list)
             datesetid_list_str = f"AND datasetID IN ({params_key_str}) "
             sqlUF_without_ID = sqlUF + datesetid_list_str
-            sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
             sqlUF_with_datasetID = sqlUF + "AND datasetID=:datasetID "
+            sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
             # update files
             if to_update_files:
                 # split into groups according to whether with ids
@@ -13623,18 +13635,18 @@ class DBProxy(OraDBProxy.DBProxy):
                 # loop over files with fileID
                 if filenames_dict_with_fileID:
                     varMaps = []
-                    for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
-                        tmp_varMap = varMap.copy()
-                        if scope != "pseudo_dataset":
-                            tmp_varMap[":lfn"] = filename
-                        else:
-                            tmp_varMap[":lfn"] = "%" + filename
-                        tmp_varMap[":fileID"] = fileid
-                        varMaps.append(tmp_varMap)
-                        tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
-                    tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID}")
-                    self.cur.executemany(sqlUF_with_fileID + comment, varMaps)
-                    retVal += self.cur.rowcount
+                    filenames_list = list(filenames_dict_with_fileID.items())
+                    filenames_dict_with_fileID_items_list_chunks = [filenames_list[i:i + chunk_size] for i in range(0, len(filenames_list), chunk_size)]
+                    for chunk in filenames_dict_with_fileID_items_list_chunks:
+                        fileids = []
+                        for filename, (datasetid, fileid) in chunk:
+                            fileids.append(fileid)
+                        fileids_list_str = ",".join(fileids)
+                        sqlUF_with_fileID_list = sqlUF_fileid + f"AND fileID IN ({fileids_list_str}) "
+                        tmpLog.debug(f"varMap: {varMap}")
+                        tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID}")
+                        self.cur.execute(sqlUF_with_fileID_list + comment, varMaps)
+                        retVal += self.cur.rowcount
                 # loop over files with datasetID
                 if filenames_dict_with_datasetID:
                     varMaps = []
