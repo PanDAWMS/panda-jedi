@@ -30,7 +30,6 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         WatchDogBase.__init__(self, taskBufferIF, ddmIF)
-        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
         self.vo = "atlas"
         self.ddmIF = ddmIF.getInterface(self.vo)
         self.data_carousel_interface = DataCarouselInterface(taskBufferIF, self.ddmIF)
@@ -43,16 +42,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog.debug("start")
         try:
             # lock
-            got_lock = self.taskBufferIF.lockProcess_JEDI(
-                vo=self.vo,
-                prodSourceLabel="default",
-                cloud=None,
-                workqueue_id=None,
-                resource_name=None,
-                component="AtlasDataCarousDog.doStageDCReq",
-                pid=self.pid,
-                timeLimit=5,
-            )
+            got_lock = self.get_process_lock("AtlasDataCarousDog.doStageDCReq", timeLimit=5)
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
                 return
@@ -69,6 +59,31 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error(f"failed with {errtype} {errvalue} {traceback.format_exc()}")
 
+    def doCheckDCRequests(self):
+        """
+        Action to check active DC requests
+        """
+        tmpLog = MsgWrapper(logger, " #ATM #KV doCheckDCRequests")
+        tmpLog.debug("start")
+        try:
+            # lock
+            got_lock = self.get_process_lock("AtlasDataCarousDog.doCheckDCRequests", timeLimit=10)
+            if not got_lock:
+                tmpLog.debug("locked by another process. Skipped")
+                return
+            tmpLog.debug("got lock")
+            # get requests
+            # dc_req_specs = self.data_carousel_interface.get_requests_of_active_tasks()
+            # for dc_req_spec in dc_req_specs:
+            #     if dc_req_spec.status == DataCarouselRequestStatus.staging:
+            #         # check staging request
+            #         self.data_carousel_interface.check_staging_request(dc_req_spec)
+            # done
+            tmpLog.debug(f"done")
+        except Exception:
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error(f"failed with {errtype} {errvalue} {traceback.format_exc()}")
+
     def doKeepRulesAlive(self):
         """
         Action to keep DDM staging rules alive when tasks running
@@ -77,24 +92,19 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog.debug("start")
         try:
             # lock
-            got_lock = self.taskBufferIF.lockProcess_JEDI(
-                vo=self.vo,
-                prodSourceLabel="default",
-                cloud=None,
-                workqueue_id=None,
-                resource_name=None,
-                component="AtlasDataCarousDog.doKeepRulesAlive",
-                pid=self.pid,
-                timeLimit=60,
-            )
+            got_lock = self.get_process_lock("AtlasDataCarousDog.doKeepRulesAlive", timeLimit=60)
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
                 return
             tmpLog.debug("got lock")
-            # keep alive rules
-            self.data_carousel_interface.keep_alive_ddm_rules()
+            # get requests of active tasks
+            ret = self.data_carousel_interface.keep_alive_ddm_rules()
+            if ret:
+                tmpLog.warning(f"extended lifetime of DDM rules; skipped")
+            else:
+                tmpLog.warning(f"failed to extend lifetime of DDM rules; skipped")
             # done
-            tmpLog.debug("done")
+            tmpLog.debug(f"done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error(f"failed with {errtype} {errvalue} {traceback.format_exc()}")
@@ -107,16 +117,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog.debug("start")
         try:
             # lock
-            got_lock = self.taskBufferIF.lockProcess_JEDI(
-                vo=self.vo,
-                prodSourceLabel="default",
-                cloud=None,
-                workqueue_id=None,
-                resource_name=None,
-                component="AtlasDataCarousDog.doCleanDCReq",
-                pid=self.pid,
-                timeLimit=1440,
-            )
+            got_lock = self.get_process_lock("AtlasDataCarousDog.doCleanDCReq", timeLimit=1440)
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
                 return

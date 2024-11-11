@@ -228,6 +228,9 @@ class DataCarouselInterface(object):
         Args:
         rule_id (str): DDM rule ID
         lifetime (int): lifetime in seconds to set
+
+        Returns:
+            bool : True for success, False otherwise
         """
         set_map = {"lifetime": lifetime}
         ret = self.ddmIF.update_rule_by_id(rule_id, set_map)

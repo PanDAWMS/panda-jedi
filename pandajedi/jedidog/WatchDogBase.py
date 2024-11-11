@@ -1,13 +1,44 @@
+import socket
+
 from pandajedi.jedicore import Interaction
 
 
 # base class for watchdog
 class WatchDogBase(object):
+    """
+    Base class for watchdog
+    """
+
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         self.taskBufferIF = taskBufferIF
         self.ddmIF = ddmIF
+        self.pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}-dog"
+        self.vo = None
         self.refresh()
+
+    def get_process_lock(self, component, timeLimit=5, **kwargs):
+        """
+        Shortcut of get process lock for watchdog action methods
+
+        Args:
+        component (str): spec of the request
+        timeLimit (int): lifetime of the lock in minutes
+        **kwargs: other arguments for taskBufferIF.lockProcess_JEDI
+
+        Returns:
+            bool : True if got lock, False otherwise
+        """
+        return self.taskBufferIF.lockProcess_JEDI(
+            vo=self.vo,
+            prodSourceLabel=kwargs("prodSourceLabel", "default"),
+            cloud=kwargs("cloud", None),
+            workqueue_id=kwargs("workqueue_id", None),
+            resource_name=kwargs("resource_name", None),
+            component=component,
+            pid=self.pid,
+            timeLimit=timeLimit,
+        )
 
     # refresh
     def refresh(self):
