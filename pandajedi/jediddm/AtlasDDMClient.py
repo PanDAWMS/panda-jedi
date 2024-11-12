@@ -1526,6 +1526,30 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug(f"got {ret_list}")
         return self.SC_SUCCEEDED, ret_list
 
+    # list DID rules
+    def list_did_rules(self, dataset_name):
+        methodName = "list_did_rules"
+        methodName += f" datasetName={dataset_name}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        ret_list = []
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope, dsn = self.extract_scope(dataset_name)
+            # get rules
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                if rule["account"] == client.account:
+                    ret_list.append(rule)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got {len(ret_list)} rules")
+        return self.SC_SUCCEEDED, ret_list
+
     # update replication rule by rule ID
     def update_rule_by_id(self, rule_id, set_map):
         methodName = "update_rule_by_id"
@@ -1556,7 +1580,6 @@ class AtlasDDMClient(DDMClientBase):
         methodName = f"{methodName} rule_id={rule_id}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        ruleID = None
         try:
             # get rucio API
             client = RucioClient()
@@ -1569,3 +1592,23 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"got rule")
         return self.SC_SUCCEEDED, rule
+
+    # list details of all replica locks for a rule by rule ID
+    def list_replica_locks_by_id(self, rule_id):
+        methodName = "list_replica_locks_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get iterator of replica locks
+            ret = client.list_replica_locks(rule_id)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got replica locks")
+        return self.SC_SUCCEEDED, ret

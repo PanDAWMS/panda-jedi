@@ -15349,3 +15349,46 @@ class DBProxy(OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmp_log)
             return None
+
+    # get data carousel staging requests
+    def get_data_carousel_staging_requests_JEDI(self):
+        comment = " /* JediDBProxy.get_data_carousel_staging_requests_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # initialize
+            ret_list = []
+            # start transaction
+            self.conn.begin()
+            # sql to query staging requests
+            sql_query_req = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status=:status "
+            var_map = {":status": DataCarouselRequestStatus.staging}
+            self.cur.execute(sql_query_req + comment, var_map)
+            res_list = self.cur.fetchall()
+            if res_list:
+                now_time = naive_utcnow()
+                sql_update = f"UPDATE {jedi_config.db.schemaJEDI}.data_carousel_requests " f"SET check_time=:check_time " f"WHERE request_id=:request_id "
+                for res in res_list:
+                    # make request spec
+                    dc_req_spec = DataCarouselRequestSpec()
+                    dc_req_spec.pack(res)
+                    # update check time
+                    var_map = {":request_id": dc_req_spec.request_id, ":check_time": now_time}
+                    self.cur.execute(sql_update + comment, var_map)
+                    # add
+                    ret_list.append(dc_req_spec)
+            else:
+                tmp_log.debug("no queued request")
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"got {len(ret_list)} queued requests")
+            return ret_list
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None

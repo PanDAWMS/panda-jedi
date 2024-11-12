@@ -752,7 +752,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getActiveJumboJobs_JEDI(jediTaskID)
 
-    # get jobParms of the first job
+    # get jobParams of the first job
     def getJobParamsOfFirstJob_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
@@ -976,3 +976,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_data_carousel_requests_of_active_tasks_JEDI(self):
         with self.proxyPool.get() as proxy:
             return proxy.get_data_carousel_requests_of_active_tasks_JEDI()
+
+    # get data carousel staging requests
+    def get_data_carousel_staging_requests_JEDI(self):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_data_carousel_staging_requests_JEDI()
