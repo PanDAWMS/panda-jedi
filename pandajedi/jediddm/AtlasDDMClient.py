@@ -1603,8 +1603,10 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # get rucio API
             client = RucioClient()
-            # get iterator of replica locks
-            ret = client.list_replica_locks(rule_id)
+            # get generator of replica locks
+            res = client.list_replica_locks(rule_id)
+            # turn into list
+            ret = list(res)
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)

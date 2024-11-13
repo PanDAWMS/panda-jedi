@@ -127,63 +127,73 @@ class DataCarouselInterface(object):
         filtered_replicas_map = {"tape": [], "datadisk": []}
         has_datadisk_replica = len(replicas_map["datadisk"]) > 0
         for replica in replicas_map["tape"]:
-            if replica["rse"] in rse_expression_list:
+            if replica in rse_expression_list:
                 filtered_replicas_map["tape"].append(replica)
         if len(replicas_map["tape"]) >= 1 and len(filtered_replicas_map["tape"]) == 0 and len(rules) == 0:
             filtered_replicas_map["tape"] = replicas_map["tape"]
         for replica in replicas_map["datadisk"]:
-            if staging_rule is not None or replica["rse"] in rse_expression_list:
+            if staging_rule is not None or replica in rse_expression_list:
                 filtered_replicas_map["datadisk"].append(replica)
         all_datadisk_replicas_without_rules = has_datadisk_replica and len(filtered_replicas_map["datadisk"]) == 0
         return filtered_replicas_map, staging_rule, all_datadisk_replicas_without_rules
 
     def get_input_datasets_to_prestage(self, task_params_map):
         """
-        Get the input datasets and their source RSEs (tape) of the task which need pre-staging from tapes
+        Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
         Args:
         task_params_map (dict): task params of the JEDI task
 
         Returns:
-            list[tuple[str, str]]: list of tuples in the form of (dataset, source_rse)
+            list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
         """
         tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
-        ret_list = []
-        input_dataset_map = self._get_input_ds_from_task_params(task_params_map)
-        for dataset in input_dataset_map:
-            filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
-            if filtered_replicas_map["datadisk"]:
-                # replicas already on datadisk; skip
-                continue
-            elif not filtered_replicas_map["tape"]:
-                # no replica on tape; skip
-                continue
-            else:
-                # keep alive staging rule
-                if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
-                    self._refresh_ddm_rule(staging_rule["id"], 86400 * 30)
-                # source RSE
-                rse_list = [replica["rse"] for replica in filtered_replicas_map["tape"]]
-                source_rse = None
-                if len(rse_list) == 1:
-                    source_rse = rse_list[0]
+        try:
+            ret_list = []
+            input_dataset_map = self._get_input_ds_from_task_params(task_params_map)
+            for dataset in input_dataset_map:
+                filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
+                if rse_list := filtered_replicas_map["datadisk"]:
+                    # replicas already on datadisk; skip
+                    tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
+                    continue
+                elif not filtered_replicas_map["tape"]:
+                    # no replica on tape; skip
+                    tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
+                    continue
                 else:
-                    non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
-                    if non_CERN_rse_list:
-                        source_rse = random.choice(non_CERN_rse_list)
+                    ddm_rule_id = None
+                    # keep alive staging rule
+                    if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
+                        ddm_rule_id = staging_rule["id"]
+                        self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
+                        tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
+                    # source RSE
+                    rse_list = [replica["rse"] for replica in filtered_replicas_map["tape"]]
+                    source_rse = None
+                    if len(rse_list) == 1:
+                        source_rse = rse_list[0]
                     else:
-                        source_rse = random.choice(rse_list)
-                # add to prestage
-                ret_list.append((dataset, source_rse))
-        return ret_list
+                        non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
+                        if non_CERN_rse_list:
+                            source_rse = random.choice(non_CERN_rse_list)
+                        else:
+                            source_rse = random.choice(rse_list)
+                    # add to prestage
+                    ret_list.append((dataset, source_rse, ddm_rule_id))
+                    tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
+            return ret_list
+        except Exception as e:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            raise e
 
-    def submit_data_carousel_requests(self, task_id: int, dataset_source_list: list[tuple[str, str]]) -> bool | None:
+    def submit_data_carousel_requests(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
         """
         Submit data carousel requests for a task
 
         Args:
         task_id (int): JEDI task ID
-        dataset_source_list (list[tuple[str, str]]): list of tuples in the form of (dataset, source_rse)
+        dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
         Returns:
             bool | None : True if submission successful, or None if failed
@@ -192,7 +202,7 @@ class DataCarouselInterface(object):
         # fill dc request spec for each input dataset
         dc_req_spec_list = []
         now_time = naive_utcnow()
-        for dataset, source_rse in dataset_source_list:
+        for dataset, source_rse, ddm_rule_id in dataset_source_list:
             dc_req_spec = DataCarouselRequestSpec()
             dc_req_spec.dataset = dataset
             dataset_meta = self.ddmIF.getDatasetMetaData(dataset)
@@ -200,6 +210,7 @@ class DataCarouselInterface(object):
             dc_req_spec.dataset_size = dataset_meta["bytes"]
             dc_req_spec.staged_files = 0
             dc_req_spec.staged_size = 0
+            dc_req_spec.ddm_rule_id = ddm_rule_id
             dc_req_spec.source_rse = source_rse
             dc_req_spec.status = DataCarouselRequestStatus.queued
             dc_req_spec.creation_time = now_time
@@ -228,7 +239,7 @@ class DataCarouselInterface(object):
             # TODO: add algorithms to filter queued requests according to gshare, priority, etc. ; also limit length according to staging profiles
             # FIXME: currently all queued requests are returned
             ret_list.append(dc_req_spec)
-        tmp_log.debug(f"got len{ret_list} requests")
+        tmp_log.debug(f"got {len(ret_list)} requests")
         # return
         return ret_list
 
@@ -242,11 +253,18 @@ class DataCarouselInterface(object):
         Returns:
             str | None : DDM rule_id of the new rule if submission successful, or None if failed
         """
+        tmp_log = MsgWrapper(logger, f"_submit_ddm_rule request_id={dc_req_spec.request_id}")
         # TODO: configurable params to get from DC config
         expression = "type=DATADISK&datapolicynucleus=True&freespace>300"
         lifetime = None
         weight = None
         source_replica_expression = None
+        if dc_req_spec.source_rse:
+            source_replica_expression = f"type=DATADISK|{dc_req_spec.source_rse}"
+        else:
+            # no source_rse; unexpected
+            tmp_log.warning(f"source_rse is None ; skipped")
+            return
         # submit ddm staging rule
         ddm_rule_id = self.ddmIF.make_staging_rule(
             dataset_name=dc_req_spec.dataset,
@@ -272,22 +290,31 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, f"stage_request request_id={dc_req_spec.request_id}")
         is_ok = False
-        # submit DDM rule
-        ddm_rule_id = self._submit_ddm_rule(dc_req_spec)
-        now_time = naive_utcnow()
-        if ddm_rule_id:
-            tmp_log.debug(f"submitted DDM rule rule_id={ddm_rule_id}")
-            # DDM rule submitted; update request to be staging
-            dc_req_spec.ddm_rule_id = ddm_rule_id
-            dc_req_spec.status = DataCarouselRequestStatus.staging
-            dc_req_spec.start_time = now_time
-            ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
-            if ret is not None:
-                tmp_log.info(f"updated DB about staging; status={dc_req_spec.status}")
-                dc_req_spec = ret
-                is_ok = True
+        # check existing DDM rule of the dataset
+        if dc_req_spec.ddm_rule_id is not None:
+            # DDM rule exists; no need to submit
+            tmp_log.debug(f"dataset={dc_req_spec.dataset} already has active DDM rule ddm_rule_id={ddm_rule_id}")
         else:
-            tmp_log.warning(f"failed to submitted DDM rule")
+            # no existing rule; submit DDM rule
+            ddm_rule_id = self._submit_ddm_rule(dc_req_spec)
+            now_time = naive_utcnow()
+            if ddm_rule_id:
+                # DDM rule submitted; update ddm_rule_id
+                dc_req_spec.ddm_rule_id = ddm_rule_id
+                tmp_log.debug(f"submitted DDM rule ddm_rule_id={ddm_rule_id}")
+            else:
+                # failed to submit
+                tmp_log.warning(f"failed to submitted DDM rule ; skipped")
+                return is_ok
+        # update request to be staging
+        dc_req_spec.status = DataCarouselRequestStatus.staging
+        dc_req_spec.start_time = now_time
+        ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
+        if ret is not None:
+            tmp_log.info(f"updated DB about staging; status={dc_req_spec.status}")
+            dc_req_spec = ret
+            is_ok = True
+        # return
         return is_ok
 
     def _refresh_ddm_rule(self, rule_id: str, lifetime: int):
@@ -324,16 +351,26 @@ class DataCarouselInterface(object):
                     tmp_log.error(f"request_id={dc_req_spec.request_id} cannot get rule of ddm_rule_id={ddm_rule_id}")
                     continue
                 # rule lifetime
-                now_time = naive_utcnow()
-                rule_lifetime = now_time - the_rule["expires_at"]
+                rule_lifetime = None
+                if the_rule["expires_at"]:
+                    now_time = naive_utcnow()
+                    rule_lifetime = now_time - the_rule["expires_at"]
                 # trigger renewal when lifetime within the range
-                if rule_lifetime < timedelta(days=5) and rule_lifetime > timedelta(hours=2):
+                if rule_lifetime is None or (rule_lifetime < timedelta(days=5) and rule_lifetime > timedelta(hours=2)):
+                    days = None
                     if dc_req_spec.status == DataCarouselRequestStatus.staging:
                         # for requests staging
-                        self._refresh_ddm_rule(ddm_rule_id, 86400 * 15)
+                        days = 15
                     elif dc_req_spec.status == DataCarouselRequestStatus.done:
                         # for requests done
-                        self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
+                        days = 30
+                    if days:
+                        self._refresh_ddm_rule(ddm_rule_id, 86400 * days)
+                        tmp_log.debug(
+                            f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} refreshed lifetime to be {days} days long"
+                        )
+                    else:
+                        tmp_log.debug(f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} not to renew ; skipped")
             except Exception:
                 tmp_log.error(f"request_id={dc_req_spec.request_id} got error ; {traceback.format_exc()}")
 
@@ -353,18 +390,12 @@ class DataCarouselInterface(object):
                     # got error when getting the rule
                     tmp_log.error(f"request_id={dc_req_spec.request_id} cannot get rule of ddm_rule_id={ddm_rule_id}")
                     continue
-                # source RSE
-                # source_rse = ""
-                # if dc_req_spec.source_rse is None and source_rse:
-                #     # fill in source RSE
-                #     dc_req_spec.source_rse = source_rse
-                #     to_update = True
                 # Destination RSE
                 if dc_req_spec.destination_rse is None:
-                    the_replica_lock = self.ddmIF.list_replica_locks_by_id(ddm_rule_id)
+                    the_replica_locks = self.ddmIF.list_replica_locks_by_id(ddm_rule_id)
                     try:
-                        the_first_file = next(the_replica_lock)
-                    except StopIteration:
+                        the_first_file = the_replica_locks[0]
+                    except IndexError:
                         tmp_log.warning(
                             f"request_id={dc_req_spec.request_id} no file from replica lock of ddm_rule_id={ddm_rule_id} ; destination_rse not updated"
                         )
@@ -392,7 +423,6 @@ class DataCarouselInterface(object):
                     # all files staged; process request to done
                     now_time = naive_utcnow()
                     dc_req_spec.status = DataCarouselRequestStatus.done
-                    dc_req_spec.update_time = now_time
                     dc_req_spec.end_time = now_time
                     dc_req_spec.staged_size = dc_req_spec.dataset_size
                     to_update = True

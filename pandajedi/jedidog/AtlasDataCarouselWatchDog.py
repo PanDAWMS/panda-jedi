@@ -72,13 +72,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another process. Skipped")
                 return
             tmpLog.debug("got lock")
-            # get requests
-            # dc_req_specs = self.data_carousel_interface.get_requests_of_active_tasks()
-            # for dc_req_spec in dc_req_specs:
-            #     if dc_req_spec.status == DataCarouselRequestStatus.staging:
-            #         # check staging request
-            #         self.data_carousel_interface.check_staging_request(dc_req_spec)
-            # done
+            self.data_carousel_interface.check_staging_requests()
             tmpLog.debug(f"done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
@@ -98,11 +92,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 return
             tmpLog.debug("got lock")
             # get requests of active tasks
-            ret = self.data_carousel_interface.keep_alive_ddm_rules()
-            if ret:
-                tmpLog.warning(f"extended lifetime of DDM rules; skipped")
-            else:
-                tmpLog.warning(f"failed to extend lifetime of DDM rules; skipped")
+            self.data_carousel_interface.keep_alive_ddm_rules()
             # done
             tmpLog.debug(f"done")
         except Exception:
@@ -142,6 +132,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
             self.doKeepRulesAlive()
             # stage queued requests
             self.doStageDCRequests()
+            # check staging requests
+            self.doCheckDCRequests()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             origTmpLog.error(f"failed with {errtype} {errvalue}")

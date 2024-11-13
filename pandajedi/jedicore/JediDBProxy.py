@@ -15351,7 +15351,7 @@ class DBProxy(OraDBProxy.DBProxy):
             return None
 
     # get data carousel staging requests
-    def get_data_carousel_staging_requests_JEDI(self):
+    def get_data_carousel_staging_requests_JEDI(self, time_limit_minutes=5):
         comment = " /* JediDBProxy.get_data_carousel_staging_requests_JEDI */"
         method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
@@ -15362,8 +15362,11 @@ class DBProxy(OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             # sql to query staging requests
-            sql_query_req = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status=:status "
-            var_map = {":status": DataCarouselRequestStatus.staging}
+            sql_query_req = (
+                f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status=:status " f"AND check_time<=:check_time_max "
+            )
+            now_time = naive_utcnow()
+            var_map = {":status": DataCarouselRequestStatus.staging, ":check_time_max": now_time - datetime.timedelta(minutes=time_limit_minutes)}
             self.cur.execute(sql_query_req + comment, var_map)
             res_list = self.cur.fetchall()
             if res_list:
@@ -15386,6 +15389,38 @@ class DBProxy(OraDBProxy.DBProxy):
             # return
             tmp_log.debug(f"got {len(ret_list)} queued requests")
             return ret_list
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # clean up data carousel requests
+    def clean_up_data_carousel_requests_JEDI(self, time_limit_hours=48):
+        comment = " /* JediDBProxy.clean_up_data_carousel_requests_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # sql to delete terminated requests
+            now_time = naive_utcnow()
+            sql_delete = f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status IN (:status1, :status2) " f"AND end_time<=:end_time_max "
+            var_map = {
+                ":status1": DataCarouselRequestStatus.done,
+                ":status2": DataCarouselRequestStatus.cancelled,
+                ":end_time_max": now_time - datetime.timedelta(hours=time_limit_hours),
+            }
+            self.cur.execute(sql_delete + comment, var_map)
+            ret = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"cleaned up {ret} requests")
+            return ret
         except Exception:
             # roll back
             self._rollback()

@@ -1,3 +1,4 @@
+import os
 import socket
 
 from pandajedi.jedicore import Interaction
@@ -31,10 +32,10 @@ class WatchDogBase(object):
         """
         return self.taskBufferIF.lockProcess_JEDI(
             vo=self.vo,
-            prodSourceLabel=kwargs("prodSourceLabel", "default"),
-            cloud=kwargs("cloud", None),
-            workqueue_id=kwargs("workqueue_id", None),
-            resource_name=kwargs("resource_name", None),
+            prodSourceLabel=kwargs.get("prodSourceLabel", "default"),
+            cloud=kwargs.get("cloud", None),
+            workqueue_id=kwargs.get("workqueue_id", None),
+            resource_name=kwargs.get("resource_name", None),
             component=component,
             pid=self.pid,
             timeLimit=timeLimit,
