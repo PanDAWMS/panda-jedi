@@ -13563,9 +13563,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     f"SET status=:new_status "
                     f"WHERE jediTaskID=:jediTaskID "
                     f"AND status=:old_status "
-                    f"AND scope=:scope "
                 )
-                sqlUF_with_lfn = sqlUF + "AND lfn=:lfn "
+                sqlUF_with_lfn = sqlUF + "AND scope=:scope AND lfn=:lfn "
                 sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
             else:
                 sqlUF = (
@@ -13630,6 +13629,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         for filename, (datasetid, fileid) in one_batch:
                             tmp_varMap = varMap.copy()
                             tmp_varMap[":fileID"] = fileid
+                            del tmp_varMap[":scope"]
                             varMaps.append(tmp_varMap)
                             tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
                         tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID} for {len(varMaps)} items")
