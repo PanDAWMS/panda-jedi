@@ -13540,14 +13540,13 @@ class DBProxy(OraDBProxy.DBProxy):
             return {}
 
     # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500):
         comment = " /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" < jediTaskID={jeditaskid} >"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
-            batch_size = 500
             to_update_files = True
             retVal = 0
             # varMap
@@ -13560,22 +13559,25 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to update file status
             if scope != "pseudo_dataset":
                 sqlUF = (
-                    "UPDATE {0}.JEDI_Dataset_Contents "
-                    "SET status=:new_status "
-                    "WHERE jediTaskID=:jediTaskID "
-                    "AND status=:old_status "
-                    "AND scope=:scope "
-                    "AND lfn=:lfn "
-                ).format(jedi_config.db.schemaJEDI)
+                    f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
+                    f"SET status=:new_status "
+                    f"WHERE jediTaskID=:jediTaskID "
+                    f"AND status=:old_status "
+                    f"AND scope=:scope "
+                )
+                sqlUF_with_lfn = sqlUF + "AND lfn=:lfn "
+                sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
             else:
                 sqlUF = (
-                    "UPDATE {0}.JEDI_Dataset_Contents "
-                    "SET status=:new_status "
-                    "WHERE jediTaskID=:jediTaskID "
-                    "AND status=:old_status "
-                    "AND scope IS NULL "
-                    "AND lfn like :lfn "
-                ).format(jedi_config.db.schemaJEDI)
+                    f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
+                    f"SET status=:new_status "
+                    f"WHERE jediTaskID=:jediTaskID "
+                    f"AND status=:old_status "
+                    f"AND scope IS NULL "
+                )
+                sqlUF_with_lfn = sqlUF + "AND lfn like :lfn "
+                sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
+            sqlUF_with_datasetID = sqlUF_with_lfn + "AND datasetID=:datasetID "
             # begin transaction
             self.conn.begin()
             # get datasetIDs from DB if no fileID nor datasetID provided by the message
@@ -13603,9 +13605,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # set sqls to update file status
             params_key_str = ",".join(params_key_list)
             datesetid_list_str = f"AND datasetID IN ({params_key_str}) "
-            sqlUF_without_ID = sqlUF + datesetid_list_str
-            sqlUF_with_fileID = sqlUF + "AND fileID=:fileID "
-            sqlUF_with_datasetID = sqlUF + "AND datasetID=:datasetID "
+            sqlUF_without_ID = sqlUF_with_lfn + datesetid_list_str
             # update files
             if to_update_files:
                 # split into groups according to whether with ids
@@ -13624,15 +13624,11 @@ class DBProxy(OraDBProxy.DBProxy):
                         filenames_dict_without_ID[filename] = (datasetid, fileid)
                 # loop over files with fileID
                 if filenames_dict_with_fileID:
-                    for one_batch in batched(filenames_dict_with_fileID.items(), batch_size):
+                    for one_batch in batched(filenames_dict_with_fileID.items(), chunk_size):
                         # loop batches of executemany
                         varMaps = []
                         for filename, (datasetid, fileid) in one_batch:
                             tmp_varMap = varMap.copy()
-                            if scope != "pseudo_dataset":
-                                tmp_varMap[":lfn"] = filename
-                            else:
-                                tmp_varMap[":lfn"] = "%" + filename
                             tmp_varMap[":fileID"] = fileid
                             varMaps.append(tmp_varMap)
                             tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
@@ -13641,7 +13637,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         retVal += self.cur.rowcount
                 # loop over files with datasetID
                 if filenames_dict_with_datasetID:
-                    for one_batch in batched(filenames_dict_with_datasetID.items(), batch_size):
+                    for one_batch in batched(filenames_dict_with_datasetID.items(), chunk_size):
                         # loop batches of executemany
                         varMaps = []
                         for filename, (datasetid, fileid) in one_batch:
@@ -13658,7 +13654,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         retVal += self.cur.rowcount
                 # loop over files without ID
                 if filenames_dict_without_ID:
-                    for one_batch in batched(filenames_dict_without_ID.items(), batch_size):
+                    for one_batch in batched(filenames_dict_without_ID.items(), chunk_size):
                         # loop batches of executemany
                         varMaps = []
                         for filename, (datasetid, fileid) in one_batch:
