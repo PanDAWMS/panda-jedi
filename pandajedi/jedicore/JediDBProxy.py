@@ -13629,7 +13629,8 @@ class DBProxy(OraDBProxy.DBProxy):
                         for filename, (datasetid, fileid) in one_batch:
                             tmp_varMap = varMap.copy()
                             tmp_varMap[":fileID"] = fileid
-                            del tmp_varMap[":scope"]
+                            if ":scope" in tmp_varMap:
+                                del tmp_varMap[":scope"]
                             varMaps.append(tmp_varMap)
                             tmpLog.debug(f"tmp_varMap: {tmp_varMap}")
                         tmpLog.debug(f"running sql executemany: {sqlUF_with_fileID} for {len(varMaps)} items")
