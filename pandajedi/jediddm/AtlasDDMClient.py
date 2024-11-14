@@ -1462,6 +1462,7 @@ class AtlasDDMClient(DDMClientBase):
                 ruleID = rule["id"]
                 tmpLog.debug(f"made new rule : ID={ruleID}")
         except Exception as e:
+            errMsg = f"failed to make staging rule with {str(e)}"
             tmpLog.error(errMsg + traceback.format_exc())
             isOK = False
             errType = e

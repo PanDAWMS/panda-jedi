@@ -209,6 +209,10 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                 self.taskSpec.setLimitedSites("exc")
             elif "includedSite" in taskParamMap:
                 self.taskSpec.setLimitedSites("inc")
+            # input prestaging
+            if self.taskSpec.inputPreStaging():
+                # set first contents feed flag
+                self.taskSpec.set_first_contents_feed(True)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             errStr = f"doRefine failed with {errtype.__name__}:{errvalue}"

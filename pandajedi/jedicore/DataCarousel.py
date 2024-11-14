@@ -69,21 +69,31 @@ class DataCarouselInterface(object):
         self.ddmIF = ddmIF
         self.tape_rses = []
         self.datadisk_rses = []
+        self._last_update_rses_ts = None
         # update
         self._update_rses()
 
-    def _update_rses(self):
+    def _update_rses(self, time_limit_minutes=30):
         """
         Update RSEs per type cached in this object
         """
-        tmp_log = MsgWrapper(logger, "_update_rses")
-        tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
-        if tape_rses is not None:
-            self.tape_rses = list(tape_rses)
-        datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
-        if datadisk_rses is not None:
-            self.datadisk_rses = list(datadisk_rses)
-        tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
+        try:
+            tmp_log = MsgWrapper(logger, "_update_rses")
+            now_time = naive_utcnow()
+            if self._last_update_rses_ts is None or (now_time - self._last_update_rses_ts) >= timedelta(minutes=time_limit_minutes):
+                tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
+                if tape_rses is not None:
+                    self.tape_rses = list(tape_rses)
+                datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
+                if datadisk_rses is not None:
+                    self.datadisk_rses = list(datadisk_rses)
+                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
+                tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
+                self._last_update_rses_ts = naive_utcnow()
+            return True
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return False
 
     def _get_input_ds_from_task_params(self, task_params_map):
         """
@@ -150,6 +160,7 @@ class DataCarouselInterface(object):
         tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
         try:
             ret_list = []
+            self._update_rses()
             input_dataset_map = self._get_input_ds_from_task_params(task_params_map)
             for dataset in input_dataset_map:
                 filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
@@ -169,7 +180,7 @@ class DataCarouselInterface(object):
                         self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
                         tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
                     # source RSE
-                    rse_list = [replica["rse"] for replica in filtered_replicas_map["tape"]]
+                    rse_list = [replica for replica in filtered_replicas_map["tape"]]
                     source_rse = None
                     if len(rse_list) == 1:
                         source_rse = rse_list[0]
@@ -236,7 +247,7 @@ class DataCarouselInterface(object):
         if queued_requests is None:
             return ret_list
         for dc_req_spec, task_specs in queued_requests:
-            # TODO: add algorithms to filter queued requests according to gshare, priority, etc. ; also limit length according to staging profiles
+            # TODO: add algorithms to filter queued requests whether with existing DDM rule, and according to gshare, priority, etc. ; also limit length according to staging profiles
             # FIXME: currently all queued requests are returned
             ret_list.append(dc_req_spec)
         tmp_log.debug(f"got {len(ret_list)} requests")

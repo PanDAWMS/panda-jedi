@@ -196,19 +196,25 @@ class TaskRefinerThread(WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
-                            ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
-                            if not ds_list_to_prestage:
-                                tmpLog.debug("no need to prestage")
-                                # no dataset needs pre-staging; unset inputPreStaging
-                                taskParamMap["inputPreStaging"] = False
-                            else:
-                                # submit data carousel requests for dataset to pre-stage
-                                tmpLog.info("to prestage, submitting data carousel requests")
-                                tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
-                                if tmp_ret:
-                                    tmpLog.info("submitted data carousel requests")
+                            try:
+                                ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
+                                if not ds_list_to_prestage:
+                                    tmpLog.debug("no need to prestage")
+                                    # no dataset needs pre-staging; unset inputPreStaging
+                                    taskParamMap["inputPreStaging"] = False
                                 else:
-                                    tmpLog.error("failed to submit data carousel requests")
+                                    # submit data carousel requests for dataset to pre-stage
+                                    tmpLog.info("to prestage, submitting data carousel requests")
+                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                    if tmp_ret:
+                                        tmpLog.info("submitted data carousel requests")
+                                    else:
+                                        tmpLog.error("failed to submit data carousel requests")
+                            except Exception:
+                                errtype, errvalue = sys.exc_info()[:2]
+                                errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
+                                tmpLog.error(errStr)
+                                tmpStat = Interaction.SC_FAILED
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:

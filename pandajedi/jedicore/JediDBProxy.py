@@ -15363,7 +15363,10 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             # sql to query staging requests
             sql_query_req = (
-                f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status=:status " f"AND check_time<=:check_time_max "
+                f"SELECT * "
+                f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests "
+                f"WHERE status=:status "
+                f"AND ( check_time IS NULL OR check_time<=:check_time_max ) "
             )
             now_time = naive_utcnow()
             var_map = {":status": DataCarouselRequestStatus.staging, ":check_time_max": now_time - datetime.timedelta(minutes=time_limit_minutes)}
