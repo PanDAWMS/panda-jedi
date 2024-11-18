@@ -105,7 +105,7 @@ def get_sites_with_data(siteList, siteMapper, ddmIF, datasetName, element_list, 
         # look for complete replicas
         for tmp_data in tmp_data_list:
             # blacklisted
-            if tmp_data["read_blacklisted"]:
+            if "read_blacklisted" in tmp_data and tmp_data["read_blacklisted"]:
                 continue
             if not tmp_data.get("vp"):
                 if tmp_data["found"] == tmp_data["total"]:
