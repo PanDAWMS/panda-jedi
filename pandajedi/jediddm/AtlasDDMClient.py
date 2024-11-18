@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import traceback
+from typing import Any
 
 import requests
 
@@ -569,7 +570,7 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # get scope and name
             scope, dsn = self.extract_scope(datasetName)
-            # get
+            # get metadata
             if dsn.endswith("/"):
                 dsn = dsn[:-1]
             tmpRet = client.get_metadata(scope, dsn)
@@ -1156,6 +1157,9 @@ class AtlasDDMClient(DDMClientBase):
                     if "site" in item and "rse" not in item:
                         item["rse"] = item["site"]
                     items.append(item)
+        # get blacklist
+        bad_rse_list = set(self.get_bad_endpoint_read())
+        # loop over all RSEs
         for item in items:
             rse = item["rse"]
             if skip_incomplete_element and (not item["available_length"] or item["length"] != item["available_length"]):
@@ -1168,6 +1172,7 @@ class AtlasDDMClient(DDMClientBase):
                     "asize": item["available_bytes"],
                     "vp": item["vp"],
                     "immutable": 1,
+                    "read_blacklisted": rse in bad_rse_list,
                 }
             ]
         return retMap
@@ -1301,38 +1306,47 @@ class AtlasDDMClient(DDMClientBase):
         return
 
     # check if the dataset is distributed
-    def isDistributedDataset(self, datasetName):
-        methodName = "isDistributedDataset"
-        methodName += f" pid={self.pid}"
-        methodName += f" <datasetName={datasetName}>"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        isDDS = None
-        isOK = True
+    def isDistributedDataset(self, dataset_name: str) -> tuple[Any, bool | str]:
+        """
+        Check if the dataset/container is distributed
+        :param dataset_name: dataset name
+        :return: status, is_distributed (True if distributed, error message if failed)
+        """
+        method_name = "isDistributedDataset"
+        method_name += f" pid={self.pid}"
+        method_name += f" <datasetName={dataset_name}>"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        is_distributed = True
+        is_ok = True
         try:
             # get rucio API
             client = RucioClient()
             # get scope and name
-            scope, dsn = self.extract_scope(datasetName)
+            scope, dsn = self.extract_scope(dataset_name)
+            # get metadata
+            if dsn.endswith("/"):
+                dsn = dsn[:-1]
+            tmp_ret = client.get_metadata(scope, dsn)
+            did_type = tmp_ret["did_type"]
             # get rules
             for rule in client.list_did_rules(scope, dsn):
-                if rule["grouping"] != "NONE":
-                    isDDS = False
+                if rule["grouping"] == "NONE":
+                    continue
+                elif rule["grouping"] == "DATASET" and did_type == "CONTAINER":
+                    continue
+                else:
+                    is_distributed = False
                     break
-                elif isDDS is None:
-                    isDDS = True
-            # regarded as distributed when there is no rule
-            if isDDS is None:
-                isDDS = True
         except Exception as e:
-            isOK = False
-            errType = e
-        if not isOK:
-            errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, f"{methodName} : {errMsg}"
-        tmpLog.debug(f"done with {isDDS}")
-        return self.SC_SUCCEEDED, isDDS
+            is_ok = False
+            err_type = e
+        if not is_ok:
+            err_code, err_msg = self.checkError(err_type)
+            tmp_log.error(err_msg)
+            return err_code, f"{method_name} : {err_msg}"
+        tmp_log.debug(f"done with {is_distributed}")
+        return self.SC_SUCCEEDED, is_distributed
 
     # update replication rules
     def updateReplicationRules(self, datasetName, dataMap):

@@ -6332,6 +6332,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 if totFinished > 0:
                     totalJobs = int(totFiles * len(pandaIDList) // totFinished)
                     nNewJobs = int((totFiles - totUsed) * len(pandaIDList) // totFinished)
+                    # take into account size limit for scouts
+                    if (
+                        task_spec
+                        and task_spec.useScout()
+                        and not task_spec.getNumFilesPerJob()
+                        and not task_spec.getNumEventsPerJob()
+                        and not task_spec.getMaxSizePerJob()
+                    ):
+                        nNewJobs = int(nNewJobs * InputChunk.maxInputSizeScouts / InputChunk.maxInputSizeAvalanche)
+                        totalJobs = int(totalJobs * InputChunk.maxInputSizeScouts / InputChunk.maxInputSizeAvalanche)
                     # estimate the number of new jobs with size
                     var_map = dict()
                     var_map[":jediTaskID"] = jediTaskID
@@ -6343,6 +6353,15 @@ class DBProxy(OraDBProxy.DBProxy):
                         total_in_event, total_finished_event = res_num_jobs_event
                         if total_finished_event is not None and total_finished_event > 0:
                             total_jobs_with_event = int(total_in_event * len(pandaIDList) // total_finished_event)
+                            # take into account size limit for scouts
+                            if (
+                                task_spec
+                                and task_spec.useScout()
+                                and not task_spec.getNumFilesPerJob()
+                                and not task_spec.getNumEventsPerJob()
+                                and not task_spec.getMaxSizePerJob()
+                            ):
+                                total_jobs_with_event = int(total_jobs_with_event * InputChunk.maxInputSizeScouts / InputChunk.maxInputSizeAvalanche)
         extraInfo["expectedNumJobs"] = totalJobs
         extraInfo["numFinishedJobs"] = len(pandaIDList)
         extraInfo["nFiles"] = totFiles
@@ -6935,10 +6954,10 @@ class DBProxy(OraDBProxy.DBProxy):
                     if manyShortJobs:
                         toExhausted = True
                         # check expected number of jobs
-                        if shortJobCutoff and max(extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithEvent"]) < shortJobCutoff:
+                        if shortJobCutoff and min(extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithEvent"]) < shortJobCutoff:
                             tmpLog.debug(
                                 "not to set exhausted or change split rule since expect num of jobs "
-                                "max({} file-based est., {} event-based est.) is less than {}".format(
+                                "min({} file-based, {} event-based) is less than {}".format(
                                     extraInfo["expectedNumJobs"], extraInfo["expectedNumJobsWithEvent"], shortJobCutoff
                                 )
                             )
@@ -6995,10 +7014,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         if toExhausted:
                             errMsg = "#ATM #KV action=set_exhausted since reason=many_shorter_jobs "
                             errMsg += (
-                                "{}/{} jobs (greater than {}/10, excluding {} jobs that the site "
-                                "config enforced "
-                                "to run with copy-to-scratch) had shorter execution time than {} min "
-                                "and the expected num of jobs max({} file-based est., {} event-based est.) is larger than {} {}".format(
+                                "{}/{} jobs (greater than {}0%, excluding {} jobs forced "
+                                "to run with copy-to-scratch) ran faster than {} min, "
+                                "and the expected num of jobs min({} file-based, {} event-based) exceeds {} {}".format(
                                     extraInfo["nShortJobs"],
                                     extraInfo["nTotalForShort"],
                                     maxShortJobs,
