@@ -92,7 +92,7 @@ class TaskRefinerBase(object):
         taskSpec.taskName = taskParamMap["taskName"]
         taskSpec.userName = taskParamMap["userName"]
         taskSpec.vo = taskParamMap["vo"]
-        taskSpec.framework = taskParamMap.get("framework", None)
+        taskSpec.framework = taskParamMap.get("framework", "undefined")
         taskSpec.prodSourceLabel = taskParamMap["prodSourceLabel"]
         taskSpec.taskPriority = taskParamMap["taskPriority"]
         if taskSpec.taskPriority is None:
