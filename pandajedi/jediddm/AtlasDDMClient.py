@@ -1157,6 +1157,9 @@ class AtlasDDMClient(DDMClientBase):
                     if "site" in item and "rse" not in item:
                         item["rse"] = item["site"]
                     items.append(item)
+        # get blacklist
+        bad_rse_list = set(self.get_bad_endpoint_read())
+        # loop over all RSEs
         for item in items:
             rse = item["rse"]
             if skip_incomplete_element and (not item["available_length"] or item["length"] != item["available_length"]):
@@ -1169,6 +1172,7 @@ class AtlasDDMClient(DDMClientBase):
                     "asize": item["available_bytes"],
                     "vp": item["vp"],
                     "immutable": 1,
+                    "read_blacklisted": rse in bad_rse_list,
                 }
             ]
         return retMap

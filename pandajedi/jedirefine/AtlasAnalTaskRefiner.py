@@ -1,6 +1,7 @@
 import random
 import re
 import sys
+import traceback
 
 from pandaserver.config import panda_config
 from pandaserver.dataservice import DataServiceUtils
@@ -209,10 +210,9 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                 self.taskSpec.setLimitedSites("exc")
             elif "includedSite" in taskParamMap:
                 self.taskSpec.setLimitedSites("inc")
-        except Exception:
-            errtype, errvalue = sys.exc_info()[:2]
-            errStr = f"doRefine failed with {errtype.__name__}:{errvalue}"
-            tmpLog.error(errStr)
+        except Exception as e:
+            errStr = f"doRefine failed with {str(e)}"
+            tmpLog.error(f"{errStr} {traceback.format_exc()}")
             self.taskSpec.setErrDiag(errStr, None)
             raise errtype(errvalue)
         tmpLog.debug("done")

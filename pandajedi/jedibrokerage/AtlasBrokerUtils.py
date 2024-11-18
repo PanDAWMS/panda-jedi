@@ -101,13 +101,12 @@ def get_sites_with_data(siteList, siteMapper, ddmIF, datasetName, element_list, 
     # check if complete replica is available at online RSE
     complete_disk = False
     complete_tape = False
-    bad_rse_list = set(ddmIF.get_bad_endpoint_read())
     for tmp_rse, tmp_data_list in replicaMap[datasetName].items():
-        # blacklisted
-        if tmp_rse in bad_rse_list:
-            continue
         # look for complete replicas
         for tmp_data in tmp_data_list:
+            # blacklisted
+            if tmp_data["read_blacklisted"]:
+                continue
             if not tmp_data.get("vp"):
                 if tmp_data["found"] == tmp_data["total"]:
                     pass

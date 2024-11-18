@@ -612,6 +612,27 @@ class TaskRefinerBase(object):
                                 if "expand" in tmpItem and tmpItem["expand"] is True:
                                     # expand dataset container
                                     tmpDatasetNameList = tmpIF.expandContainer(datasetName)
+                                    # sort datasets to have first datasets with online complete replicas
+                                    tmp_ok_list = []
+                                    tmp_ng_list = []
+                                    for tmp_dataset_name in tmpDatasetNameList:
+                                        # skip the check if enough datasets are OK
+                                        if len(tmp_ok_list) > 10:
+                                            is_ok = True
+                                        else:
+                                            # check if complete replica is available at online endpoint
+                                            is_ok = False
+                                            tmp_dict = tmpIF.listDatasetReplicas(tmp_dataset_name)
+                                            for tmp_data_list in tmp_dict.values():
+                                                tmp_data = tmp_data_list[0]
+                                                if tmp_data["total"] and tmp_data["total"] == tmp_data["found"] and tmp_data["read_blacklisted"] is False:
+                                                    is_ok = True
+                                                    break
+                                        if is_ok:
+                                            tmp_ok_list.append(tmp_dataset_name)
+                                        else:
+                                            tmp_ng_list.append(tmp_dataset_name)
+                                    tmpDatasetNameList = tmp_ok_list + tmp_ng_list
                                 else:
                                     # normal dataset name
                                     tmpDatasetNameList = tmpIF.listDatasets(datasetName)
