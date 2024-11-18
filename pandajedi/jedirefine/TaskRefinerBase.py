@@ -1,6 +1,5 @@
 import copy
 import datetime
-import json
 import re
 import sys
 import uuid
@@ -93,6 +92,7 @@ class TaskRefinerBase(object):
         taskSpec.taskName = taskParamMap["taskName"]
         taskSpec.userName = taskParamMap["userName"]
         taskSpec.vo = taskParamMap["vo"]
+        taskSpec.framework = taskParamMap.get("framework", None)
         taskSpec.prodSourceLabel = taskParamMap["prodSourceLabel"]
         taskSpec.taskPriority = taskParamMap["taskPriority"]
         if taskSpec.taskPriority is None:
@@ -863,7 +863,7 @@ class TaskRefinerBase(object):
                     self.replacePlaceHolders(taskParamMap, tmpKey, tmpVal)
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
-                self.tmpLog.error(f"{self.__class__.__name__} failed to get additional task params with {errtype.__name__}:{errvalue}")
+                self.tmpLog.error(f"{self.__class__.__name__} failed to get additional task params with {errtype}:{errvalue}")
                 return False, taskParamMap
             # succeeded
             self.updatedTaskParams = taskParamMap
