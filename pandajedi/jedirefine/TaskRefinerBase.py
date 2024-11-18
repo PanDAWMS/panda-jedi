@@ -612,7 +612,7 @@ class TaskRefinerBase(object):
                                 if "expand" in tmpItem and tmpItem["expand"] is True:
                                     # expand dataset container
                                     tmpDatasetNameList = tmpIF.expandContainer(datasetName)
-                                    # sort datasets to have first datasets with online complete replicas
+                                    # sort datasets to process online complete replicas first
                                     tmp_ok_list = []
                                     tmp_ng_list = []
                                     for tmp_dataset_name in tmpDatasetNameList:
