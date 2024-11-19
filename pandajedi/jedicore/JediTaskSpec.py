@@ -93,6 +93,7 @@ class JediTaskSpec(object):
         "memory_leak_x2",
         "attemptNr",
         "container_name",
+        "framework",
     )
     # attributes which have 0 by default
     _zeroAttrs = ()
