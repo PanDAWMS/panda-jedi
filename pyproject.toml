@@ -13,7 +13,7 @@ authors = [
 ]
 dependencies = [
     'panda-common>=0.1.3',
-    'panda-server>=0.3.23',
+    'panda-server>=0.4.2',
     'python-daemon',
     'numpy',
     'pyyaml',
