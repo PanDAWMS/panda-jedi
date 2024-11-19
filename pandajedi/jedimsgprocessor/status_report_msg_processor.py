@@ -52,9 +52,9 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
 
     def initialize(self):
         BaseMsgProcPlugin.initialize(self)
-        # forwarding plugins: incoming message will be fowarded to process method of these plugins
+        # forwarding plugins: incoming message will be forwarded to process method of these plugins
         self.forwarding_plugins = []
-        forwarding_plugin_names = self.params.get("forwading_plugins", [])
+        forwarding_plugin_names = self.params.get("forwarding_plugins", [])
         if "kafka" in forwarding_plugin_names:
             # Kafka
             from pandajedi.jedimsgprocessor.kafka_msg_processor import (
