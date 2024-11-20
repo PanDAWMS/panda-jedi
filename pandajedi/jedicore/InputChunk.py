@@ -68,6 +68,7 @@ class InputChunk:
         self.useJumbo = None
         # checkpoint of used counters
         self.file_checkpoints = {}
+        self.intermediate_file_checkpoints = {}
         # list of bootstrapped sites
         self.bootstrapped = set()
 
@@ -118,17 +119,26 @@ class InputChunk:
             tmpVal["used"] = 0
 
     # checkpoint file usage
-    def checkpoint_file_usage(self):
+    def checkpoint_file_usage(self, intermediate=False):
+        """
+        checkpoint (intermediate) file usage
+        :param intermediate: True to checkpoint intermediate
+        :return: None
+        """
+        checkpoints = self.intermediate_file_checkpoints if intermediate else self.file_checkpoints
         for tmpKey, tmpVal in self.datasetMap.items():
-            self.file_checkpoints[tmpKey] = tmpVal["used"]
+            checkpoints[tmpKey] = tmpVal["used"]
 
     # rollback file usage
-    def rollback_file_usage(self):
+    def rollback_file_usage(self, intermediate=False):
+        """
+        rollback file usage to the last (intermediate) checkpoint
+        :param intermediate: True to roll back to the intermediate checkpoint
+        :return: None
+        """
+        checkpoints = self.intermediate_file_checkpoints if intermediate else self.file_checkpoints
         for tmpKey, tmpVal in self.datasetMap.items():
-            if tmpKey in self.file_checkpoints:
-                tmpVal["used"] = self.file_checkpoints[tmpKey]
-            else:
-                tmpVal["used"] = 0
+            tmpVal["used"] = checkpoints.get(tmpKey, 0)
 
     # add site candidates
     def addSiteCandidate(self, siteCandidateSpec):
