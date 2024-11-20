@@ -259,6 +259,8 @@ class JobSplitter:
             if subChunk != []:
                 # append
                 subChunks.append(subChunk)
+                # intermediate checkpoint
+                inputChunk.checkpoint_file_usage(intermediate=True)
                 # check if the last file in master dist dataset is locally available
                 for tmp_dataset, tmp_files in subChunk:
                     if tmp_dataset.isMaster():
@@ -270,7 +272,8 @@ class JobSplitter:
                         break
             else:
                 tmp_ng_list.append(siteName)
-                inputChunk.rollback_file_usage()
+                inputChunk.rollback_file_usage(intermediate=True)
+                tmpLog.debug("rollback to intermediate file usage")
             iSubChunks += 1
         # append to return map if remain
         isSkipped = False

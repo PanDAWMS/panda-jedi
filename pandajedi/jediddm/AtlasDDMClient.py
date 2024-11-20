@@ -1338,6 +1338,9 @@ class AtlasDDMClient(DDMClientBase):
                 else:
                     is_distributed = False
                     break
+        except DataIdentifierNotFound:
+            # ignore missing dataset
+            pass
         except Exception as e:
             is_ok = False
             err_type = e
