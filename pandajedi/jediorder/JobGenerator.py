@@ -1291,7 +1291,10 @@ class JobGeneratorThread(WorkerThread):
                                 if not taskSpec.useJobCloning() or not setSpecialHandlingForJC:
                                     if taskSpec.useJobCloning():
                                         # single event range for job cloning
-                                        nEventsPerWorker = tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
+                                        if tmpFileSpec.startEvent is not None:
+                                            nEventsPerWorker = tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
+                                        else:
+                                            nEventsPerWorker = tmpFileSpec.nEvents
                                         setSpecialHandlingForJC = True
                                     elif taskSpec.is_fine_grained_process():
                                         nEventsPerWorker = 1
