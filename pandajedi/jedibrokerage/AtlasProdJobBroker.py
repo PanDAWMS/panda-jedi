@@ -1134,7 +1134,12 @@ class AtlasProdJobBroker(JobBrokerBase):
                         tmpLog.info(tmpMsg)
                         continue
                 # skip UCORE/SCORE
-                if taskSpec.useEventService() and tmpSiteSpec.sitename != tmpSiteSpec.get_unified_name() and tmpSiteSpec.coreCount == 1:
+                if (
+                    taskSpec.useEventService()
+                    and not taskSpec.useJobCloning()
+                    and tmpSiteSpec.sitename != tmpSiteSpec.get_unified_name()
+                    and tmpSiteSpec.coreCount == 1
+                ):
                     tmpMsg = f"  skip site={tmpSiteName} since EventService on UCORE/SCORE "
                     tmpMsg += "criteria=-es_ucore"
                     tmpLog.info(tmpMsg)
