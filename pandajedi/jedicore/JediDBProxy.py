@@ -15320,9 +15320,9 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmp_log)
             return None
 
-    # get data carousel requests of active tasks
-    def get_data_carousel_requests_of_active_tasks_JEDI(self, status_filter_list=None):
-        comment = " /* JediDBProxy.get_data_carousel_requests_of_active_tasks_JEDI */"
+    # get data carousel requests of tasks by task status
+    def get_data_carousel_requests_by_task_status_JEDI(self, status_filter_list=None, status_exclusion_list=None):
+        comment = " /* JediDBProxy.get_data_carousel_requests_by_task_status_JEDI */"
         method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
@@ -15339,13 +15339,14 @@ class DBProxy(OraDBProxy.DBProxy):
                 f"WHERE rel.task_id=t.jediTaskID "
             )
             var_map = {}
-            antistatus_var_names_str, antistatus_var_map = get_sql_IN_bind_variables(["done", "finished", "broken", "aborted"], prefix=":antistatus")
-            sql_query_id += "AND t.status NOT IN ({antistatus_var_names_str}) "
-            var_map.update(antistatus_var_map)
             if status_filter_list:
                 status_var_names_str, status_var_map = get_sql_IN_bind_variables(status_filter_list, prefix=":status")
                 sql_query_id += "AND t.status IN ({status_var_names_str}) "
                 var_map.update(status_var_map)
+            if status_exclusion_list:
+                antistatus_var_names_str, antistatus_var_map = get_sql_IN_bind_variables(status_exclusion_list, prefix=":antistatus")
+                sql_query_id += "AND t.status NOT IN ({antistatus_var_names_str}) "
+                var_map.update(antistatus_var_map)
             self.cur.execute(sql_query_id + comment, var_map)
             res_list = self.cur.fetchall()
             if res_list:
@@ -15433,8 +15434,54 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmp_log)
             return None
 
+    # delete data carousel requests
+    def delete_data_carousel_requests_JEDI(self, request_id_list):
+        comment = " /* JediDBProxy.delete_data_carousel_requests_JEDI */"
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # sql to delete terminated requests
+            now_time = naive_utcnow()
+            sql_delete_req = (
+                f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE request_id=:request_id " f"AND status IN (:status1, :status2) "
+            )
+            var_map_base = {
+                ":status1": DataCarouselRequestStatus.done,
+                ":status2": DataCarouselRequestStatus.cancelled,
+            }
+            var_map_list = []
+            for request_id in request_id_list:
+                var_map = var_map_base.copy()
+                var_map[":request_id"] = request_id
+                var_map_list.append(var_map)
+            self.cur.executemany(sql_delete_req + comment, var_map_list)
+            ret_req = self.cur.rowcount
+            # sql to delete relations
+            sql_delete_rel = (
+                f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_relations rel "
+                f"WHERE rel.request_id NOT IN "
+                f"(SELECT req.request_id FROM {jedi_config.db.schemaJEDI}.data_carousel_requests req) "
+            )
+            self.cur.execute(sql_delete_rel + comment, {})
+            ret_rel = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"cleaned up {ret_req}/{len(request_id_list)} requests and {ret_rel} relations")
+            return ret_req
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
     # clean up data carousel requests
-    def clean_up_data_carousel_requests_JEDI(self, time_limit_hours=48):
+    def clean_up_data_carousel_requests_JEDI(self, time_limit_days=30):
         comment = " /* JediDBProxy.clean_up_data_carousel_requests_JEDI */"
         method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
@@ -15444,20 +15491,30 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             # sql to delete terminated requests
             now_time = naive_utcnow()
-            sql_delete = f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status IN (:status1, :status2) " f"AND end_time<=:end_time_max "
+            sql_delete_req = (
+                f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE status IN (:status1, :status2) " f"AND end_time<=:end_time_max "
+            )
             var_map = {
                 ":status1": DataCarouselRequestStatus.done,
                 ":status2": DataCarouselRequestStatus.cancelled,
-                ":end_time_max": now_time - datetime.timedelta(hours=time_limit_hours),
+                ":end_time_max": now_time - datetime.timedelta(days=time_limit_days),
             }
-            self.cur.execute(sql_delete + comment, var_map)
-            ret = self.cur.rowcount
+            self.cur.execute(sql_delete_req + comment, var_map)
+            ret_req = self.cur.rowcount
+            # sql to delete relations
+            sql_delete_rel = (
+                f"DELETE {jedi_config.db.schemaJEDI}.data_carousel_relations rel "
+                f"WHERE rel.request_id NOT IN "
+                f"(SELECT req.request_id FROM {jedi_config.db.schemaJEDI}.data_carousel_requests req) "
+            )
+            self.cur.execute(sql_delete_rel + comment, {})
+            ret_rel = self.cur.rowcount
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmp_log.debug(f"cleaned up {ret} requests")
-            return ret
+            tmp_log.debug(f"cleaned up {ret_req} requests and {ret_rel} relations older than {time_limit_days} days")
+            return ret_req
         except Exception:
             # roll back
             self._rollback()

@@ -330,7 +330,7 @@ class DataCarouselInterface(object):
 
     def _refresh_ddm_rule(self, rule_id: str, lifetime: int):
         """
-        refresh lifetime of the DDM rule
+        Refresh lifetime of the DDM rule
 
         Args:
         rule_id (str): DDM rule ID
@@ -345,10 +345,13 @@ class DataCarouselInterface(object):
 
     def keep_alive_ddm_rules(self):
         """
-        keep alive DDM rules of requests of active tasks
+        Keep alive DDM rules of requests of active tasks
         """
         tmp_log = MsgWrapper(logger, "keep_alive_ddm_rules")
-        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI()
+        # get requests and relations of active tasks
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+            status_exclusion_list=["done", "finished", "broken", "aborted", "failed", "exhausted"]
+        )
         for dc_req_spec in ret_requests_map.values():
             try:
                 if dc_req_spec.status == DataCarouselRequestStatus.queued:
@@ -387,7 +390,7 @@ class DataCarouselInterface(object):
 
     def check_staging_requests(self):
         """
-        check staging requests
+        Check staging requests
         """
         tmp_log = MsgWrapper(logger, "check_staging_requests")
         dc_req_specs = self.taskBufferIF.get_data_carousel_staging_requests_JEDI()
@@ -451,7 +454,7 @@ class DataCarouselInterface(object):
 
     def _resume_task(self, task_id: int) -> bool:
         """
-        resume task from staging (to staged-pending)
+        Resume task from staging (to staged-pending)
 
         Args:
         task_id (int): JEDI task ID
@@ -459,23 +462,20 @@ class DataCarouselInterface(object):
         Returns:
             bool : True for success, False otherwise
         """
-        tmp_log = MsgWrapper(logger, "_resume_task")
         # send resume command
         ret_val, ret_str = self.taskBufferIF.sendCommandTaskPanda(task_id, "Data Carousel. Resumed from staging", True, "resume", properErrorCode=True)
         # check if ok
         if ret_val:
-            tmp_log.debug(f"task_id={task_id} resumed the task")
             return True
         else:
-            tmp_log.warning(f"task_id={task_id} failed to resume the task: {ret_str}")
             return False
 
     def resume_tasks_from_staging(self):
         """
-        get tasks with enough staged files and resume them
+        Get tasks with enough staged files and resume them
         """
         tmp_log = MsgWrapper(logger, "resume_tasks_from_staging")
-        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI(status_filter_list=["staging"])
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=["staging"])
         for task_id, request_id_list in ret_relation_map.items():
             to_resume = False
             try:
@@ -500,6 +500,49 @@ class DataCarouselInterface(object):
                             to_resume = True
                             break
                 if to_resume:
-                    self._resume_task(_resume_task)
+                    # resume the task
+                    ret_val = self._resume_task(_resume_task)
+                    if ret_val:
+                        tmp_log.debug(f"task_id={task_id} resumed the task")
+                    else:
+                        tmp_log.warning(f"task_id={task_id} failed to resume the task: {ret_str}; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
+
+    def clean_up_requests(self, terminated_time_limit_days=3, outdated_time_limit_days=30):
+        """
+        Clean up terminated and outdated requests
+        """
+        tmp_log = MsgWrapper(logger, "clean_up_requests")
+        try:
+            # initialize
+            terminated_requests_set = set()
+            # get terminated requests of terminated tasks
+            ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+                status_filter_list=["done", "finished", "broken", "aborted", "failed", "exhausted"]
+            )
+            now_time = naive_utcnow()
+            for task_id, request_id_list in ret_relation_map.items():
+                for request_id in request_id_list:
+                    dc_req_spec = ret_requests_map[request_id]
+                    if (
+                        dc_req_spec.status in DataCarouselRequestStatus.final_statuses
+                        and dc_req_spec.end_time
+                        and dc_req_spec.end_time < now_time - timedelta(days=terminated_time_limit_days)
+                    ):
+                        # request terminated and old enough
+                        terminated_requests_set.add(request_id)
+            # delete terminated requests
+            ret_terminated = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(terminated_requests_set))
+            if ret_terminated is None:
+                tmp_log.warning(f"failed to delete terminated requests; skipped")
+            else:
+                tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days")
+            # clean up outdated requests
+            ret_outdated = self.taskBufferIF.clean_up_data_carousel_requests_JEDI(time_limit_days=outdated_time_limit_days)
+            if ret_outdated is None:
+                tmp_log.warning(f"failed to delete outdated requests; skipped")
+            else:
+                tmp_log.debug(f"deleted {ret_outdated} outdated requests older than {outdated_time_limit_days} days")
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")

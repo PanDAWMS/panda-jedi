@@ -73,6 +73,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 return
             tmpLog.debug("got lock")
             self.data_carousel_interface.check_staging_requests()
+            self.data_carousel_interface.resume_tasks_from_staging()
             tmpLog.debug(f"done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
@@ -112,8 +113,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another process. Skipped")
                 return
             tmpLog.debug("got lock")
-            # TODO: to be implemented
-            pass
+            # clean up
+            self.data_carousel_interface.clean_up_requests()
             # done
             tmpLog.debug("done")
         except Exception:

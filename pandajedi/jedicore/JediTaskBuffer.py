@@ -972,12 +972,22 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.get_data_carousel_queued_requests_JEDI()
 
-    # get data carousel requests of active tasks
-    def get_data_carousel_requests_of_active_tasks_JEDI(self, status_filter_list=None):
+    # get data carousel requests of tasks by task status
+    def get_data_carousel_requests_by_task_status_JEDI(self, status_filter_list=None, status_exclusion_list=None):
         with self.proxyPool.get() as proxy:
-            return proxy.get_data_carousel_requests_of_active_tasks_JEDI(status_filter_list)
+            return proxy.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=status_filter_list, status_exclusion_list=status_exclusion_list)
 
     # get data carousel staging requests
     def get_data_carousel_staging_requests_JEDI(self):
         with self.proxyPool.get() as proxy:
             return proxy.get_data_carousel_staging_requests_JEDI()
+
+    # delete data carousel requests
+    def delete_data_carousel_requests_JEDI(self, request_id_list):
+        with self.proxyPool.get() as proxy:
+            return proxy.delete_data_carousel_requests_JEDI(request_id_list)
+
+    # clean up data carousel requests
+    def clean_up_data_carousel_requests_JEDI(self, time_limit_days=30):
+        with self.proxyPool.get() as proxy:
+            return proxy.clean_up_data_carousel_requests_JEDI(time_limit_days)
