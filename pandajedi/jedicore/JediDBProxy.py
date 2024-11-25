@@ -6295,6 +6295,7 @@ class DBProxy(OraDBProxy.DBProxy):
         masterInSize = {}
         coreCountMap = {}
         pseudoInput = set()
+        total_actual_input_size = 0
         for pandaID, fsize, startEvent, endEvent, nEvents, fType in resList:
             pandaIDList.add(pandaID)
             if pandaID not in inFSizeMap:
@@ -6310,6 +6311,7 @@ class DBProxy(OraDBProxy.DBProxy):
             if pandaID not in masterInSize:
                 masterInSize[pandaID] = 0
             masterInSize[pandaID] += fsize
+            total_actual_input_size += fsize
             if fType == "pseudo_input":
                 pseudoInput.add(pandaID)
         # get nFiles
@@ -6332,16 +6334,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 if totFinished > 0:
                     totalJobs = int(totFiles * len(pandaIDList) // totFinished)
                     nNewJobs = int((totFiles - totUsed) * len(pandaIDList) // totFinished)
-                    # take into account size limit for scouts
-                    if (
-                        task_spec
-                        and task_spec.useScout()
-                        and not task_spec.getNumFilesPerJob()
-                        and not task_spec.getNumEventsPerJob()
-                        and not task_spec.getMaxSizePerJob()
-                    ):
-                        nNewJobs = int(nNewJobs * InputChunk.maxInputSizeScouts / InputChunk.maxInputSizeAvalanche)
-                        totalJobs = int(totalJobs * InputChunk.maxInputSizeScouts / InputChunk.maxInputSizeAvalanche)
+                    # take into account the size limits coming from scouts, dataset boundaries, etc
+                    if task_spec and not task_spec.getNumFilesPerJob() and not task_spec.getNumEventsPerJob() and not task_spec.getMaxSizePerJob():
+                        # average input size
+                        avg_actual_input_size = total_actual_input_size / 1024 / 1024 / len(pandaIDList)
+                        # scale with actual size / allowed size
+                        nNewJobs = int(nNewJobs * avg_actual_input_size / InputChunk.maxInputSizeAvalanche)
+                        totalJobs = int(totalJobs * avg_actual_input_size / InputChunk.maxInputSizeAvalanche)
                     # estimate the number of new jobs with size
                     var_map = dict()
                     var_map[":jediTaskID"] = jediTaskID
