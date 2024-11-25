@@ -973,9 +973,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.get_data_carousel_queued_requests_JEDI()
 
     # get data carousel requests of active tasks
-    def get_data_carousel_requests_of_active_tasks_JEDI(self):
+    def get_data_carousel_requests_of_active_tasks_JEDI(self, status_filter_list=None):
         with self.proxyPool.get() as proxy:
-            return proxy.get_data_carousel_requests_of_active_tasks_JEDI()
+            return proxy.get_data_carousel_requests_of_active_tasks_JEDI(status_filter_list)
 
     # get data carousel staging requests
     def get_data_carousel_staging_requests_JEDI(self):

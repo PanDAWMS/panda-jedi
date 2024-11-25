@@ -14,7 +14,11 @@ import uuid
 
 import numpy
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandacommon.pandautils.PandaUtils import batched, naive_utcnow
+from pandacommon.pandautils.PandaUtils import (
+    batched,
+    get_sql_IN_bind_variables,
+    naive_utcnow,
+)
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
 
 from pandajedi.jediconfig import jedi_config
@@ -15317,53 +15321,62 @@ class DBProxy(OraDBProxy.DBProxy):
             return None
 
     # get data carousel requests of active tasks
-    def get_data_carousel_requests_of_active_tasks_JEDI(self):
+    def get_data_carousel_requests_of_active_tasks_JEDI(self, status_filter_list=None):
         comment = " /* JediDBProxy.get_data_carousel_requests_of_active_tasks_JEDI */"
         method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug("start")
         try:
             # initialize
-            ret_list = []
+            ret_requests_map = {}
+            ret_relation_map = {}
             # start transaction
             self.conn.begin()
             # sql to query queued requests with gshare and priority info from related tasks
             sql_query_id = (
-                f"SELECT DISTINCT rel.request_id "
+                f"SELECT rel.request_id, rel.task_id "
                 f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations rel, {jedi_config.db.schemaJEDI}.JEDI_Tasks t "
                 f"WHERE rel.task_id=t.jediTaskID "
-                f"AND t.status NOT IN (:antistatus1, :antistatus2, :antistatus3, :antistatus4) "
             )
-            var_map = {
-                ":antistatus1": "done",
-                ":antistatus2": "finished",
-                ":antistatus3": "broken",
-                ":antistatus4": "aborted",
-            }
+            var_map = {}
+            antistatus_var_names_str, antistatus_var_map = get_sql_IN_bind_variables(["done", "finished", "broken", "aborted"], prefix=":antistatus")
+            sql_query_id += "AND t.status NOT IN ({antistatus_var_names_str}) "
+            var_map.update(antistatus_var_map)
+            if status_filter_list:
+                status_var_names_str, status_var_map = get_sql_IN_bind_variables(status_filter_list, prefix=":status")
+                sql_query_id += "AND t.status IN ({status_var_names_str}) "
+                var_map.update(status_var_map)
             self.cur.execute(sql_query_id + comment, var_map)
             res_list = self.cur.fetchall()
             if res_list:
-                for (request_id,) in res_list:
-                    # query info of related tasks
-                    sql_query_requests = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE request_id=:request_id "
-                    var_map = {":request_id": request_id}
-                    self.cur.execute(sql_query_requests + comment, var_map)
-                    req_res_list = self.cur.fetchall()
-                    # make request spec
-                    dc_req_spec = DataCarouselRequestSpec()
-                    for req_res in req_res_list:
-                        dc_req_spec.pack(req_res)
-                        break
-                    # add
-                    ret_list.append(dc_req_spec)
+                for request_id, task_id in res_list:
+                    # fill relation map
+                    ret_relation_map.setdefault(task_id, [])
+                    ret_relation_map[task_id].append(request_id)
+                    if request_id in ret_requests_map:
+                        # already got the request spec; skip
+                        continue
+                    else:
+                        # query info of related tasks
+                        sql_query_requests = f"SELECT * " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE request_id=:request_id "
+                        var_map = {":request_id": request_id}
+                        self.cur.execute(sql_query_requests + comment, var_map)
+                        req_res_list = self.cur.fetchall()
+                        # make request spec
+                        dc_req_spec = DataCarouselRequestSpec()
+                        for req_res in req_res_list:
+                            dc_req_spec.pack(req_res)
+                            break
+                        # fill requests map
+                        ret_requests_map[request_id] = dc_req_spec
             else:
                 tmp_log.debug("no queued request")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmp_log.debug(f"got {len(ret_list)} requests with active tasks")
-            return ret_list
+            tmp_log.debug(f"got {len(ret_requests_map)} requests of {len(ret_relation_map)} active tasks")
+            return ret_requests_map, ret_relation_map
         except Exception:
             # roll back
             self._rollback()

@@ -348,8 +348,8 @@ class DataCarouselInterface(object):
         keep alive DDM rules of requests of active tasks
         """
         tmp_log = MsgWrapper(logger, "keep_alive_ddm_rules")
-        dc_req_specs = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI()
-        for dc_req_spec in dc_req_specs:
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI()
+        for dc_req_spec in ret_requests_map.values():
             try:
                 if dc_req_spec.status == DataCarouselRequestStatus.queued:
                     # skip requests queued
@@ -448,3 +448,58 @@ class DataCarouselInterface(object):
                         continue
             except Exception:
                 tmp_log.error(f"request_id={dc_req_spec.request_id} got error ; {traceback.format_exc()}")
+
+    def _resume_task(self, task_id: int) -> bool:
+        """
+        resume task from staging (to staged-pending)
+
+        Args:
+        task_id (int): JEDI task ID
+
+        Returns:
+            bool : True for success, False otherwise
+        """
+        tmp_log = MsgWrapper(logger, "_resume_task")
+        # send resume command
+        ret_val, ret_str = self.taskBufferIF.sendCommandTaskPanda(task_id, "Data Carousel. Resumed from staging", True, "resume", properErrorCode=True)
+        # check if ok
+        if ret_val:
+            tmp_log.debug(f"task_id={task_id} resumed the task")
+            return True
+        else:
+            tmp_log.warning(f"task_id={task_id} failed to resume the task: {ret_str}")
+            return False
+
+    def resume_tasks_from_staging(self):
+        """
+        get tasks with enough staged files and resume them
+        """
+        tmp_log = MsgWrapper(logger, "resume_tasks_from_staging")
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_of_active_tasks_JEDI(status_filter_list=["staging"])
+        for task_id, request_id_list in ret_relation_map.items():
+            to_resume = False
+            try:
+                _, task_spec = self.taskBufferIF.getTaskWithID_JEDI(task_id, fullFlag=False)
+                if not task_spec:
+                    # task not found
+                    tmp_log.error(f"task_id={task_id} task not found; skipped")
+                    continue
+                for request_id in request_id_list:
+                    dc_req_spec = ret_requests_map[request_id]
+                    if task_spec.taskType == "prod":
+                        # condition for production tasks: resume if one file staged
+                        if dc_req_spec.status == DataCarouselRequestStatus.done or (dc_req_spec.staged_files and dc_req_spec.staged_files > 0):
+                            # got at least one data carousel request done for the task, to resume
+                            to_resume = True
+                            break
+                    elif task_spec.taskType == "anal":
+                        # condition for analysis tasks
+                        # FIXME: temporary conservative condition for analysis tasks: resume if one dataset staged
+                        if dc_req_spec.status == DataCarouselRequestStatus.done:
+                            # got at least one entire dataset staged, to resume
+                            to_resume = True
+                            break
+                if to_resume:
+                    self._resume_task(_resume_task)
+            except Exception:
+                tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
