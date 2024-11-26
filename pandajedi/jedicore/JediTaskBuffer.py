@@ -752,7 +752,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getActiveJumboJobs_JEDI(jediTaskID)
 
-    # get jobParms of the first job
+    # get jobParams of the first job
     def getJobParamsOfFirstJob_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
@@ -956,3 +956,38 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_max_events_in_dataset(self, jedi_task_id, dataset_id):
         with self.proxyPool.get() as proxy:
             return proxy.get_max_events_in_dataset(jedi_task_id, dataset_id)
+
+    # insert data carousel requests
+    def insert_data_carousel_requests_JEDI(self, task_id, dc_req_specs):
+        with self.proxyPool.get() as proxy:
+            return proxy.insert_data_carousel_requests_JEDI(task_id, dc_req_specs)
+
+    # update a data carousel request
+    def update_data_carousel_request_JEDI(self, dc_req_spec):
+        with self.proxyPool.get() as proxy:
+            return proxy.update_data_carousel_request_JEDI(dc_req_spec)
+
+    # get data carousel queued requests and info of their related tasks
+    def get_data_carousel_queued_requests_JEDI(self):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_data_carousel_queued_requests_JEDI()
+
+    # get data carousel requests of tasks by task status
+    def get_data_carousel_requests_by_task_status_JEDI(self, status_filter_list=None, status_exclusion_list=None):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=status_filter_list, status_exclusion_list=status_exclusion_list)
+
+    # get data carousel staging requests
+    def get_data_carousel_staging_requests_JEDI(self):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_data_carousel_staging_requests_JEDI()
+
+    # delete data carousel requests
+    def delete_data_carousel_requests_JEDI(self, request_id_list):
+        with self.proxyPool.get() as proxy:
+            return proxy.delete_data_carousel_requests_JEDI(request_id_list)
+
+    # clean up data carousel requests
+    def clean_up_data_carousel_requests_JEDI(self, time_limit_days=30):
+        with self.proxyPool.get() as proxy:
+            return proxy.clean_up_data_carousel_requests_JEDI(time_limit_days)
