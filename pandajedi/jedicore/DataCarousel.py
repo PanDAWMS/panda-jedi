@@ -11,6 +11,9 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
+# final task statuses
+final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
+
 
 class DataCarouselRequestStatus(object):
     """
@@ -349,9 +352,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "keep_alive_ddm_rules")
         # get requests and relations of active tasks
-        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
-            status_exclusion_list=["done", "finished", "broken", "aborted", "failed", "exhausted"]
-        )
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
         for dc_req_spec in ret_requests_map.values():
             try:
                 if dc_req_spec.status == DataCarouselRequestStatus.queued:
@@ -518,9 +519,7 @@ class DataCarouselInterface(object):
             # initialize
             terminated_requests_set = set()
             # get terminated requests of terminated tasks
-            ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
-                status_filter_list=["done", "finished", "broken", "aborted", "failed", "exhausted"]
-            )
+            ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=final_task_statuses)
             now_time = naive_utcnow()
             for task_id, request_id_list in ret_relation_map.items():
                 for request_id in request_id_list:
