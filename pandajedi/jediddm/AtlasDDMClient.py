@@ -1632,3 +1632,23 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"got replica locks")
         return self.SC_SUCCEEDED, ret
+
+    # delete replication rule by rule ID
+    def delete_replication_rule(self, rule_id):
+        methodName = "delete_replication_rule"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get rules
+            ret = client.delete_replication_rule(rule_id)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"deleted, return {ret}")
+        return self.SC_SUCCEEDED, ret

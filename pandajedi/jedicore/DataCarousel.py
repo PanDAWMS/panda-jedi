@@ -520,12 +520,19 @@ class DataCarouselInterface(object):
         try:
             # initialize
             terminated_requests_set = set()
-            # get terminated requests of terminated tasks
-            ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=final_task_statuses)
+            # get requests of terminated and active tasks
+            terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+                status_filter_list=final_task_statuses
+            )
+            active_tasks_requests_map, _ = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
             now_time = naive_utcnow()
-            for task_id, request_id_list in ret_relation_map.items():
+            # loop over terminated tasks
+            for task_id, request_id_list in terminated_tasks_relation_map.items():
                 for request_id in request_id_list:
-                    dc_req_spec = ret_requests_map[request_id]
+                    if request_id in active_tasks_requests_map:
+                        # the request is also mapped to some active task, not to be cleaned up; skipped
+                        continue
+                    dc_req_spec = terminated_tasks_requests_map[request_id]
                     if (
                         dc_req_spec.status in DataCarouselRequestStatus.final_statuses
                         and dc_req_spec.end_time
@@ -533,6 +540,16 @@ class DataCarouselInterface(object):
                     ):
                         # request terminated and old enough
                         terminated_requests_set.add(request_id)
+            # delete ddm rules of terminate requests
+            for request_id in terminated_requests_set:
+                dc_req_spec = terminated_tasks_requests_map[request_id]
+                ddm_rule_id = dc_req_spec.ddm_rule_id
+                if ddm_rule_id:
+                    try:
+                        self.ddmIF.delete_replication_rule(ddm_rule_id)
+                        tmp_log.debug(f"request_id={request_id} ddm_rule_id={ddm_rule_id} deleted DDM rule")
+                    except Exception:
+                        tmp_log.error(f"request_id={request_id} ddm_rule_id={ddm_rule_id} failed to delete DDM rule; {traceback.format_exc()}")
             # delete terminated requests
             ret_terminated = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(terminated_requests_set))
             if ret_terminated is None:
