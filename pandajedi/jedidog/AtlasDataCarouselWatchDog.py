@@ -67,7 +67,7 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog.debug("start")
         try:
             # lock
-            got_lock = self.get_process_lock("AtlasDataCarousDog.doCheckDCRequests", timeLimit=10)
+            got_lock = self.get_process_lock("AtlasDataCarousDog.doCheckDCRequests", timeLimit=5)
             if not got_lock:
                 tmpLog.debug("locked by another process. Skipped")
                 return

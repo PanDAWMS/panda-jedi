@@ -91,7 +91,7 @@ class DataCarouselInterface(object):
                 if datadisk_rses is not None:
                     self.datadisk_rses = list(datadisk_rses)
                 # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
-                tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
+                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
                 self._last_update_rses_ts = naive_utcnow()
             return True
         except Exception:
@@ -463,12 +463,14 @@ class DataCarouselInterface(object):
         Returns:
             bool : True for success, False otherwise
         """
+        tmp_log = MsgWrapper(logger, "_resume_task")
         # send resume command
         ret_val, ret_str = self.taskBufferIF.sendCommandTaskPanda(task_id, "Data Carousel. Resumed from staging", True, "resume", properErrorCode=True)
         # check if ok
-        if ret_val:
+        if ret_val == 0:
             return True
         else:
+            tmp_log.warning(f"task_id={task_id} failed to resume the task: error_code={ret_val} {ret_str}")
             return False
 
     def resume_tasks_from_staging(self):
@@ -502,11 +504,11 @@ class DataCarouselInterface(object):
                             break
                 if to_resume:
                     # resume the task
-                    ret_val = self._resume_task(_resume_task)
+                    ret_val = self._resume_task(task_id)
                     if ret_val:
                         tmp_log.debug(f"task_id={task_id} resumed the task")
                     else:
-                        tmp_log.warning(f"task_id={task_id} failed to resume the task: {ret_str}; skipped")
+                        tmp_log.warning(f"task_id={task_id} failed to resume the task; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
 
