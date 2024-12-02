@@ -1436,7 +1436,7 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, retVal
 
     # make staging rule
-    def make_staging_rule(self, dataset_name, expression, activity, lifetime=None):
+    def make_staging_rule(self, dataset_name, expression, activity, lifetime=None, weight=None, notify="N", source_replica_expression=None):
         methodName = "make_staging_rule"
         methodName += f" pid={self.pid}"
         methodName = f"{methodName} datasetName={dataset_name} expression={expression} activity={activity} lifetime={lifetime}"
@@ -1465,19 +1465,22 @@ class AtlasDDMClient(DDMClientBase):
                     dids=dids,
                     copies=1,
                     rse_expression=expression,
-                    weight=None,
+                    weight=weight,
                     lifetime=lifetime,
                     grouping="DATASET",
                     account=client.account,
                     locked=False,
-                    notify="N",
+                    notify=notify,
                     ignore_availability=True,
                     activity=activity,
                     asynchronous=False,
+                    source_replica_expression=source_replica_expression,
                 )
                 ruleID = rule["id"]
                 tmpLog.debug(f"made new rule : ID={ruleID}")
         except Exception as e:
+            errMsg = f"failed to make staging rule with {str(e)}"
+            tmpLog.error(errMsg + traceback.format_exc())
             isOK = False
             errType = e
         if not isOK:
@@ -1515,3 +1518,117 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"got {all_ok}, {res_dict}")
         return self.SC_SUCCEEDED, (all_ok, res_dict)
+
+    # list RSEs
+    def list_rses(self, filter=None):
+        methodName = "list_rses"
+        methodName += f" filter={filter}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        ret_list = []
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get RSEs
+            result = client.list_rses(filter)
+            if result:
+                # res is a generator yielding {"rse": "name_of_rse"}
+                for x in result:
+                    rse = x["rse"]
+                    ret_list.append(rse)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got {ret_list}")
+        return self.SC_SUCCEEDED, ret_list
+
+    # list DID rules
+    def list_did_rules(self, dataset_name):
+        methodName = "list_did_rules"
+        methodName += f" datasetName={dataset_name}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        ret_list = []
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope, dsn = self.extract_scope(dataset_name)
+            # get rules
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                if rule["account"] == client.account:
+                    ret_list.append(rule)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got {len(ret_list)} rules")
+        return self.SC_SUCCEEDED, ret_list
+
+    # update replication rule by rule ID
+    def update_rule_by_id(self, rule_id, set_map):
+        methodName = "update_rule_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # update rule
+            client.update_replication_rule(rule_id, set_map)
+        except Exception as e:
+            isOK = False
+            errType = e
+        if not isOK:
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug("done")
+        return self.SC_SUCCEEDED, True
+
+    # get replication rule by rule ID
+    def get_rule_by_id(self, rule_id):
+        methodName = "get_rule_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get rules
+            rule = client.get_replication_rule(rule_id)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got rule")
+        return self.SC_SUCCEEDED, rule
+
+    # list details of all replica locks for a rule by rule ID
+    def list_replica_locks_by_id(self, rule_id):
+        methodName = "list_replica_locks_by_id"
+        methodName += f" pid={self.pid}"
+        methodName = f"{methodName} rule_id={rule_id}"
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug("start")
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get generator of replica locks
+            res = client.list_replica_locks(rule_id)
+            # turn into list
+            ret = list(res)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, f"{methodName} : {errMsg}"
+        tmpLog.debug(f"got replica locks")
+        return self.SC_SUCCEEDED, ret
