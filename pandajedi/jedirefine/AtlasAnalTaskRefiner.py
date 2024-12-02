@@ -218,6 +218,6 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
             errStr = f"doRefine failed with {str(e)}"
             tmpLog.error(f"{errStr} {traceback.format_exc()}")
             self.taskSpec.setErrDiag(errStr, None)
-            raise errtype(errvalue)
+            raise e
         tmpLog.debug("done")
         return self.SC_SUCCEEDED
