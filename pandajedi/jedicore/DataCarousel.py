@@ -91,7 +91,7 @@ class DataCarouselInterface(object):
                 if datadisk_rses is not None:
                     self.datadisk_rses = list(datadisk_rses)
                 # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
-                tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
+                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
                 self._last_update_rses_ts = naive_utcnow()
             return True
         except Exception:
@@ -150,6 +150,43 @@ class DataCarouselInterface(object):
         all_datadisk_replicas_without_rules = has_datadisk_replica and len(filtered_replicas_map["datadisk"]) == 0
         return filtered_replicas_map, staging_rule, all_datadisk_replicas_without_rules
 
+    def _get_datasets_from_collection(self, collection: str) -> list[str] | None:
+        """
+        Get a list of datasets from DDM collection (container or dataset) in order to support inputs of container containing multiple datasets
+        If the collection is a dataset, the method returns a list of the sole dataset
+        If the collection is a container, the method returns a list of datasets inside the container
+
+        Args:
+        collection (str): name of the DDM collection (container or dataset)
+
+        Returns:
+            list[str] | None : list of datasets if successful; None if failed with exception
+        """
+        tmp_log = MsgWrapper(logger, f"_get_datasets_from_collections collection={collection}")
+        # fill dc request spec for each input dataset
+        try:
+            ret_list = []
+            collection_meta = self.ddmIF.getDatasetMetaData(collection)
+            did_type = collection_meta["did_type"]
+            if did_type == "CONTAINER":
+                # is container, get datasets inside
+                dataset_list = self.ddmIF.listDatasetsInContainer(collection)
+                if dataset_list is None:
+                    tmp_log.warning(f"cannot list datasets in this container")
+                else:
+                    ret_list = dataset_list
+            elif did_type == "DATASET":
+                # is dataset
+                ret_list = [collection]
+            else:
+                tmp_log.warning(f"invalid DID type: {did_type}")
+                return None
+        except DataIdentifierNotFound:
+            tmp_log.warning(f"DID not found")
+        except Exception as e:
+            raise e
+        return ret_list
+
     def get_input_datasets_to_prestage(self, task_params_map):
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
@@ -164,38 +201,46 @@ class DataCarouselInterface(object):
         try:
             ret_list = []
             self._update_rses()
-            input_dataset_map = self._get_input_ds_from_task_params(task_params_map)
-            for dataset in input_dataset_map:
-                filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
-                if rse_list := filtered_replicas_map["datadisk"]:
-                    # replicas already on datadisk; skip
-                    tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
-                    continue
-                elif not filtered_replicas_map["tape"]:
-                    # no replica on tape; skip
-                    tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
-                    continue
-                else:
-                    ddm_rule_id = None
-                    # keep alive staging rule
-                    if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
-                        ddm_rule_id = staging_rule["id"]
-                        self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
-                        tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
-                    # source RSE
-                    rse_list = [replica for replica in filtered_replicas_map["tape"]]
-                    source_rse = None
-                    if len(rse_list) == 1:
-                        source_rse = rse_list[0]
+            input_collection_map = self._get_input_ds_from_task_params(task_params_map)
+            for collection in input_collection_map:
+                dataset_list = self._get_datasets_from_collection(collection)
+                if dataset_list is None:
+                    tmp_log.warning(f"collection={collection} is None ; skipped")
+                    return ret_list
+                elif not dataset_list:
+                    tmp_log.warning(f"collection={collection} is empty ; skipped")
+                    return ret_list
+                for dataset in dataset_list:
+                    filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
+                    if rse_list := filtered_replicas_map["datadisk"]:
+                        # replicas already on datadisk; skip
+                        tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
+                        continue
+                    elif not filtered_replicas_map["tape"]:
+                        # no replica on tape; skip
+                        tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
+                        continue
                     else:
-                        non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
-                        if non_CERN_rse_list:
-                            source_rse = random.choice(non_CERN_rse_list)
+                        ddm_rule_id = None
+                        # keep alive staging rule
+                        if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
+                            ddm_rule_id = staging_rule["id"]
+                            self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
+                            tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
+                        # source RSE
+                        rse_list = [replica for replica in filtered_replicas_map["tape"]]
+                        source_rse = None
+                        if len(rse_list) == 1:
+                            source_rse = rse_list[0]
                         else:
-                            source_rse = random.choice(rse_list)
-                    # add to prestage
-                    ret_list.append((dataset, source_rse, ddm_rule_id))
-                    tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
+                            non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
+                            if non_CERN_rse_list:
+                                source_rse = random.choice(non_CERN_rse_list)
+                            else:
+                                source_rse = random.choice(rse_list)
+                        # add to prestage
+                        ret_list.append((dataset, source_rse, ddm_rule_id))
+                        tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
             return ret_list
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
@@ -463,12 +508,14 @@ class DataCarouselInterface(object):
         Returns:
             bool : True for success, False otherwise
         """
+        tmp_log = MsgWrapper(logger, "_resume_task")
         # send resume command
         ret_val, ret_str = self.taskBufferIF.sendCommandTaskPanda(task_id, "Data Carousel. Resumed from staging", True, "resume", properErrorCode=True)
         # check if ok
-        if ret_val:
+        if ret_val == 0:
             return True
         else:
+            tmp_log.warning(f"task_id={task_id} failed to resume the task: error_code={ret_val} {ret_str}")
             return False
 
     def resume_tasks_from_staging(self):
@@ -502,11 +549,11 @@ class DataCarouselInterface(object):
                             break
                 if to_resume:
                     # resume the task
-                    ret_val = self._resume_task(_resume_task)
+                    ret_val = self._resume_task(task_id)
                     if ret_val:
                         tmp_log.debug(f"task_id={task_id} resumed the task")
                     else:
-                        tmp_log.warning(f"task_id={task_id} failed to resume the task: {ret_str}; skipped")
+                        tmp_log.warning(f"task_id={task_id} failed to resume the task; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
 
@@ -518,12 +565,19 @@ class DataCarouselInterface(object):
         try:
             # initialize
             terminated_requests_set = set()
-            # get terminated requests of terminated tasks
-            ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=final_task_statuses)
+            # get requests of terminated and active tasks
+            terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+                status_filter_list=final_task_statuses
+            )
+            active_tasks_requests_map, _ = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
             now_time = naive_utcnow()
-            for task_id, request_id_list in ret_relation_map.items():
+            # loop over terminated tasks
+            for task_id, request_id_list in terminated_tasks_relation_map.items():
                 for request_id in request_id_list:
-                    dc_req_spec = ret_requests_map[request_id]
+                    if request_id in active_tasks_requests_map:
+                        # the request is also mapped to some active task, not to be cleaned up; skipped
+                        continue
+                    dc_req_spec = terminated_tasks_requests_map[request_id]
                     if (
                         dc_req_spec.status in DataCarouselRequestStatus.final_statuses
                         and dc_req_spec.end_time
@@ -531,12 +585,25 @@ class DataCarouselInterface(object):
                     ):
                         # request terminated and old enough
                         terminated_requests_set.add(request_id)
+            # delete ddm rules of terminate requests
+            for request_id in terminated_requests_set:
+                dc_req_spec = terminated_tasks_requests_map[request_id]
+                ddm_rule_id = dc_req_spec.ddm_rule_id
+                if ddm_rule_id:
+                    try:
+                        self.ddmIF.delete_replication_rule(ddm_rule_id)
+                        tmp_log.debug(f"request_id={request_id} ddm_rule_id={ddm_rule_id} deleted DDM rule")
+                    except Exception:
+                        tmp_log.error(f"request_id={request_id} ddm_rule_id={ddm_rule_id} failed to delete DDM rule; {traceback.format_exc()}")
             # delete terminated requests
-            ret_terminated = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(terminated_requests_set))
-            if ret_terminated is None:
-                tmp_log.warning(f"failed to delete terminated requests; skipped")
+            if terminated_requests_set:
+                ret_terminated = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(terminated_requests_set))
+                if ret_terminated is None:
+                    tmp_log.warning(f"failed to delete terminated requests; skipped")
+                else:
+                    tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days")
             else:
-                tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days")
+                tmp_log.debug(f"no terminated requests to delete; skipped")
             # clean up outdated requests
             ret_outdated = self.taskBufferIF.clean_up_data_carousel_requests_JEDI(time_limit_days=outdated_time_limit_days)
             if ret_outdated is None:
