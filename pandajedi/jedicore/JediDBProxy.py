@@ -6832,7 +6832,7 @@ class DBProxy(OraDBProxy.DBProxy):
         ramThr = self.getConfigValue("dbproxy", "RAM_THR_EXAUSTED", "jedi")
         if ramThr is None:
             ramThr = 4
-        ramThr *= 1024
+        ramThr *= 1000
         # send tasks to exhausted when task.successRate > rate >= thr
         minNumOkScoutsForExhausted = self.getConfigValue("dbproxy", f"SCOUT_MIN_OK_RATE_EXHAUSTED_{taskSpec.prodSourceLabel}", "jedi")
         scoutSuccessRate = taskSpec.getScoutSuccessRate()
