@@ -193,8 +193,12 @@ class ContentsFeederThread(WorkerThread):
                     origNumFiles = taskParamMap["nFiles"]
                 id_to_container = {}
                 [id_to_container.update({datasetSpec.datasetID: datasetSpec.containerName}) for datasetSpec in dsList]
+                skip_secondaries = False
                 for datasetSpec in dsList:
                     tmpLog.debug(f"start loop for {datasetSpec.datasetName}(id={datasetSpec.datasetID})")
+                    if skip_secondaries and not datasetSpec.isMaster():
+                        tmpLog.debug(f"skip {datasetSpec.datasetName} since it is secondary")
+                        continue
                     # index consistency
                     if datasetSpec.indexConsistent():
                         datasetsIdxConsistency.append(datasetSpec.datasetID)
@@ -595,11 +599,11 @@ class ContentsFeederThread(WorkerThread):
                             ):
                                 tmpErrStr = "insufficient inputs are ready. "
                                 tmpErrStr += diagMap["errMsg"]
-                                tmpLog.debug(tmpErrStr)
+                                tmpLog.debug(tmpErrStr + ". skipping secondary datasets from now")
                                 taskSpec.setErrDiag(tmpErrStr)
                                 taskOnHold = True
                                 setFrozenTime = False
-                                break
+                                skip_secondaries = True
                     tmpLog.debug("end loop")
             # no master input
             if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
