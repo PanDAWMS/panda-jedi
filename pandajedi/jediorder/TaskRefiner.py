@@ -199,9 +199,11 @@ class TaskRefinerThread(WorkerThread):
                             try:
                                 ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
                                 if not ds_list_to_prestage:
-                                    tmpLog.debug("no need to prestage")
+                                    tmpLog.debug("no need to prestage, try to resume task from staging")
                                     # no dataset needs pre-staging; unset inputPreStaging
                                     taskParamMap["inputPreStaging"] = False
+                                    # resume task from staging
+                                    self.taskBufferIF.sendCommandTaskPanda(task_id, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
                                 else:
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")

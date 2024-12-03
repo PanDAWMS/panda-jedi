@@ -16,7 +16,7 @@ request_id = int(sys.argv[2])
 
 print("set tbIF")
 tbIF = JediTaskBufferInterface()
-tbIF.setupInterface()
+tbIF.setupInterface(max_size=1)
 
 print("query DB for data carousel request")
 sql = (
@@ -24,12 +24,10 @@ sql = (
     f"FROM ATLAS_PANDA.data_carousel_requests req, ATLAS_PANDA.data_carousel_relations rel "
     f"WHERE req.request_id=rel.request_id "
     f"AND rel.request_id=:request_id AND rel.task_id=:task_id "
-    f"AND req.status=:status "
 )
 var_map = {
     ":task_id": task_id,
     ":request_id": request_id,
-    ":status": DataCarouselRequestStatus.staging,
 }
 res_list = tbIF.querySQL(sql, var_map)
 

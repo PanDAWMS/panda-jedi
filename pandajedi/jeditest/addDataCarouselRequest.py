@@ -11,7 +11,7 @@ jediTaskID = int(sys.argv[1])
 
 print("set tbIF")
 tbIF = JediTaskBufferInterface()
-tbIF.setupInterface()
+tbIF.setupInterface(max_size=1)
 
 print("set ddmIF")
 ddmIF = DDMInterface()
@@ -33,9 +33,12 @@ print(f"get_input_datasets_to_prestage")
 ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
 
 if not ds_list_to_prestage:
-    print("no need to prestage")
     # no dataset needs pre-staging; unset inputPreStaging
+    print("no need to prestage")
     taskParamMap["inputPreStaging"] = False
+    # resume the task from staging
+    print(f"resume task {jediTaskID}")
+    self.taskBufferIF.sendCommandTaskPanda(task_id, "Test addDataCarouselRequest. No need to prestage. Resumed from staging", True, "resume")
 else:
     # submit data carousel requests for dataset to pre-stage
     print("to prestage, submitting data carousel requests")

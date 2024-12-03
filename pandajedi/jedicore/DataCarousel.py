@@ -129,11 +129,11 @@ class DataCarouselInterface(object):
         """
         replicas_map = self._get_full_replicas_per_type(dataset)
         rules = self.ddmIF.list_did_rules(dataset)
-        # rules = list(ddm.list_dataset_rules(dataset))
         rse_expression_list = []
         staging_rule = None
         for rule in rules:
             if rule["activity"] == "Staging":
+                # rule of the dataset already exists; reuse it
                 staging_rule = rule
             else:
                 rse_expression_list.append(rule["rse_expression"])
