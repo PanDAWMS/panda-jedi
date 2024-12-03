@@ -214,12 +214,8 @@ class TaskCommandoThread(WorkerThread):
                                 # read task params
                                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                                 taskParamMap = RefinerUtils.decodeJSON(taskParam)
-                                # remove some params
-                                for newKey in ["nFiles", "fixedSandbox"]:
-                                    try:
-                                        del taskParamMap[newKey]
-                                    except Exception:
-                                        pass
+                                # remove old sandbox file specified in the previous reattempt
+                                taskParamMap.pop("fixedSandbox", None)
                                 # convert new params
                                 newParamMap = RefinerUtils.decodeJSON(commentStr)
                                 # change params
