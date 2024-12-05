@@ -1,3 +1,5 @@
+import functools
+import json
 import random
 import traceback
 from datetime import datetime, timedelta
@@ -72,18 +74,46 @@ class DataCarouselInterface(object):
         self.ddmIF = ddmIF
         self.tape_rses = []
         self.datadisk_rses = []
-        self._last_update_rses_ts = None
-        # update
-        self._update_rses()
+        self.tape_config_map = {}
+        self.excluded_datadisk_rses = []
+        self._last_update_ts_dict = {}
+        # refresh
+        self._refresh_all_attributes()
+
+    def _refresh_all_attributes(self):
+        """
+        Refresh by calling all update methods
+        """
+        self._update_rses(time_limit_minutes=30)
+        # self._update_tape_configs(time_limit_minutes=5)
+        self._update_excluded_datadisk_rses(time_limit_minutes=10)
+
+    @staticmethod
+    def refresh(func):
+        """
+        Decorator to call _refresh_all_attributes before the method
+        """
+
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            self._refresh_all_attributes()
+            return func(self, *args, **kwargs)
+
+        return wrapper
 
     def _update_rses(self, time_limit_minutes=30):
         """
         Update RSEs per type cached in this object
         """
+        tmp_log = MsgWrapper(logger, "_update_rses")
+        nickname = "rses"
         try:
-            tmp_log = MsgWrapper(logger, "_update_rses")
+            # check last update
             now_time = naive_utcnow()
-            if self._last_update_rses_ts is None or (now_time - self._last_update_rses_ts) >= timedelta(minutes=time_limit_minutes):
+            self._last_update_ts_dict.setdefault(nickname, None)
+            last_update_ts = self._last_update_ts_dict[nickname]
+            if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
+                # get RSEs from DDM
                 tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
                 if tape_rses is not None:
                     self.tape_rses = list(tape_rses)
@@ -92,11 +122,65 @@ class DataCarouselInterface(object):
                     self.datadisk_rses = list(datadisk_rses)
                 # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
                 # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
-                self._last_update_rses_ts = naive_utcnow()
-            return True
+                # update last update timestamp
+                self._last_update_ts_dict[nickname] = naive_utcnow()
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
-            return False
+
+    def _update_tape_configs(self, time_limit_minutes=5):
+        """
+        Update tape configs from Data Carousel configurations
+        """
+        tmp_log = MsgWrapper(logger, "_update_tape_configs")
+        nickname = "tapes"
+        try:
+            # check last update
+            now_time = naive_utcnow()
+            self._last_update_ts_dict.setdefault(nickname, None)
+            last_update_ts = self._last_update_ts_dict[nickname]
+            if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
+                # FIXME: get tape configs from DEFT table (not working in JEDI); to be change in the future
+                sql_query_dc_config = f"SELECT name,config " f"FROM {jedi_config.db.schemaDEFT}.T_ACTION_DEFAULT_CONFIG " f"WHERE type=:type "
+                var_map = {":type": "PHYSICAL_TAPE"}
+                res = self.taskBufferIF.querySQL(sql_query_dc_config, var_map)
+                if res is None:
+                    tmp_log.error(f"failed to query configs from ATLAS_DEFT.T_ACTION_DEFAULT_CONFIG ; skipped")
+                else:
+                    for tape_name, config_str in res:
+                        try:
+                            config_map = json.loads(config_str)
+                            self.tape_config_map[tape_name] = config_map
+                        except Exception:
+                            tmp_log.error(f"got error with tape: {tape_name} {config_str} ; {traceback.format_exc()}")
+                            continue
+                # update last update timestamp
+                self._last_update_ts_dict[nickname] = naive_utcnow()
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+
+    def _update_excluded_datadisk_rses(self, time_limit_minutes=10):
+        """
+        Update the list of excluded datadisk RSEs
+        """
+        tmp_log = MsgWrapper(logger, "_update_excluded_datadisk_rses")
+        nickname = "excluded_datadisks"
+        try:
+            # check last update
+            now_time = naive_utcnow()
+            self._last_update_ts_dict.setdefault(nickname, None)
+            last_update_ts = self._last_update_ts_dict[nickname]
+            if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
+                # FIXME: currently only a static list; to be made configurable somewhere
+                self.excluded_datadisk_rses = [
+                    "MPPMU_DATADISK",
+                    "NET2_DATADISK",
+                    "UKI-NORTHGRID-MAN-HEP-CEPH_DATADISK",
+                    "UKI-SCOTGRID-GLASGOW-CEPH_DATADISK",
+                ]
+                # update last update timestamp
+                self._last_update_ts_dict[nickname] = naive_utcnow()
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
 
     def _get_input_ds_from_task_params(self, task_params_map):
         """
@@ -187,6 +271,7 @@ class DataCarouselInterface(object):
             raise e
         return ret_list
 
+    @refresh
     def get_input_datasets_to_prestage(self, task_params_map):
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
@@ -200,7 +285,6 @@ class DataCarouselInterface(object):
         tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
         try:
             ret_list = []
-            self._update_rses()
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
             for collection in input_collection_map:
                 dataset_list = self._get_datasets_from_collection(collection)
@@ -279,6 +363,7 @@ class DataCarouselInterface(object):
         # return
         return ret
 
+    @refresh
     def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:
         """
         Get the queued requests which should proceed to get staging
@@ -337,6 +422,7 @@ class DataCarouselInterface(object):
         # return
         return ddm_rule_id
 
+    @refresh
     def stage_request(self, dc_req_spec: DataCarouselRequestSpec) -> bool:
         """
         Stage the dataset of the request and update request status to staging
