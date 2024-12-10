@@ -1047,6 +1047,9 @@ class JobGeneratorThread(WorkerThread):
                         except Exception:
                             fileIDPool = []
 
+            # task queued time
+            task_queued_time = taskSpec.get_queued_time()
+
             # loop over all sub chunks
             for tmpInChunk in inSubChunkList:
                 siteName = tmpInChunk["siteName"]
@@ -1445,6 +1448,8 @@ class JobGeneratorThread(WorkerThread):
                     # on-site merging
                     if taskSpec.on_site_merging():
                         jobSpec.set_on_site_merging()
+                    # set task queued time
+                    jobSpec.set_task_queued_time(task_queued_time)
                     # extract middle name
                     middleName = ""
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None, "NULL", ""]:
@@ -1916,6 +1921,7 @@ class JobGeneratorThread(WorkerThread):
             specialHandling = specialHandling[:-1]
             if specialHandling != "":
                 jobSpec.specialHandling = specialHandling
+            jobSpec.set_task_queued_time(taskSpec.get_queued_time())
             libDsFileNameBase = libDsName + ".$JEDIFILEID"
             # make lib.tgz
             libTgzName = libDsFileNameBase + ".lib.tgz"

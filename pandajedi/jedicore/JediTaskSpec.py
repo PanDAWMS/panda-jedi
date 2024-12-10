@@ -94,6 +94,8 @@ class JediTaskSpec(object):
         "attemptNr",
         "container_name",
         "framework",
+        "activatedTime",
+        "queuedTime",
     )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -1495,6 +1497,16 @@ class JediTaskSpec(object):
     # check if incomplete input datasets are allowed
     def allow_incomplete_input(self):
         return self.check_split_rule("allowIncompleteInDS")
+
+    # get queued time
+    def get_queued_time(self):
+        """
+        Get queued time in timestamp
+        :return: queued time in timestamp. None if not set
+        """
+        if self.queuedTime is None:
+            return None
+        return self.queuedTime.timestamp()
 
 
 # utils

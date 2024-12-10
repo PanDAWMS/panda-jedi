@@ -1949,6 +1949,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.record_task_status_change(jediTaskID)
                     self.push_task_status_message(taskSpec, jediTaskID, taskStatus)
                     tmpLog.debug(f"set to {taskStatus}")
+            # update queued time
+            self.update_task_queued_time(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -2127,6 +2129,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     # task attempt end log
                     if taskSpec.status in ["done", "finished", "failed", "broken", "aborted", "exhausted"]:
                         self.log_task_attempt_end(taskSpec.jediTaskID)
+            # update queued time
+            self.update_task_queued_time(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
@@ -7663,6 +7667,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             self.setSuperStatus_JEDI(jediTaskID, newTaskStatus)
                         self.record_task_status_change(jediTaskID)
                         self.push_task_status_message(taskSpec, jediTaskID, newTaskStatus)
+                        self.update_task_queued_time(jediTaskID)
                         ret_list.append(jediTaskID)
                     else:
                         # unlock
@@ -7889,6 +7894,8 @@ class DBProxy(OraDBProxy.DBProxy):
                             pass
                         else:
                             self.push_task_status_message(None, jediTaskID, newStatus, splitRule)
+                    # set queued time
+                    self.update_task_queued_time(jediTaskID)
                     # commit
                     if not self._commit():
                         raise RuntimeError("Commit error")
