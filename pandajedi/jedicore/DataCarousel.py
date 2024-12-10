@@ -2,7 +2,9 @@ import functools
 import json
 import random
 import traceback
+from dataclasses import MISSING, InitVar, asdict, dataclass, field
 from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.base import SpecBase
@@ -12,6 +14,9 @@ from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
+
+# schema version of database config
+DC_CONFIG_SCHEMA_VERSION = 0
 
 # final task statuses
 final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
@@ -62,6 +67,61 @@ class DataCarouselRequestSpec(SpecBase):
     _seqAttrMap = {"request_id": f"{jedi_config.db.schemaJEDI}.JEDI_DATA_CAROUSEL_REQUEST_ID_SEQ.nextval"}
 
 
+# ==============================================================
+# Dataclasses of configurations #
+# ===============================
+
+
+@dataclass
+class SourceTapeConfig:
+    """
+    Dataclass for source tape configuration parameters
+
+    Fields:
+        active                  (bool)  : whether the tape is active
+        max_size                (int)   : maximum number of n_files_queued + nfiles_staging from this tape
+        max_staging_ratio       (int)   : maximum ratio percent of nfiles_staging / (n_files_queued + nfiles_staging)
+        destination_expression  (str)   : rse_expression for DDM to filter the destination RSE
+    """
+
+    active: bool = False
+    max_size: int = 10000
+    max_staging_ratio: int = 50
+    destination_expression: str = "type=DATADISK&datapolicynucleus=True&freespace>300"
+
+
+# Main config; must be at bottommost
+@dataclass
+class DataCarouselMainConfig:
+    """
+    Dataclass for DataCarousel main configuration parameters
+
+    Fields:
+        source_tapes_config     (dict)  : configurations of source tapes, in form of {"TAPE_1": SourceTapeConfig_of_TAPE_1, ...}
+        excluded_destinations   (list)  : excluded destination RSEs
+        early_access_users      (list)  : PanDA user names for early access to Data Carousel in PanDA/JEDI
+    """
+
+    source_tapes_config: Dict[str, Any] = field(default_factory=dict)
+    excluded_destinations: List[str] = field(default_factory=list)
+    early_access_users: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        # for nested dict, convert value-dicts to corresponding dataclasses
+        converting_attr_type_map = {
+            "source_tapes_config": SourceTapeConfig,
+        }
+        for attr, klass in converting_attr_type_map.items():
+            if isinstance(_map := getattr(self, attr, None), dict):
+                converted_dict = {}
+                for key, value in _map.items():
+                    converted_dict[key] = klass(**value)
+                setattr(self, attr, converted_dict)
+
+
+# ==============================================================
+
+
 class DataCarouselInterface(object):
     """
     Interface for data carousel methods
@@ -74,8 +134,7 @@ class DataCarouselInterface(object):
         self.ddmIF = ddmIF
         self.tape_rses = []
         self.datadisk_rses = []
-        self.tape_config_map = {}
-        self.excluded_datadisk_rses = []
+        self.dc_config_map = {}
         self._last_update_ts_dict = {}
         # refresh
         self._refresh_all_attributes()
@@ -85,8 +144,7 @@ class DataCarouselInterface(object):
         Refresh by calling all update methods
         """
         self._update_rses(time_limit_minutes=30)
-        # self._update_tape_configs(time_limit_minutes=5)
-        self._update_excluded_datadisk_rses(time_limit_minutes=10)
+        self._update_dc_config(time_limit_minutes=5)
 
     @staticmethod
     def refresh(func):
@@ -127,56 +185,40 @@ class DataCarouselInterface(object):
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
 
-    def _update_tape_configs(self, time_limit_minutes=5):
+    def _update_dc_config(self, time_limit_minutes=5):
         """
-        Update tape configs from Data Carousel configurations
+        Update Data Carousel configuration from DB
         """
-        tmp_log = MsgWrapper(logger, "_update_tape_configs")
-        nickname = "tapes"
+        tmp_log = MsgWrapper(logger, "_update_dc_config")
+        nickname = "main"
         try:
             # check last update
             now_time = naive_utcnow()
             self._last_update_ts_dict.setdefault(nickname, None)
             last_update_ts = self._last_update_ts_dict[nickname]
             if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
-                # FIXME: get tape configs from DEFT table (not working in JEDI); to be change in the future
-                sql_query_dc_config = f"SELECT name,config " f"FROM {jedi_config.db.schemaDEFT}.T_ACTION_DEFAULT_CONFIG " f"WHERE type=:type "
-                var_map = {":type": "PHYSICAL_TAPE"}
-                res = self.taskBufferIF.querySQL(sql_query_dc_config, var_map)
-                if res is None:
-                    tmp_log.error(f"failed to query configs from ATLAS_DEFT.T_ACTION_DEFAULT_CONFIG ; skipped")
+                # get configs from DB
+                res_dict = self.taskBufferIF.getConfigValue("data_carousel", f"DATA_CAROUSEL_CONFIGS", "jedi", "atlas")
+                if res_dict is None:
+                    tmp_log.error(f"got None from DB ; skipped")
+                    return
+                # check schema version
+                try:
+                    schema_version = res_dict["metadata"]["schema_version"]
+                except KeyError:
+                    tmp_log.error(f"failed to get metadata.schema_version ; skipped")
+                    return
                 else:
-                    for tape_name, config_str in res:
-                        try:
-                            config_map = json.loads(config_str)
-                            self.tape_config_map[tape_name] = config_map
-                        except Exception:
-                            tmp_log.error(f"got error with tape: {tape_name} {config_str} ; {traceback.format_exc()}")
-                            continue
-                # update last update timestamp
-                self._last_update_ts_dict[nickname] = naive_utcnow()
-        except Exception:
-            tmp_log.error(f"got error ; {traceback.format_exc()}")
-
-    def _update_excluded_datadisk_rses(self, time_limit_minutes=10):
-        """
-        Update the list of excluded datadisk RSEs
-        """
-        tmp_log = MsgWrapper(logger, "_update_excluded_datadisk_rses")
-        nickname = "excluded_datadisks"
-        try:
-            # check last update
-            now_time = naive_utcnow()
-            self._last_update_ts_dict.setdefault(nickname, None)
-            last_update_ts = self._last_update_ts_dict[nickname]
-            if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
-                # FIXME: currently only a static list; to be made configurable somewhere
-                self.excluded_datadisk_rses = [
-                    "MPPMU_DATADISK",
-                    "NET2_DATADISK",
-                    "UKI-NORTHGRID-MAN-HEP-CEPH_DATADISK",
-                    "UKI-SCOTGRID-GLASGOW-CEPH_DATADISK",
-                ]
+                    if schema_version != DC_CONFIG_SCHEMA_VERSION:
+                        tmp_log.error(f"metadata.schema_version does not match ({schema_version} != {DC_CONFIG_SCHEMA_VERSION}); skipped")
+                        return
+                # get config data
+                dc_config_data_dict = res_dict.get("data")
+                if dc_config_data_dict is None:
+                    tmp_log.error(f"got empty config data; skipped")
+                    return
+                # update
+                self.dc_config_map = DataCarouselMainConfig(**dc_config_data_dict)
                 # update last update timestamp
                 self._last_update_ts_dict[nickname] = naive_utcnow()
         except Exception:
@@ -265,10 +307,9 @@ class DataCarouselInterface(object):
             else:
                 tmp_log.warning(f"invalid DID type: {did_type}")
                 return None
-        except DataIdentifierNotFound:
-            tmp_log.warning(f"DID not found")
-        except Exception as e:
-            raise e
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return None
         return ret_list
 
     @refresh
@@ -362,6 +403,23 @@ class DataCarouselInterface(object):
         ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
         # return
         return ret
+
+    def _e(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
+        """
+        Get stats of staging of all tapes
+
+        Args:
+        task_id (int): JEDI task ID
+        dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+
+        Returns:
+            bool | None : True if submission successful, or None if failed
+        """
+        tmp_log = MsgWrapper(logger, "submit_data_carousel_requests")
+        # insert dc requests for the task
+        pass
+        # return
+        # return ret
 
     @refresh
     def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:

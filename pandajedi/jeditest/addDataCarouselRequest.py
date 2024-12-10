@@ -38,7 +38,7 @@ if not ds_list_to_prestage:
     taskParamMap["inputPreStaging"] = False
     # resume the task from staging
     print(f"resume task {jediTaskID}")
-    self.taskBufferIF.sendCommandTaskPanda(task_id, "Test addDataCarouselRequest. No need to prestage. Resumed from staging", True, "resume")
+    tbIF.sendCommandTaskPanda(jediTaskID, "Test addDataCarouselRequest. No need to prestage. Resumed from staging", True, "resume")
 else:
     # submit data carousel requests for dataset to pre-stage
     print("to prestage, submitting data carousel requests")
