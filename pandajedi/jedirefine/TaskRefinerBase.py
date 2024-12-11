@@ -218,13 +218,13 @@ class TaskRefinerBase(object):
             taskParamMap["nEventsPerRange"] = taskParamMap["minGranularity"]
         # event service flag
         if "useJobCloning" in taskParamMap:
-            taskSpec.eventService = 2
+            taskSpec.eventService = EventServiceUtils.TASK_JOB_CLONING
         elif "nEventsPerWorker" in taskParamMap:
-            taskSpec.eventService = 1
+            taskSpec.eventService = EventServiceUtils.TASK_EVENT_SERVICE
         elif "fineGrainedProc" in taskParamMap:
-            taskSpec.eventService = 3
+            taskSpec.eventService = EventServiceUtils.TASK_FINE_GRAINED
         else:
-            taskSpec.eventService = 0
+            taskSpec.eventService = EventServiceUtils.TASK_NORMAL
         # OS
         if "osInfo" in taskParamMap:
             taskSpec.termCondition = taskParamMap["osInfo"]
