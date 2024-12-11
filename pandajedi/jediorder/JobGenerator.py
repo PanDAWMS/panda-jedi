@@ -1351,6 +1351,19 @@ class JobGeneratorThread(WorkerThread):
                         # check if merging
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
+                        # tarball is downloaded by pilot
+                        tarball_via_pilot = taskParamMap.get("tarBallViaDDM")
+                        if tarball_via_pilot:
+                            tmp_file_spec = FileSpec()
+                            tmp_file_spec.lfn = tarball_via_pilot.split(":")[-1]
+                            tmp_file_spec.type = "input"
+                            tmp_file_spec.attemptNr = 0
+                            tmp_file_spec.jediTaskID = taskSpec.jediTaskID
+                            tmp_file_spec.dataset = tarball_via_pilot.split(":")[0]
+                            tmp_file_spec.dispatchDBlock = tmp_file_spec.dataset
+                            tmp_file_spec.prodDBlockToken = "local"
+                            tmp_file_spec.status = "ready"
+                            jobSpec.addFile(tmp_file_spec)
                     specialHandling = specialHandling[:-1]
                     # using job cloning
                     if setSpecialHandlingForJC:
@@ -1968,6 +1981,19 @@ class JobGeneratorThread(WorkerThread):
             paramMap["SURL"] = taskParamMap["sourceURL"]
             # job parameter
             jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap["buildSpec"]["jobParameters"], paramMap)
+            # tarball is downloaded by pilot
+            tarball_via_pilot = taskParamMap["buildSpec"].get("tarBallViaDDM")
+            if tarball_via_pilot:
+                tmp_file_spec = FileSpec()
+                tmp_file_spec.lfn = tarball_via_pilot.split(":")[-1]
+                tmp_file_spec.type = "input"
+                tmp_file_spec.attemptNr = 0
+                tmp_file_spec.jediTaskID = taskSpec.jediTaskID
+                tmp_file_spec.dataset = tarball_via_pilot.split(":")[0]
+                tmp_file_spec.dispatchDBlock = tmp_file_spec.dataset
+                tmp_file_spec.prodDBlockToken = "local"
+                tmp_file_spec.status = "ready"
+                jobSpec.addFile(tmp_file_spec)
             # make file spec which will be used by runJobs
             runFileSpec = copy.copy(lib_file_spec)
             runFileSpec.dispatchDBlock = lib_file_spec.dataset
