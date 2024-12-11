@@ -2663,7 +2663,7 @@ class JobGeneratorThread(WorkerThread):
                         largestAttemptNr = tmpFileSpec.attemptNr
         return largestAttemptNr + 1
 
-    # touch sandbox fles
+    # touch sandbox files
     def touchSandoboxFiles(self, task_spec, task_param_map, tmp_log):
         # get task parameter map
         tmpStat, taskParamMap = self.readTaskParams(task_spec, task_param_map, tmp_log)
@@ -2671,7 +2671,9 @@ class JobGeneratorThread(WorkerThread):
             return Interaction.SC_FAILED, "failed to get task parameter dict", taskParamMap
         # look for sandbox
         sandboxName = RefinerUtils.get_sandbox_name(taskParamMap)
-        if sandboxName is not None:
+        # tarball is downloaded by pilot
+        tarball_via_pilot = "tarBallViaDDM" in taskParamMap or ("buildSpec" in taskParamMap and "tarBallViaDDM" in taskParamMap["buildSpec"])
+        if sandboxName is not None and not tarball_via_pilot:
             tmpRes = self.taskBufferIF.extendSandboxLifetime_JEDI(task_spec.jediTaskID, sandboxName)
             tmp_log.debug(f"extend lifetime for {sandboxName} with {tmpRes}")
             if not tmpRes:
