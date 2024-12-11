@@ -626,6 +626,10 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "check_staging_requests")
         dc_req_specs = self.taskBufferIF.get_data_carousel_staging_requests_JEDI()
+        if dc_req_specs is None:
+            tmp_log.warning(f"failed to query requests to check ; skipped")
+        elif not dc_req_specs:
+            tmp_log.debug(f"got no requests to check ; skipped")
         for dc_req_spec in dc_req_specs:
             try:
                 to_update = False
