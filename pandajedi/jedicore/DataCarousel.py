@@ -90,7 +90,7 @@ class SourceTapeConfig:
     destination_expression: str = "type=DATADISK&datapolicynucleus=True&freespace>300"
 
 
-# Main config; must be at bottommost
+# Main config; must be bottommost of all config dataclasses
 @dataclass
 class DataCarouselMainConfig:
     """
@@ -107,10 +107,11 @@ class DataCarouselMainConfig:
     early_access_users: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        # for nested dict, convert value-dicts to corresponding dataclasses
+        # map of the attributes with nested dict and corresponding dataclasses
         converting_attr_type_map = {
             "source_tapes_config": SourceTapeConfig,
         }
+        # convert the value-dicts of the attributes to corresponding dataclasses
         for attr, klass in converting_attr_type_map.items():
             if isinstance(_map := getattr(self, attr, None), dict):
                 converted_dict = {}
@@ -134,7 +135,7 @@ class DataCarouselInterface(object):
         self.ddmIF = ddmIF
         self.tape_rses = []
         self.datadisk_rses = []
-        self.dc_config_map = {}
+        self.dc_config_map = None
         self._last_update_ts_dict = {}
         # refresh
         self._refresh_all_attributes()
@@ -312,6 +313,23 @@ class DataCarouselInterface(object):
             return None
         return ret_list
 
+    def _get_active_source_tapes(self) -> set[str] | None:
+        """
+        Get the set of active source RSEs according to DC config
+
+        Returns:
+            set[str] | None : set of source RSEs if successful; None if failed with exception
+        """
+        tmp_log = MsgWrapper(logger, f"_get_active_source_tapes")
+        try:
+            active_source_tapes_set = set(self.dc_config_map.source_tapes_config.keys())
+        except Exception:
+            # other unexpected errors
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return None
+        else:
+            return active_source_tapes_set
+
     @refresh
     def get_input_datasets_to_prestage(self, task_params_map):
         """
@@ -325,7 +343,11 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
         try:
+            # initialize
             ret_list = []
+            # get active source tapes
+            active_source_tapes_set = self._get_active_source_tapes()
+            # loop over inputs
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
             for collection in input_collection_map:
                 dataset_list = self._get_datasets_from_collection(collection)
@@ -352,8 +374,13 @@ class DataCarouselInterface(object):
                             ddm_rule_id = staging_rule["id"]
                             self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
                             tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
-                        # source RSE
-                        rse_list = [replica for replica in filtered_replicas_map["tape"]]
+                        # source RSEs from DDM
+                        rse_set = (replica for replica in filtered_replicas_map["tape"])
+                        # filter out inactive source RSE according to DC config
+                        if active_source_tapes_set is not None:
+                            rse_set &= active_source_tapes_set
+                        rse_list = list(rse_set)
+                        # choose source RSE
                         source_rse = None
                         if len(rse_list) == 1:
                             source_rse = rse_list[0]
@@ -404,22 +431,22 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def _e(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
-        """
-        Get stats of staging of all tapes
+    # def _e(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
+    #     """
+    #     Get stats of staging of all tapes
 
-        Args:
-        task_id (int): JEDI task ID
-        dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+    #     Args:
+    #     task_id (int): JEDI task ID
+    #     dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
-        Returns:
-            bool | None : True if submission successful, or None if failed
-        """
-        tmp_log = MsgWrapper(logger, "submit_data_carousel_requests")
-        # insert dc requests for the task
-        pass
-        # return
-        # return ret
+    #     Returns:
+    #         bool | None : True if submission successful, or None if failed
+    #     """
+    #     tmp_log = MsgWrapper(logger, "submit_data_carousel_requests")
+    #     # insert dc requests for the task
+    #     pass
+    #     # return
+    #     # return ret
 
     @refresh
     def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:
@@ -456,17 +483,32 @@ class DataCarouselInterface(object):
             str | None : DDM rule_id of the new rule if submission successful, or None if failed
         """
         tmp_log = MsgWrapper(logger, f"_submit_ddm_rule request_id={dc_req_spec.request_id}")
-        # TODO: configurable params to get from DC config
-        expression = "type=DATADISK&datapolicynucleus=True&freespace>300"
+        # initialize
+        expression = None
         lifetime = None
         weight = None
         source_replica_expression = None
+        # source replica expression
         if dc_req_spec.source_rse:
             source_replica_expression = f"type=DATADISK|{dc_req_spec.source_rse}"
         else:
             # no source_rse; unexpected
             tmp_log.warning(f"source_rse is None ; skipped")
             return
+        # fill parameters about this tape source from DC config
+        try:
+            source_tape_config = self.dc_config_map.source_tapes_config[dc_req_spec.source_rse]
+        except (KeyError, AttributeError):
+            # no destination_expression for this tape; skipped
+            tmp_log.warning(f"failed to get destination_expression from config; skipped ; {traceback.format_exc()}")
+            return
+        except Exception:
+            # other unexpected errors
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return
+        else:
+            # destination_expression
+            expression = source_tape_config.destination_expression
         # submit ddm staging rule
         ddm_rule_id = self.ddmIF.make_staging_rule(
             dataset_name=dc_req_spec.dataset,
