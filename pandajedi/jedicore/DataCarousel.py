@@ -97,9 +97,9 @@ class DataCarouselMainConfig:
     Dataclass for DataCarousel main configuration parameters
 
     Fields:
-        source_tapes_config     (dict)  : configurations of source tapes, in form of {"TAPE_1": SourceTapeConfig_of_TAPE_1, ...}
+        source_tapes_config     (dict)  : configuration of source tapes, in form of {"TAPE_1": SourceTapeConfig_of_TAPE_1, ...}
         excluded_destinations   (list)  : excluded destination RSEs
-        early_access_users      (list)  : PanDA user names for early access to Data Carousel in PanDA/JEDI
+        early_access_users      (list)  : PanDA user names for early access to Data Carousel
     """
 
     source_tapes_config: Dict[str, Any] = field(default_factory=dict)
@@ -198,8 +198,8 @@ class DataCarouselInterface(object):
             self._last_update_ts_dict.setdefault(nickname, None)
             last_update_ts = self._last_update_ts_dict[nickname]
             if last_update_ts is None or (now_time - last_update_ts) >= timedelta(minutes=time_limit_minutes):
-                # get configs from DB
-                res_dict = self.taskBufferIF.getConfigValue("data_carousel", f"DATA_CAROUSEL_CONFIGS", "jedi", "atlas")
+                # get DC config from DB
+                res_dict = self.taskBufferIF.getConfigValue("data_carousel", f"DATA_CAROUSEL_CONFIG", "jedi", "atlas")
                 if res_dict is None:
                     tmp_log.error(f"got None from DB ; skipped")
                     return
