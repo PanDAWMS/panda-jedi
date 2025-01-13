@@ -596,12 +596,19 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             res = self.taskBufferIF.querySQL(sql_get_tasks, varMap)
             #  Assign to Express Analysis
             new_share = "Express Analysis"
-            for taskID, user in res:
+            for task_id, user in res:
                 tmpLog.info(
-                    f" >>> action=gshare_reassignment jediTaskID={taskID} from gshare_old={varMap[':gshare']} to gshare_new={new_share} #ATM #KV label=user"
+                    f" >>> action=gshare_reassignment jediTaskID={task_id} from gshare_old={varMap[':gshare']} to gshare_new={new_share} #ATM #KV label=user"
                 )
-                self.taskBufferIF.reassignShare([taskID], new_share, True)
-                tmpLog.info(f">>> done jediTaskID={taskID}")
+                self.taskBufferIF.reassignShare([task_id], new_share, True)
+                # tweak split rule
+                _, task_spec = self.taskBufferIF.getTaskWithID_JEDI(task_id)
+                # set max walltime to 1 hour
+                if task_spec.getNumFilesPerJob() is None and task_spec.getNumEventsPerJob() is None:
+                    tmpLog.info(f" >>> set max walltime to 1 hr for jediTaskID={task_id}")
+                    task_spec.set_max_wallime(1)
+                    self.taskBufferIF.updateTask_JEDI(task_spec)
+                tmpLog.info(f">>> done jediTaskID={task_id}")
             # done
             tmpLog.debug("done")
         except Exception:
