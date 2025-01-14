@@ -1183,7 +1183,7 @@ class JediTaskSpec(object):
 
     # set max walltime
     def set_max_walltime(self, value):
-        self.setSplitRule("maxWalltime", value)
+        self.setSplitRule("maxWalltime", str(value))
 
     # get target size of the largest output to reset NG
     def getTgtMaxOutputForNG(self):
