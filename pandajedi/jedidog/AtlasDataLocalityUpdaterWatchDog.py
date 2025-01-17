@@ -160,13 +160,17 @@ class DataLocalityUpdaterThread(WorkerThread):
                         n_skipped_ds += 1
                         continue
                     jediTaskID, datasetID, datasetName = item
+                    _, task_spec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID)
                     dataset_replicas_map = self.ddmIF.listDatasetReplicas(datasetName)
+                    is_distributed = self.ddmIF.isDistributedDataset(datasetName)
                     for tmpRSE, tmpList in dataset_replicas_map.items():
-                        tmpStatistics = tmpList[-1]
-                        # skip unknown and incomplete
-                        if tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]:
-                            n_skipped_replicas += 1
-                            continue
+                        # check data locality unless it is distributed or task uses data carousel
+                        if not is_distributed and not task_spec.taskSpec.inputPreStaging():
+                            tmpStatistics = tmpList[-1]
+                            # skip unknown and incomplete
+                            if tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]:
+                                n_skipped_replicas += 1
+                                continue
                         # update dataset locality table
                         self.taskBufferIF.updateDatasetLocality_JEDI(jedi_taskid=jediTaskID, datasetid=datasetID, rse=tmpRSE)
                         n_updated_replicas += 1

@@ -27,7 +27,7 @@ gshare_name = task_spec.gshare
 work_queue = tbIF.getWorkQueueMap().getQueueWithIDGshare(queue_id, gshare_name)
 
 
-task_list = tbIF.getTasksToBeProcessed_JEDI(None, None, None, None, None, simTasks=[jedi_task_id], readMinFiles=True)
+task_list = tbIF.getTasksToBeProcessed_JEDI(None, None, None, None, None, simTasks=[jedi_task_id], readMinFiles=True, fullSimulation=True)
 
 task_broker = TaskBroker(None, tbIF, ddmIF, [vo], [prodSourceLabel])
 FactoryBase.initializeMods(task_broker, task_broker.taskBufferIF, task_broker.ddmIF)
