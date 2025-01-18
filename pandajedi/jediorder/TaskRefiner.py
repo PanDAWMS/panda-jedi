@@ -194,6 +194,11 @@ class TaskRefinerThread(WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
+                        # enable input pre-staging for early access user
+                        if "inputPreStaging" not in taskParamMap:
+                            if (dc_config_map := data_carousel_interface.dc_config_map) and taskParamMap.get("userName") in dc_config_map.early_access_users:
+                                taskParamMap["inputPreStaging"] = True
+                        # check datasets to pre-stage
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
@@ -203,7 +208,7 @@ class TaskRefinerThread(WorkerThread):
                                     # no dataset needs pre-staging; unset inputPreStaging
                                     taskParamMap["inputPreStaging"] = False
                                     # resume task from staging
-                                    self.taskBufferIF.sendCommandTaskPanda(task_id, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
+                                    self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
                                 else:
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
