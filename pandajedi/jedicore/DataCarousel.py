@@ -6,6 +6,7 @@ from dataclasses import MISSING, InitVar, asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+import polars as pl
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.base import SpecBase
 from pandacommon.pandautils.PandaUtils import naive_utcnow
@@ -448,6 +449,23 @@ class DataCarouselInterface(object):
     #     # return
     #     # return ret
 
+    def _get_dc_requests_table_as_dataframe(self):
+        """
+        Get the Data Carousel requests table as dataframe for statistics
+
+        Returns:
+            polars.Dataframe : dataframe of current Data Carousel requests table
+        """
+        sql = f"SELECT {','.join(DataCarouselRequestSpec.attributes)} " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"ORDER BY request_id "
+        var_map = {}
+        res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
+        if res:
+            dc_req_df = pl.DataFrame(res, schema=DataCarouselRequestSpec.attributes, orient="row")
+            return dc_req_df
+
+    def _get_queued_requests_as_dataframe(self):
+        pass
+
     @refresh
     def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:
         """
@@ -467,6 +485,15 @@ class DataCarouselInterface(object):
         for dc_req_spec, task_specs in queued_requests:
             # TODO: add algorithms to filter queued requests whether with existing DDM rule, and according to gshare, priority, etc. ; also limit length according to staging profiles
             # FIXME: currently all queued requests are returned
+            # evaluate quota per tape
+            dc_req_df = self._get_dc_requests_table_as_dataframe()
+            sourse_rse_stats_df = (
+                dc_req_df.select("source_rse", "total_files", "staged_files", (pl.col("total_files") - pl.col("staged_files")).alias("remaining_files"))
+                .group_by("source_rse")
+                .sum()
+            )
+            # sort by priority
+            pass
             ret_list.append(dc_req_spec)
         tmp_log.debug(f"got {len(ret_list)} requests")
         # return

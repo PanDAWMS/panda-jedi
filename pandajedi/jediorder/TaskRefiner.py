@@ -194,9 +194,11 @@ class TaskRefinerThread(WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
+                        # get data carousel config map
+                        dc_config_map = data_carousel_interface.dc_config_map
                         # enable input pre-staging for early access user
                         if "inputPreStaging" not in taskParamMap:
-                            if (dc_config_map := data_carousel_interface.dc_config_map) and taskParamMap.get("userName") in dc_config_map.early_access_users:
+                            if dc_config_map and taskParamMap.get("userName") in dc_config_map.early_access_users:
                                 taskParamMap["inputPreStaging"] = True
                         # check datasets to pre-stage
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
