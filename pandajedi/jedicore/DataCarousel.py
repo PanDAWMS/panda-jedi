@@ -17,7 +17,7 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 # schema version of database config
-DC_CONFIG_SCHEMA_VERSION = 0
+DC_CONFIG_SCHEMA_VERSION = 1
 
 # final task statuses
 final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
@@ -91,6 +91,24 @@ class SourceTapeConfig:
     destination_expression: str = "type=DATADISK&datapolicynucleus=True&freespace>300"
 
 
+@dataclass
+class SourceRSEConfig:
+    """
+    Dataclass for source RSE configuration parameters
+
+    Fields:
+        tape                    (str)   : is mapped to this source physical tape
+        active                  (bool)  : whether the source RSE is active
+        max_size                (int)   : maximum number of n_files_queued + nfiles_staging from this RSE
+        max_staging_ratio       (int)   : maximum ratio percent of nfiles_staging / (n_files_queued + nfiles_staging)
+    """
+
+    tape: str
+    active: bool = False
+    max_size: int = 10000
+    max_staging_ratio: int = 50
+
+
 # Main config; must be bottommost of all config dataclasses
 @dataclass
 class DataCarouselMainConfig:
@@ -98,12 +116,14 @@ class DataCarouselMainConfig:
     Dataclass for DataCarousel main configuration parameters
 
     Fields:
-        source_tapes_config     (dict)  : configuration of source tapes, in form of {"TAPE_1": SourceTapeConfig_of_TAPE_1, ...}
+        source_tapes_config     (dict)  : configuration of source physical tapes, in form of {"TAPE_1": SourceTapeConfig_of_TAPE_1, ...}
+        source_rses_config      (dict)  : configuration of source RSEs, each should be mapped to some source tape, in form of {"RSE_1": SourceRSEConfig_of_RSE_1, ...}
         excluded_destinations   (list)  : excluded destination RSEs
         early_access_users      (list)  : PanDA user names for early access to Data Carousel
     """
 
     source_tapes_config: Dict[str, Any] = field(default_factory=dict)
+    source_rses_config: Dict[str, Any] = field(default_factory=dict)
     excluded_destinations: List[str] = field(default_factory=list)
     early_access_users: List[str] = field(default_factory=list)
 
@@ -111,6 +131,7 @@ class DataCarouselMainConfig:
         # map of the attributes with nested dict and corresponding dataclasses
         converting_attr_type_map = {
             "source_tapes_config": SourceTapeConfig,
+            "source_rses_config": SourceRSEConfig,
         }
         # convert the value-dicts of the attributes to corresponding dataclasses
         for attr, klass in converting_attr_type_map.items():
@@ -316,6 +337,23 @@ class DataCarouselInterface(object):
 
     def _get_active_source_tapes(self) -> set[str] | None:
         """
+        Get the set of active source physical tapes according to DC config
+
+        Returns:
+            set[str] | None : set of source tapes if successful; None if failed with exception
+        """
+        tmp_log = MsgWrapper(logger, f"_get_active_source_tapes")
+        try:
+            active_source_tapes_set = (tape for tape in self.dc_config_map.source_tapes_config.keys() if tape.active)
+        except Exception:
+            # other unexpected errors
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return None
+        else:
+            return active_source_tapes_set
+
+    def _get_active_source_rses(self) -> set[str] | None:
+        """
         Get the set of active source RSEs according to DC config
 
         Returns:
@@ -323,13 +361,22 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, f"_get_active_source_tapes")
         try:
-            active_source_tapes_set = set(self.dc_config_map.source_tapes_config.keys())
+            active_source_tapes = self._get_active_source_tapes()
+            active_source_rses_set = set()
+            for rse in self.dc_config_map.source_rses_config.keys():
+                try:
+                    if rse.active and rse.tape in active_source_tapes:
+                        active_source_rses_set.add(rse)
+                except Exception:
+                    # errors with the rse
+                    tmp_log.error(f"got error with {rse} ; {traceback.format_exc()}")
+                    continue
         except Exception:
             # other unexpected errors
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             return None
         else:
-            return active_source_tapes_set
+            return active_source_rses_set
 
     @refresh
     def get_input_datasets_to_prestage(self, task_params_map):
@@ -346,8 +393,9 @@ class DataCarouselInterface(object):
         try:
             # initialize
             ret_list = []
-            # get active source tapes
+            # get active source tapes and rses
             active_source_tapes_set = self._get_active_source_tapes()
+            active_source_rses_set = self._get_active_source_rses()
             # loop over inputs
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
             for collection in input_collection_map:
@@ -375,13 +423,13 @@ class DataCarouselInterface(object):
                             ddm_rule_id = staging_rule["id"]
                             self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
                             tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
-                        # source RSEs from DDM
+                        # source tape RSEs (as physical tape) from DDM
                         rse_set = (replica for replica in filtered_replicas_map["tape"])
-                        # filter out inactive source RSE according to DC config
+                        # filter out inactive source tapes according to DC config
                         if active_source_tapes_set is not None:
                             rse_set &= active_source_tapes_set
                         rse_list = list(rse_set)
-                        # choose source RSE
+                        # choose source RSE (as physical tape)
                         source_rse = None
                         if len(rse_list) == 1:
                             source_rse = rse_list[0]
@@ -522,9 +570,20 @@ class DataCarouselInterface(object):
             # no source_rse; unexpected
             tmp_log.warning(f"source_rse is None ; skipped")
             return
+        # get source physical tape
+        try:
+            # source_rse is RSE
+            source_tape = self.dc_config_map.source_rses_config[dc_req_spec.source_rse].tape
+        except KeyError:
+            # source_rse is physical tape
+            source_tape = dc_req_spec.source_rse
+        except Exception:
+            # other unexpected errors
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+            return
         # fill parameters about this tape source from DC config
         try:
-            source_tape_config = self.dc_config_map.source_tapes_config[dc_req_spec.source_rse]
+            source_tape_config = self.dc_config_map.source_tapes_config[source_tape]
         except (KeyError, AttributeError):
             # no destination_expression for this tape; skipped
             tmp_log.warning(f"failed to get destination_expression from config; skipped ; {traceback.format_exc()}")
