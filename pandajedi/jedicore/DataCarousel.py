@@ -97,16 +97,16 @@ class SourceRSEConfig:
     Dataclass for source RSE configuration parameters
 
     Fields:
-        tape                    (str)   : is mapped to this source physical tape
-        active                  (bool)  : whether the source RSE is active
-        max_size                (int)   : maximum number of n_files_queued + nfiles_staging from this RSE
-        max_staging_ratio       (int)   : maximum ratio percent of nfiles_staging / (n_files_queued + nfiles_staging)
+        tape                    (str)       : is mapped to this source physical tape
+        active                  (bool|None) : whether the source RSE is active
+        max_size                (int|None)  : maximum number of n_files_queued + nfiles_staging from this RSE
+        max_staging_ratio       (int|None)  : maximum ratio percent of nfiles_staging / (n_files_queued + nfiles_staging)
     """
 
     tape: str
-    active: bool = False
-    max_size: int = 10000
-    max_staging_ratio: int = 50
+    active: bool | None = None
+    max_size: int | None = None
+    max_staging_ratio: int | None = None
 
 
 # Main config; must be bottommost of all config dataclasses
@@ -344,7 +344,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, f"_get_active_source_tapes")
         try:
-            active_source_tapes_set = (tape for tape in self.dc_config_map.source_tapes_config.keys() if tape.active)
+            active_source_tapes_set = {tape for tape, tape_config in self.dc_config_map.source_tapes_config.items() if tape_config.active}
         except Exception:
             # other unexpected errors
             tmp_log.error(f"got error ; {traceback.format_exc()}")
@@ -363,9 +363,10 @@ class DataCarouselInterface(object):
         try:
             active_source_tapes = self._get_active_source_tapes()
             active_source_rses_set = set()
-            for rse in self.dc_config_map.source_rses_config.keys():
+            for rse, rse_config in self.dc_config_map.source_rses_config.items():
                 try:
-                    if rse.active and rse.tape in active_source_tapes:
+                    # both physical tape and RSE are active
+                    if rse_config.tape in active_source_tapes and rse_config.active is not False:
                         active_source_rses_set.add(rse)
                 except Exception:
                     # errors with the rse
@@ -423,13 +424,13 @@ class DataCarouselInterface(object):
                             ddm_rule_id = staging_rule["id"]
                             self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
                             tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
-                        # source tape RSEs (as physical tape) from DDM
-                        rse_set = (replica for replica in filtered_replicas_map["tape"])
-                        # filter out inactive source tapes according to DC config
-                        if active_source_tapes_set is not None:
-                            rse_set &= active_source_tapes_set
+                        # source tape RSEs from DDM
+                        rse_set = {replica for replica in filtered_replicas_map["tape"]}
+                        # filter out inactive source tape RSEs according to DC config
+                        if active_source_rses_set is not None:
+                            rse_set &= active_source_rses_set
                         rse_list = list(rse_set)
-                        # choose source RSE (as physical tape)
+                        # choose source RSE
                         source_rse = None
                         if len(rse_list) == 1:
                             source_rse = rse_list[0]
