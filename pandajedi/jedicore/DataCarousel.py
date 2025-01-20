@@ -647,13 +647,11 @@ class DataCarouselInterface(object):
                     "source_rse": dc_req_spec.source_rse,
                     "total_files": dc_req_spec.total_files,
                     "dataset_size": dc_req_spec.dataset_size,
-                    "jediTaskID": task_specs.jediTaskID,
-                    "userName": task_specs.userName,
-                    "gshare": task_specs.gshare,
-                    "gshare_rank": gshare_rank_dict.get(task_specs.gshare, 999),
-                    "task_priority": task_specs.currentPriority
-                    if task_specs.currentPriority
-                    else (task_specs.taskPriority if task_specs.taskPriority else 1000),
+                    "jediTaskID": task_spec.jediTaskID,
+                    "userName": task_spec.userName,
+                    "gshare": task_spec.gshare,
+                    "gshare_rank": gshare_rank_dict.get(task_spec.gshare, 999),
+                    "task_priority": task_spec.currentPriority if task_spec.currentPriority else (task_spec.taskPriority if task_spec.taskPriority else 1000),
                 }
                 tmp_list.append(tmp_dict)
         df = pl.DataFrame(
@@ -721,12 +719,15 @@ class DataCarouselInterface(object):
             tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
             # append the requests to ret_list
             request_id_list = tmp_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            sub_count = 0
             for request_id in request_id_list:
                 dc_req_spec = request_id_spec_map.get(request_id)
                 if dc_req_spec:
                     ret_list.append(dc_req_spec)
-        # ret_list.append(dc_req_spec)
-        tmp_log.debug(f"got {len(ret_list)} requests")
+                    sub_count += 1
+            if sub_count > 0:
+                tmp_log.debug(f"tape={tape} got {sub_count} requests")
+        tmp_log.debug(f"totally got {len(ret_list)} requests")
         # return
         return ret_list
 
