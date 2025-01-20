@@ -164,13 +164,8 @@ class DataLocalityUpdaterThread(WorkerThread):
                     dataset_replicas_map = self.ddmIF.listDatasetReplicas(datasetName)
                     is_distributed_ds = self.ddmIF.isDistributedDataset(datasetName)
                     for tmpRSE, tmpList in dataset_replicas_map.items():
-                        tmpStatistics = tmpList[-1]
-                        # skip unknown and incomplete datasets (while no check for distributed input container/dataset)
-                        if not is_distributed_ds and (tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]):
-                            n_skipped_replicas += 1
-                            continue
-                        # check data locality unless it is distributed or uses data carousel
-                        if not is_distributed and not task_spec.taskSpec.inputPreStaging():
+                        # check data locality unless input is distributed or uses data carousel
+                        if not is_distributed_ds and not task_spec.taskSpec.inputPreStaging():
                             tmpStatistics = tmpList[-1]
                             # skip unknown and incomplete
                             if tmpStatistics["found"] is None or tmpStatistics["found"] != tmpStatistics["total"]:
