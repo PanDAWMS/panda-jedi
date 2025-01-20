@@ -2,6 +2,7 @@ import functools
 import json
 import random
 import traceback
+from collections import namedtuple
 from dataclasses import MISSING, InitVar, asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -16,11 +17,19 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
+
+# ==============================================================
+
 # schema version of database config
 DC_CONFIG_SCHEMA_VERSION = 1
 
 # final task statuses
 final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
+
+# named tuple for attribute with type
+AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
+
+# ==============================================================
 
 
 class DataCarouselRequestStatus(object):
@@ -42,24 +51,26 @@ class DataCarouselRequestSpec(SpecBase):
     Data carousel request specification
     """
 
-    # attributes
-    attributes = (
-        "request_id",
-        "dataset",
-        "source_rse",
-        "destination_rse",
-        "ddm_rule_id",
-        "status",
-        "total_files",
-        "staged_files",
-        "dataset_size",
-        "staged_size",
-        "creation_time",
-        "start_time",
-        "end_time",
-        "modification_time",
-        "check_time",
+    # attributes with types
+    attributes_with_types = (
+        AttributeWithType("request_id", int),
+        AttributeWithType("dataset", str),
+        AttributeWithType("source_rse", str),
+        AttributeWithType("destination_rse", str),
+        AttributeWithType("ddm_rule_id", str),
+        AttributeWithType("status", str),
+        AttributeWithType("total_files", int),
+        AttributeWithType("staged_files", int),
+        AttributeWithType("dataset_size", int),
+        AttributeWithType("staged_size", int),
+        AttributeWithType("creation_time", datetime),
+        AttributeWithType("start_time", datetime),
+        AttributeWithType("end_time", datetime),
+        AttributeWithType("modification_time", datetime),
+        AttributeWithType("check_time", datetime),
     )
+    # attributes
+    attributes = tuple([attr.attribute for attr in attributes_with_types])
     # attributes which have 0 by default
     _zeroAttrs = ()
     # attributes to force update
@@ -498,22 +509,175 @@ class DataCarouselInterface(object):
     #     # return
     #     # return ret
 
-    def _get_dc_requests_table_as_dataframe(self):
+    def _get_dc_requests_table_dataframe(self) -> pl.DataFrame | None:
         """
-        Get the Data Carousel requests table as dataframe for statistics
+        Get Data Carousel requests table as dataframe for statistics
 
         Returns:
-            polars.Dataframe : dataframe of current Data Carousel requests table
+            polars.DataFrame|None : dataframe of current Data Carousel requests table if successful, or None if failed
         """
         sql = f"SELECT {','.join(DataCarouselRequestSpec.attributes)} " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"ORDER BY request_id "
         var_map = {}
         res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
-        if res:
-            dc_req_df = pl.DataFrame(res, schema=DataCarouselRequestSpec.attributes, orient="row")
+        if res is not None:
+            dc_req_df = pl.DataFrame(res, schema=DataCarouselRequestSpec.attributes_with_types, orient="row")
             return dc_req_df
+        else:
+            return None
 
-    def _get_queued_requests_as_dataframe(self):
-        pass
+    def _get_source_tapes_config_dataframe(self) -> pl.DataFrame:
+        """
+        Get source tapes config as dataframe
+
+        Returns:
+            polars.DataFrame : dataframe of source tapes config
+        """
+        tmp_list = []
+        for k, v in self.dc_config_map.source_tapes_config.items():
+            tmp_dict = {"tape": k}
+            tmp_dict.update(asdict(v))
+            tmp_list.append(tmp_dict)
+        source_tapes_config_df = pl.DataFrame(tmp_list)
+        return source_tapes_config_df
+
+    def _get_source_rses_config_dataframe(self) -> pl.DataFrame:
+        """
+        Get source RSEs config as dataframe
+
+        Returns:
+            polars.DataFrame : dataframe of source RSEs config
+        """
+        tmp_list = []
+        for k, v in self.dc_config_map.source_rses_config.items():
+            tmp_dict = {"source_rse": k}
+            tmp_dict.update(asdict(v))
+            tmp_list.append(tmp_dict)
+        source_rses_config_df = pl.DataFrame(tmp_list)
+        return source_rses_config_df
+
+    def _get_source_tape_stats_dataframe(self) -> pl.DataFrame | None:
+        """
+        Get statistics of source tapes as dataframe
+
+        Returns:
+            polars.DataFrame : dataframe of statistics of source tapes if successful, or None if failed
+        """
+        # get Data Carousel requests dataframe of staging requests
+        dc_req_df = self._get_dc_requests_table_dataframe()
+        if dc_req_df is None:
+            return None
+        dc_req_df = dc_req_df.filter(pl.col("status") == DataCarouselRequestStatus.staging)
+        # get source tapes and RSEs config dataframes
+        source_tapes_config_df = self._get_source_tapes_config_dataframe()
+        source_rses_config_df = self._get_source_rses_config_dataframe()
+        # dataframe of staging requests with physical tapes
+        dc_req_full_df = dc_req_df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
+        # dataframe of source RSE stats; add remaining_files
+        source_rse_stats_df = (
+            dc_req_full_df.select(
+                "tape",
+                "total_files",
+                "staged_files",
+                (pl.col("total_files") - pl.col("staged_files")).alias("remaining_files"),
+            )
+            .group_by("tape")
+            .sum()
+        )
+        # make dataframe of source tapes stats; add quota_size
+        df = source_tapes_config_df.join(source_rse_stats_df, on="tape", how="left")
+        df = df.with_columns(
+            pl.col("total_files").fill_null(strategy="zero"),
+            pl.col("staged_files").fill_null(strategy="zero"),
+            pl.col("remaining_files").fill_null(strategy="zero"),
+        )
+        df = df.with_columns(quota_size=(pl.col("max_size") - pl.col("remaining_files")))
+        # return final dataframe
+        source_tape_stats_df = df
+        return source_tape_stats_df
+
+    def _get_gshare_stats(self) -> dict:
+        """
+        Get current gshare stats
+
+        Returns:
+            dict : dictionary of gshares
+        """
+        # get share and hs info
+        gshare_status = self.taskBufferIF.getGShareStatus()
+        # initialize
+        gshare_dict = dict()
+        # rank and data
+        for idx, leaf in enumerate(gshare_status):
+            rank = idx + 1
+            gshare = leaf["name"]
+            gshare_dict[gshare] = {
+                "gshare": gshare,
+                "rank": rank,
+                "queuing_hs": leaf["queuing"],
+                "running_hs": leaf["running"],
+                "target_hs": leaf["target"],
+                "usage_perc": leaf["running"] / leaf["target"] if leaf["target"] > 0 else 999999,
+                "queue_perc": leaf["queuing"] / leaf["target"] if leaf["target"] > 0 else 999999,
+            }
+        # return
+        return gshare_dict
+
+    def _queued_requests_tasks_to_dataframe(self, queued_requests: list | None) -> pl.DataFrame:
+        """
+        Transfrom Data Carousel queue requests and their tasks into dataframe
+
+        Args:
+        queued_requests (list|None): list of tuples in form of (queued_request, [taskspec1, taskspec2, ...])
+
+        Returns:
+            polars.DataFrame : dataframe of queued requests
+        """
+        # get source RSEs config for tape mapping
+        source_rses_config_df = self._get_source_rses_config_dataframe()
+        # get current gshare rank
+        gshare_dict = self._get_gshare_stats()
+        gshare_rank_dict = {k: v["rank"] for k, v in gshare_dict.items()}
+        # make dataframe of queued requests and their tasks
+        tmp_list = []
+        for dc_req_spec, task_specs in queued_requests:
+            for task_spec in task_specs:
+                tmp_dict = {
+                    "request_id": dc_req_spec.request_id,
+                    "dataset": dc_req_spec.dataset,
+                    "source_rse": dc_req_spec.source_rse,
+                    "total_files": dc_req_spec.total_files,
+                    "dataset_size": dc_req_spec.dataset_size,
+                    "jediTaskID": task_specs.jediTaskID,
+                    "userName": task_specs.userName,
+                    "gshare": task_specs.gshare,
+                    "gshare_rank": gshare_rank_dict.get(task_specs.gshare, 999),
+                    "task_priority": task_specs.currentPriority
+                    if task_specs.currentPriority
+                    else (task_specs.taskPriority if task_specs.taskPriority else 1000),
+                }
+                tmp_list.append(tmp_dict)
+        df = pl.DataFrame(
+            tmp_list,
+            schema={
+                "request_id": int,
+                "dataset": str,
+                "source_rse": str,
+                "total_files": int,
+                "dataset_size": int,
+                "jediTaskID": int,
+                "userName": str,
+                "gshare": str,
+                "gshare_rank": int,
+                "task_priority": int,
+            },
+        )
+        # fill null
+        df.with_columns(pl.col("total_files").fill_null(strategy="zero"), pl.col("dataset_size").fill_null(strategy="zero"))
+        # join to add phycial tape
+        df = df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
+        # return final dataframe
+        queued_requests_tasks_df = df
+        return queued_requests_tasks_df
 
     @refresh
     def get_requests_to_stage(self, *args, **kwargs) -> list[DataCarouselRequestSpec]:
@@ -531,19 +695,37 @@ class DataCarouselInterface(object):
         queued_requests = self.taskBufferIF.get_data_carousel_queued_requests_JEDI()
         if queued_requests is None:
             return ret_list
-        for dc_req_spec, task_specs in queued_requests:
-            # TODO: add algorithms to filter queued requests whether with existing DDM rule, and according to gshare, priority, etc. ; also limit length according to staging profiles
-            # FIXME: currently all queued requests are returned
-            # evaluate quota per tape
-            dc_req_df = self._get_dc_requests_table_as_dataframe()
-            sourse_rse_stats_df = (
-                dc_req_df.select("source_rse", "total_files", "staged_files", (pl.col("total_files") - pl.col("staged_files")).alias("remaining_files"))
-                .group_by("source_rse")
-                .sum()
-            )
-            # sort by priority
-            pass
-            ret_list.append(dc_req_spec)
+        # get stats of tapes
+        source_tape_stats_df = self._get_source_tape_stats_dataframe()
+        source_tape_stats_dict_list = source_tape_stats_df.to_dicts()
+        # map of request_id and dc_req_spec of queued requests
+        request_id_spec_map = {dc_req_spec.request_id: dc_req_spec for dc_req_spec, _ in queued_requests}
+        # get dataframe of queued requests and tasks
+        queued_requests_tasks_df = self._queued_requests_tasks_to_dataframe(queued_requests)
+        # sort queued requests : by gshare_rank, task_priority, jediTaskID, request_id
+        df = queued_requests_tasks_df.sort(
+            ["gshare_rank", "task_priority", "jediTaskID", "request_id"], descending=[False, True, False, False], nulls_last=True
+        )
+        # get unique requests with the sorted order
+        df = df.unique(subset=["request_id"], keep="first", maintain_order=True)
+        # evaluate per tape
+        queued_requests_df = df
+        for source_tape_stats_dict in source_tape_stats_dict_list:
+            tape = source_tape_stats_dict["tape"]
+            quota_size = source_tape_stats_dict["quota_size"]
+            # dataframe of the phycial tape
+            tmp_df = queued_requests_df.filter(pl.col("tape") == tape)
+            # get cumulative sum of queued files per physical tape
+            tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
+            # filter requests within the tape quota size
+            tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
+            # append the requests to ret_list
+            request_id_list = tmp_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            for request_id in request_id_list:
+                dc_req_spec = request_id_spec_map.get(request_id)
+                if dc_req_spec:
+                    ret_list.append(dc_req_spec)
+        # ret_list.append(dc_req_spec)
         tmp_log.debug(f"got {len(ret_list)} requests")
         # return
         return ret_list
