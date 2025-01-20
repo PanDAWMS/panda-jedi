@@ -272,7 +272,7 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         ######################################
         # check dataset completeness
-        if inputChunk.getDatasets():
+        if inputChunk.getDatasets() and not taskSpec.inputPreStaging():
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
                 # skip distributed datasets
