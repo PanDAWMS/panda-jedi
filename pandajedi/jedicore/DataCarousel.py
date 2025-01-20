@@ -1071,3 +1071,41 @@ class DataCarouselInterface(object):
                 tmp_log.debug(f"deleted {ret_outdated} outdated requests older than {outdated_time_limit_days} days")
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
+
+    def cancel_request(self, request_id: int) -> bool | None:
+        """
+        Cancel a request
+
+        Args:
+        request_id (int): reqeust_id of the request to cancel
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        ret = self.taskBufferIF.cancel_or_resubmit_data_carousel_request_JEDI(request_id)
+        return ret
+
+    def resubmit_request(self, dc_req_spec: DataCarouselRequestSpec) -> bool | None:
+        """
+        Resubmit a request
+
+        Args:
+        dc_req_spec (DataCarouselRequestSpec): spec of the request to resubmit
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        now_time = naive_utcnow()
+        # make new request spec
+        dc_req_spec_to_resubmit = DataCarouselRequestSpec()
+        dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
+        dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
+        dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
+        dc_req_spec_to_resubmit.staged_files = 0
+        dc_req_spec_to_resubmit.staged_size = 0
+        dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
+        dc_req_spec_to_resubmit.creation_time = now_time
+        # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
+        # return
+        ret = self.taskBufferIF.cancel_or_resubmit_data_carousel_request_JEDI(dc_req_spec.request_id, dc_req_spec_to_resubmit)
+        return ret
