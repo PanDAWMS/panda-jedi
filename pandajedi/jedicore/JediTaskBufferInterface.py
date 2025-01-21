@@ -9,9 +9,9 @@ class JediTaskBufferInterface:
         self.interface = None
 
     # setup interface
-    def setupInterface(self):
+    def setupInterface(self, max_size=None):
         vo = "any"
-        maxSize = jedi_config.db.nWorkers
+        maxSize = max_size if max_size is not None else jedi_config.db.nWorkers
         moduleName = "pandajedi.jedicore.JediTaskBuffer"
         className = "JediTaskBuffer"
         self.interface = Interaction.CommandSendInterface(vo, maxSize, moduleName, className)

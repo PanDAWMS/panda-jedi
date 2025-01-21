@@ -16,6 +16,7 @@ dependencies = [
     'panda-server>=0.5.1',
     'python-daemon',
     'numpy',
+    'polars',
     'pyyaml',
     'requests',
     'packaging'
