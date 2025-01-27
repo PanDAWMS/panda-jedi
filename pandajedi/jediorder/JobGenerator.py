@@ -909,17 +909,9 @@ class JobGeneratorThread(WorkerThread):
         # return for failure
         failedRet = Interaction.SC_FAILED, None, None, None, None, None
         # read task parameters
-        if (
-            taskSpec.useBuild()
-            or taskSpec.usePrePro()
-            or inputChunk.isMerging
-            or taskSpec.useLoadXML()
-            or taskSpec.useListPFN()
-            or taskSpec.is_multi_step_exec()
-        ):
-            tmpStat, taskParamMap = self.readTaskParams(taskSpec, taskParamMap, tmpLog)
-            if not tmpStat:
-                return failedRet
+        tmpStat, taskParamMap = self.readTaskParams(taskSpec, taskParamMap, tmpLog)
+        if not tmpStat:
+            return failedRet
         # special priorities
         scoutPriority = 901
         mergePriority = 5000

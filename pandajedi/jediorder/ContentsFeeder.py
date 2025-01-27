@@ -186,6 +186,7 @@ class ContentsFeederThread(WorkerThread):
             nFilesMaster = 0
             checkedMaster = False
             setFrozenTime = True
+            master_offset = None
             if not taskBroken:
                 ddmIF = self.ddmIF.getInterface(taskSpec.vo, taskSpec.cloud)
                 origNumFiles = None
@@ -586,6 +587,7 @@ class ContentsFeederThread(WorkerThread):
                                 if datasetSpec.isMaster():
                                     checkedMaster = True
                                     nFilesMaster += nFilesUnique
+                                    master_offset = datasetSpec.getOffset()
                             # running task
                             if diagMap["isRunningTask"]:
                                 runningTask = True
@@ -608,6 +610,8 @@ class ContentsFeederThread(WorkerThread):
             # no master input
             if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
                 tmpErrStr = "no master input files. input dataset is empty"
+                if master_offset:
+                    tmpErrStr += f" with offset={master_offset}"
                 tmpLog.error(tmpErrStr)
                 taskSpec.setErrDiag(tmpErrStr, None)
                 if noWaitParent:
