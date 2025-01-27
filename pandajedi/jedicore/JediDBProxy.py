@@ -81,6 +81,13 @@ def get_mb_proxy_dict():
         return mb_proxy_dict
 
 
+# often-used bind variables
+INPUT_TYPES_var_str, INPUT_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
+PROCESS_TYPES_var_str, PROCESS_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
+MERGE_TYPES_var_str, MERGE_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getMergeProcessTypes(), prefix=":type_", value_as_suffix=True)
+
+
+# main class
 class DBProxy(OraDBProxy.DBProxy):
     # constructor
     def __init__(self, useOtherError=False):
@@ -238,9 +245,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":prodSourceLabel"] = prodSourceLabel
                 sql += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sql += "AND tabT.jediTaskID=tabD.jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sql += f"AND type IN ({type_var_names_str}) "
+            sql += f"AND type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             ds_status_var_names_str, ds_status_var_map = get_sql_IN_bind_variables(
                 JediDatasetSpec.statusToUpdateContents(), prefix=":dsStatus_", value_as_suffix=True
             )
@@ -252,7 +258,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "AND NOT EXISTS "
             sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sql += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
-            sql += f"AND type IN ({type_var_names_str}) "
+            sql += f"AND type IN ({INPUT_TYPES_var_str}) "
             sql += "AND status=:dsStatus_pending) "
             # begin transaction
             self.conn.begin()
@@ -751,8 +757,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlCE = f"UPDATE {jedi_config.db.schemaDEFT}.T_TASK "
             sqlCE += "SET total_input_events=LEAST(9999999999,("
             sqlCE += f"SELECT SUM(nEvents) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlCE += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+            sqlCE += "WHERE jediTaskID=:jediTaskID "
+            sqlCE += f"AND type IN ({INPUT_TYPES_var_str}) "
             sqlCE += "AND masterID IS NULL)) "
             sqlCE += "WHERE taskID=:jediTaskID "
             nInsert = 0
@@ -1391,9 +1397,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         if datasetSpec.isMaster():
                             varMap = {}
                             varMap[":jediTaskID"] = datasetSpec.jediTaskID
-                            for tmpType in JediDatasetSpec.getInputTypes():
-                                mapKey = ":type_" + tmpType
-                                varMap[mapKey] = tmpType
+                            varMap.update(INPUT_TYPES_var_map)
                             tmpLog.debug(sqlCE + comment + str(varMap))
                             self.cur.execute(sqlCE + comment, varMap)
                         # return number of activated pending inputs
@@ -1769,9 +1773,9 @@ class DBProxy(OraDBProxy.DBProxy):
             sql = f"SELECT {JediDatasetSpec.columnNames()} "
             sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
             if datasetTypes is not None:
-                type_var_names_str, type_var_map = get_sql_IN_bind_variables(datasetTypes, prefix=":type_", value_as_suffix=True)
-                varMap.update(type_var_map)
-                sql += f"AND type IN ({type_var_names_str}) "
+                dstype_var_names_str, dstype_var_map = get_sql_IN_bind_variables(datasetTypes, prefix=":type_", value_as_suffix=True)
+                varMap.update(dstype_var_map)
+                sql += f"AND type IN ({dstype_var_names_str}) "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -3336,17 +3340,16 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql += "AND "
                 sql += "(tabT.useJumbo=:useJumboLack "
                 if mergeUnThrottled is True:
-                    ptype_var_names_str, ptype_var_map = get_sql_IN_bind_variables(
-                        JediDatasetSpec.getMergeProcessTypes(), prefix=":type_", value_as_suffix=True
-                    )
+                    tmp_var_names_str = MERGE_TYPES_var_str
+                    tmp_var_map = MERGE_TYPES_var_map
                 else:
-                    ptype_var_names_str, ptype_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-                varMap.update(ptype_var_map)
-                sql += f"OR (nFilesToBeUsed > nFilesUsed AND tabD.status<>:dsStatusRemoved AND type IN ({ptype_var_names_str})) "
+                    tmp_var_names_str = PROCESS_TYPES_var_str
+                    tmp_var_map = PROCESS_TYPES_var_map
+                varMap.update(tmp_var_map)
+                sql += f"OR (nFilesToBeUsed > nFilesUsed AND tabD.status<>:dsStatusRemoved AND type IN ({tmp_var_names_str})) "
                 if mergeUnThrottled is True:
-                    type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-                    varMap.update(type_var_map)
-                    sql += f"OR (tabT.useJumbo IS NOT NULL AND nFilesWaiting IS NOT NULL AND nFilesToBeUsed>(nFilesUsed+nFilesWaiting) AND type IN ({type_var_names_str})) "
+                    sql += f"OR (tabT.useJumbo IS NOT NULL AND nFilesWaiting IS NOT NULL AND nFilesToBeUsed>(nFilesUsed+nFilesWaiting) AND type IN ({INPUT_TYPES_var_str})) "
+                    varMap.update(INPUT_TYPES_var_map)
                 sql += ") "
                 sql += "AND tabD.status IN (:dsStatus1,:dsStatus2) "
                 sql += "AND masterID IS NULL "
@@ -3356,7 +3359,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql += "AND NOT EXISTS "
                 sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
                 sql += f"WHERE {jedi_config.db.schemaJEDI}.JEDI_Datasets.jediTaskID=tabT.jediTaskID "
-                sql += f"AND type IN ({ptype_var_names_str}) "
+                sql += f"AND type IN ({PROCESS_TYPES_var_str}) "
                 sql += "AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5,:dsOKStatus6,:dsOKStatus7)) "
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
@@ -3375,9 +3378,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 taskid_var_names_str, taskid_var_map = get_sql_IN_bind_variables(tasks_to_loop, prefix=":jediTaskID")
                 varMap.update(taskid_var_map)
                 sql += f"WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ({taskid_var_names_str}) "
-                ptype_var_names_str, ptype_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-                varMap.update(ptype_var_map)
-                sql += f"AND type IN ({ptype_var_names_str}) "
+                sql += f"AND type IN ({PROCESS_TYPES_var_str}) "
+                varMap.update(PROCESS_TYPES_var_map)
                 sql += "AND masterID IS NULL "
                 if simDatasets is not None:
                     dsid_var_names_str, dsid_var_map = get_sql_IN_bind_variables(simDatasets, prefix=":datasetID")
@@ -3618,8 +3620,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlDN = f"SELECT dn FROM {jedi_config.db.schemaMETA}.users WHERE name=:name "
             # sql to count the number of files for avalanche
             sqlAV = f"SELECT SUM(nFiles-nFilesToBeUsed) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlAV += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+            sqlAV += f"WHERE jediTaskID=:jediTaskID AND type IN ({INPUT_TYPES_var_str}) "
             sqlAV += "AND masterID IS NULL "
             # sql to check datasets with empty requirements
             sqlCER = f"SELECT status,attemptNr,maxAttempt,failedAttempt,maxFailure FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
@@ -3791,9 +3792,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not toSkip:
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
-                    for tmpType in JediDatasetSpec.getInputTypes():
-                        mapKey = ":type_" + tmpType
-                        varMap[mapKey] = tmpType
+                    varMap.update(INPUT_TYPES_var_map)
                     tmpLog.debug(sqlAV + comment + str(varMap))
                     self.cur.execute(sqlAV + comment, varMap)
                     resAV = self.cur.fetchone()
@@ -4073,23 +4072,19 @@ class DBProxy(OraDBProxy.DBProxy):
                         if not toSkip:
                             # sql to get seconday dataset list
                             sqlDS = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
-                            #
                             varMap = {}
                             if datasetType not in JediDatasetSpec.getMergeProcessTypes():
                                 # for normal process
-                                type_var_names_str, type_var_map = get_sql_IN_bind_variables(
-                                    JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True
-                                )
+                                tmp_var_names_str = INPUT_TYPES_var_str
+                                tmp_var_map = INPUT_TYPES_var_map
                             else:
                                 # for merge process
-                                type_var_names_str, type_var_map = get_sql_IN_bind_variables(
-                                    JediDatasetSpec.getMergeProcessTypes(), prefix=":type_", value_as_suffix=True
-                                )
-                            varMap.update(type_var_map)
+                                tmp_var_names_str = MERGE_TYPES_var_str
+                                tmp_var_map = MERGE_TYPES_var_map
+                            varMap.update(tmp_var_map)
                             if not fullSimulation:
-                                sqlDS += f"AND nFilesToBeUsed >= nFilesUsed AND type IN ({type_var_names_str}) "
-                            else:
-                                sqlDS += f"AND type IN ({type_var_names_str}) "
+                                sqlDS += f"AND nFilesToBeUsed >= nFilesUsed "
+                            sqlDS += f"AND type IN ({tmp_var_names_str}) "
                             if simTasks is None:
                                 sqlDS += "AND status=:dsStatus "
                                 varMap[":dsStatus"] = "ready"
@@ -4936,9 +4931,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRL += "AND tabT.lockedBy IS NULL "
             sqlRL += "AND tabD.masterID IS NULL AND tabD.nFilesTobeUsed=tabD.nFilesUsed "
             sqlRL += "AND tabD.nFilesTobeUsed>0 AND tabD.nFilesTobeUsed>(tabD.nFilesFinished+tabD.nFilesFailed) "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sqlRL += f"AND tabD.type IN ({type_var_names_str}) "
+            sqlRL += f"AND tabD.type IN ({PROCESS_TYPES_var_str}) "
+            varMap.update(PROCESS_TYPES_var_map)
             # sql to check if there is picked file
             sqlDP = f"SELECT * FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlDP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:fileStatus AND rownum<2 "
@@ -5968,11 +5962,9 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
         if not mergeScout:
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlSCF += f"AND tabF.type IN ({type_var_names_str}) "
+            sqlSCF += f"AND tabF.type IN ({INPUT_TYPES_var_str}) "
         else:
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getMergeProcessTypes(), prefix=":type_", value_as_suffix=True)
-            sqlSCF += f"AND tabD.type IN ({type_var_names_str}) "
+            sqlSCF += f"AND tabD.type IN ({MERGE_TYPES_var_str}) "
         sqlSCF += "AND tabD.masterID IS NULL "
         if setPandaID is not None:
             sqlSCF += "AND tabF.PandaID=:usePandaID "
@@ -5989,8 +5981,7 @@ class DBProxy(OraDBProxy.DBProxy):
         sqlCSSR += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlCSSR += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.PandaID IS NOT NULL "
         sqlCSSR += "AND tabD.datasetID=tabF.datasetID "
-        type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-        sqlCSSR += f"AND tabF.type IN ({type_var_names_str}) "
+        sqlCSSR += f"AND tabF.type IN ({INPUT_TYPES_var_str}) "
         sqlCSSR += "AND tabD.masterID IS NULL "
         sqlCSSR += ") tmp_sub "
 
@@ -6034,8 +6025,8 @@ class DBProxy(OraDBProxy.DBProxy):
 
         # get num of new jobs
         sqlNumJobs = f"SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-        type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-        sqlNumJobs += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+        sqlNumJobs += "WHERE jediTaskID=:jediTaskID "
+        sqlNumJobs += f"AND type IN ({INPUT_TYPES_var_str}) "
         sqlNumJobs += "AND masterID IS NULL "
 
         # get num of new jobs with event
@@ -6046,8 +6037,7 @@ class DBProxy(OraDBProxy.DBProxy):
             f"{jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents tabF "
             "WHERE tabD.jediTaskID=:jediTaskID AND tabF.jediTaskID=tabD.jediTaskID "
         )
-        type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes, prefix=":type_", value_as_suffix=True)
-        sql_num_jobs_event += f"AND tabF.datasetID=tabD.datasetID AND tabD.type IN ({type_var_names_str}) "
+        sql_num_jobs_event += f"AND tabF.datasetID=tabD.datasetID AND tabD.type IN ({INPUT_TYPES_var_str}) "
         sql_num_jobs_event += "AND tabD.masterID IS NULL) tmp_tab "
 
         if useTransaction:
@@ -6149,13 +6139,9 @@ class DBProxy(OraDBProxy.DBProxy):
         varMap[":jediTaskID"] = jediTaskID
         varMap[":status"] = "finished"
         if not mergeScout:
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
         else:
-            for tmpType in JediDatasetSpec.getMergeProcessTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(MERGE_TYPES_var_map)
         if setPandaID is not None:
             varMap[":usePandaID"] = setPandaID
         self.cur.execute(sqlSCF + comment, varMap)
@@ -6171,9 +6157,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # check scout success rate
                 varMap = {}
                 varMap[":jediTaskID"] = jediTaskID
-                for tmpType in JediDatasetSpec.getInputTypes():
-                    mapKey = ":type_" + tmpType
-                    varMap[mapKey] = tmpType
+                varMap.update(INPUT_TYPES_var_map)
                 self.cur.execute(sqlCSSR + comment, varMap)
                 scTotal, scOK, scNG = self.cur.fetchone()
 
@@ -6251,9 +6235,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # estimate the number of new jobs with the number of files
             varMap = dict()
             varMap[":jediTaskID"] = jediTaskID
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlNumJobs + comment, varMap)
             resNumJobs = self.cur.fetchone()
             if resNumJobs is not None:
@@ -6271,8 +6253,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # estimate the number of new jobs with size
                     var_map = dict()
                     var_map[":jediTaskID"] = jediTaskID
-                    for tmp_type in JediDatasetSpec.getInputTypes():
-                        var_map[":type_" + tmp_type] = tmp_type
+                    var_map.update(INPUT_TYPES_var_map)
                     self.cur.execute(sql_num_jobs_event + comment, var_map)
                     res_num_jobs_event = self.cur.fetchone()
                     if res_num_jobs_event:
@@ -7157,9 +7138,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql += "AND tabT.lockedBy IS NULL AND NOT EXISTS "
                 sql += f"(SELECT 1 FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets tabD "
                 sql += "WHERE tabD.jediTaskID=tabT.jediTaskID AND masterID IS NULL "
-                type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-                varMap.update(type_var_map)
-                sql += f"AND type IN ({type_var_names_str}) "
+                sql += f"AND type IN ({PROCESS_TYPES_var_str}) "
+                varMap.update(PROCESS_TYPES_var_map)
                 sql += "AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3,:dsEndStatus4) AND ("
                 sql += "nFilesToBeUsed>nFilesFinished+nFilesFailed "
                 sql += "OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) "
@@ -7215,9 +7195,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     sqlEA += "AND tabT.vo=:vo "
                 sqlEA += "AND tabT.lockedBy IS NULL "
                 sqlEA += "AND tabD.masterID IS NULL AND tabD.nFilesToBeUsed>0 "
-                type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-                varMap.update(type_var_map)
-                sqlEA += f"AND tabD.type IN ({type_var_names_str}) "
+                varMap.update(INPUT_TYPES_var_map)
+                sqlEA += f"AND tabD.type IN ({INPUT_TYPES_var_str}) "
                 sqlEA += "AND tabF.PandaID IS NOT NULL "
                 sqlEA += ") "
                 sqlEA += "GROUP BY jediTaskID,t_status,walltimeUnit "
@@ -7295,13 +7274,11 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to read dataset status
             sqlRD = "SELECT datasetID,status,nFiles,nFilesFinished,nFilesFailed,masterID,state "
             sqlRD += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            ptype_var_names_str, ptype_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-            sqlRD += f"WHERE jediTaskID=:jediTaskID AND status=:status AND type IN ({ptype_var_names_str}) "
+            sqlRD += f"WHERE jediTaskID=:jediTaskID AND status=:status AND type IN ({PROCESS_TYPES_var_str}) "
             # sql to check if there is mutable dataset
             sqlMTC = f"SELECT COUNT(*) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlMTC += "WHERE jediTaskID=:jediTaskID AND state=:state AND masterID IS NULL "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlMTC += f"AND type IN ({type_var_names_str}) "
+            sqlMTC += f"AND type IN ({INPUT_TYPES_var_str}) "
             # sql to update input dataset status
             sqlDIU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
             sqlDIU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
@@ -7314,7 +7291,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get nFilesToBeUsed of dataset
             sqlFUD = "SELECT tabD.datasetID,COUNT(*) FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
             sqlFUD += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID "
-            sqlFUD += f"AND tabD.type IN ({type_var_names_str}) "
+            sqlFUD += f"AND tabD.type IN ({INPUT_TYPES_var_str}) "
             sqlFUD += "AND tabD.jediTaskID=:jediTaskID AND tabD.masterID IS NULL "
             sqlFUD += "AND NOT tabC.status IN (:status1,:status2,:status3,:status4) "
             sqlFUD += "GROUP BY tabD.datasetID "
@@ -7427,9 +7404,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             varMap[":status2"] = "lost"
                             varMap[":status3"] = "missing"
                             varMap[":status4"] = "staging"
-                            for tmpType in JediDatasetSpec.getInputTypes():
-                                mapKey = ":type_" + tmpType
-                                varMap[mapKey] = tmpType
+                            varMap.update(INPUT_TYPES_var_map)
                             self.cur.execute(sqlFUD + comment, varMap)
                             resFUD = self.cur.fetchall()
                             # update nFiles to be used
@@ -7461,9 +7436,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
                         varMap[":status"] = "ready"
-                        for tmpType in JediDatasetSpec.getProcessTypes():
-                            mapKey = ":type_" + tmpType
-                            varMap[mapKey] = tmpType
+                        varMap.update(PROCESS_TYPES_var_map)
                         self.cur.execute(sqlRD + comment, varMap)
                         resRD = self.cur.fetchall()
                         varMapList = []
@@ -7505,9 +7478,7 @@ class DBProxy(OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
                                 varMap[":state"] = "mutable"
-                                for tmpType in JediDatasetSpec.getInputTypes():
-                                    mapKey = ":type_" + tmpType
-                                    varMap[mapKey] = tmpType
+                                varMap.update(INPUT_TYPES_var_map)
                                 self.cur.execute(sqlMTC + comment, varMap)
                                 resMTC = self.cur.fetchone()
                                 (numMutable,) = resMTC
@@ -7885,13 +7856,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":wq_id"] = workQueue.queue_id
 
             sql += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
-            sql += "AND tabD.type IN ("
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                sql += f"{mapKey},"
-                varMap[mapKey] = tmpType
-            sql = sql[:-1]
-            sql += ") "
+            sql += f"AND tabD.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             varMap[":status1"] = "ready"
             varMap[":status2"] = "scouting"
             varMap[":status3"] = "running"
@@ -7983,13 +7949,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":wq_id"] = workQueue.queue_id
 
             sql += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
-            sql += "AND tabD.type IN ("
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                sql += f"{mapKey},"
-                varMap[mapKey] = tmpType
-            sql = sql[:-1]
-            sql += ") "
+            sql += f"AND tabD.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             varMap[":status1"] = "ready"
             varMap[":status2"] = "scouting"
             varMap[":status3"] = "running"
@@ -8726,8 +8687,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlTK += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # sql to check the number of finished files
             sqlND = f"SELECT SUM(nFilesFinished) FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlND += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+            sqlND += f"WHERE jediTaskID=:jediTaskID AND type IN ({INPUT_TYPES_var_str}) "
             sqlND += "AND masterID IS NULL "
             # start transaction
             self.conn.begin()
@@ -8756,9 +8716,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # check the number of finished files
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
-                        for tmpType in JediDatasetSpec.getInputTypes():
-                            mapKey = ":type_" + tmpType
-                            varMap[mapKey] = tmpType
+                        varMap.update(INPUT_TYPES_var_map)
                         self.cur.execute(sqlND + comment, varMap)
                         tmpND = self.cur.fetchone()
                         if tmpND is not None and tmpND[0] is not None and tmpND[0] > 0:
@@ -9703,9 +9661,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     sqlMAX = "SELECT MAX(c.maxAttempt) "
                     sqlMAX += "FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
                     sqlMAX += "WHERE c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID "
-                    type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-                    varMap.update(type_var_map)
-                    sqlMAX += f"AND d.jediTaskID=:jediTaskID AND d.type IN ({type_var_names_str}) "
+                    sqlMAX += f"AND d.jediTaskID=:jediTaskID AND d.type IN ({INPUT_TYPES_var_str}) "
+                    varMap.update(INPUT_TYPES_var_map)
                     self.cur.execute(sqlMAX + comment, varMap)
                     resMAX = self.cur.fetchone()
                     maxRetry = 1000
@@ -9721,8 +9678,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":jediTaskID"] = jediTaskID
                         sqlDS = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,type,datasetName,nFilesMissing "
                         sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-                        type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-                        sqlDS += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+                        sqlDS += f"WHERE jediTaskID=:jediTaskID AND type IN ({INPUT_TYPES_var_str}) "
                         self.cur.execute(sqlDS + comment, varMap)
                         resDS = self.cur.fetchall()
                         changedMasterList = []
@@ -10067,9 +10023,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":jediTaskID"] = jediTaskID
                     sqlDS = "SELECT datasetName,datasetID,status,nFilesTobeUsed,nFilesUsed,masterID "
                     sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-                    type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-                    varMap.update(type_var_map)
-                    sqlDS += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+                    sqlDS += f"WHERE jediTaskID=:jediTaskID AND type IN ({INPUT_TYPES_var_str}) "
+                    varMap.update(INPUT_TYPES_var_map)
                     self.cur.execute(sqlDS + comment, varMap)
                     resDS = self.cur.fetchall()
                     # check if existing datasets are available, and update status if necessary
@@ -10687,8 +10642,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to get input datasets of child task
             sqlRD = f"SELECT datasetID,datasetName FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
-            sqlRD += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+            sqlRD += f"WHERE jediTaskID=:jediTaskID AND type IN ({PROCESS_TYPES_var_str}) "
             # sql to change task status
             sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET status=:status,errorDialog=NULL,stateChangeTime=CURRENT_DATE "
@@ -10728,9 +10682,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # get input datasets of child task
                 varMap = {}
                 varMap[":jediTaskID"] = cJediTaskID
-                for tmpType in JediDatasetSpec.getProcessTypes():
-                    mapKey = ":type_" + tmpType
-                    varMap[mapKey] = tmpType
+                varMap.update(PROCESS_TYPES_var_map)
                 self.cur.execute(sqlRD + comment, varMap)
                 dsList = self.cur.fetchall()
                 inputReady = False
@@ -10955,9 +10907,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRT += "AND tabD.datasetID=tabC.datasetID "
             sqlRT += "AND tabT.status IN (:taskStatus) "
             sqlRT += "AND tabT.numThrottled IS NOT NULL "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sqlRT += f"AND tabD.type IN ({type_var_names_str}) "
+            sqlRT += f"AND tabD.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sqlRT += "AND tabD.masterID IS NULL "
             if vo not in [None, "any"]:
                 varMap[":vo"] = vo
@@ -11084,9 +11035,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlTL = "SELECT tabT.jediTaskID,tabT.oldStatus "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sqlTL += f"AND tabD.jediTaskID=tabT.jediTaskID AND tabD.type IN ({type_var_names_str}) "
+            sqlTL += f"AND tabD.jediTaskID=tabT.jediTaskID AND tabD.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sqlTL += "AND tabD.masterID IS NULL "
             sqlTL += "AND tabT.status=:status AND tabT.lockedBy IS NULL "
             sqlTL += "AND (tabT.throttledTime<CURRENT_DATE OR "
@@ -11623,8 +11573,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlDS = "SELECT datasetID,type,nEvents,status "
             sqlDS += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDS += "WHERE jediTaskID=:jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlDS += f"AND ((type IN ({type_var_names_str}) "
+            sqlDS += f"AND ((type IN ({INPUT_TYPES_var_str}) "
             sqlDS += "AND masterID IS NULL) OR (type=:type1)) "
             sqlFC = "SELECT COUNT(*) "
             sqlFC += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
@@ -11668,9 +11617,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         continue
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
-                    for tmpType in JediDatasetSpec.getInputTypes():
-                        mapKey = ":type_" + tmpType
-                        varMap[mapKey] = tmpType
+                    varMap.update(INPUT_TYPES_var_map)
                     varMap[":type1"] = "output"
                     # begin transaction
                     self.conn.begin()
@@ -11860,8 +11807,7 @@ class DBProxy(OraDBProxy.DBProxy):
         # sql to get input datasetID
         sqlM = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
         sqlM += "WHERE jediTaskID=:jediTaskID "
-        type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-        sqlM += f"AND type IN ({type_var_names_str}) "
+        sqlM += f"AND type IN ({INPUT_TYPES_var_str}) "
         sqlM += "AND masterID IS NULL "
         # sql to get output datasetID and templateID
         sqlO = f"SELECT datasetID,provenanceID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
@@ -11908,9 +11854,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get input datasetID
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlM + comment, varMap)
             resM = self.cur.fetchone()
             if resM is not None:
@@ -12282,9 +12226,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "WHERE tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID "
             sql += "AND tabD.datasetID=tabF.datasetID "
             sql += "AND tabD.masterID IS NULL "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sql += f"AND tabF.type IN ({type_var_names_str}) "
+            sql += f"AND tabF.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sql += "ORDER BY fileID "
             sql += ") WHERE rownum<2 "
             # sql to get PandaIDs
@@ -12606,9 +12549,8 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":jediTaskID"] = jediTaskID
             sqlFF = f"SELECT nFilesToBeUsed-nFilesUsed-nFilesWaiting FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlFF += "WHERE jediTaskID=:jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sqlFF += f"AND type IN ({type_var_names_str}) "
+            sqlFF += f"AND type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sqlFF += "AND masterID IS NULL "
             self.cur.execute(sqlFF + comment, varMap)
             (nFiles,) = self.cur.fetchone()
@@ -12788,9 +12730,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += "FROM {0}.JEDI_Datasets d,{0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID "
             sql += "AND d.jediTaskID=:jediTaskID AND d.masterID IS NULL "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sql += f"AND d.type IN ({type_var_names_str}) "
+            sql += f"AND d.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sql += ") "
             # start transaction
             self.conn.begin()
@@ -12896,8 +12837,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlLK += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
             # sql to get datasets
             sqlAV = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlAV += f"WHERE jediTaskID=:jediTaskID AND type IN ({type_var_names_str}) "
+            sqlAV += f"WHERE jediTaskID=:jediTaskID AND type IN ({INPUT_TYPES_var_str}) "
             # sql to update attemptNr for files
             sqlFR = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlFR += "SET attemptNr=maxAttempt "
@@ -12928,9 +12868,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get datasets
             varMap = dict()
             varMap[":jediTaskID"] = jediTaskID
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlAV + comment, varMap)
             resAV = self.cur.fetchall()
             for (datasetID,) in resAV:
@@ -12981,8 +12919,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get nevents
             sqlAV = f"SELECT nEvents,nFilesToBeUsed,nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlAV += "WHERE jediTaskID=:jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlAV += f"AND type IN ({type_var_names_str}) "
+            sqlAV += f"AND type IN ({INPUT_TYPES_var_str}) "
             sqlAV += "AND masterID IS NULL "
             # sql to get # of active jumbo jobs
             sqlAJ = "SELECT COUNT(*) "
@@ -13020,9 +12957,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get nevents
             varMap = dict()
             varMap[":jediTaskID"] = jediTaskID
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlAV + comment, varMap)
             resAV = self.cur.fetchone()
             if resAV is None:
@@ -13110,9 +13045,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
             sqlAV += "AND d.jediTaskID=t.jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            varMap.update(type_var_map)
-            sqlAV += "AND d.type IN ({type_var_names_str}) "
+            sqlAV += "AND d.type IN ({INPUT_TYPES_var_str}) "
+            varMap.update(INPUT_TYPES_var_map)
             sqlAV += "AND d.masterID IS NULL "
             # sql to get event stat info
             sqlFR = "SELECT /*+ INDEX_RS_ASC(c (JEDI_DATASET_CONTENTS.JEDITASKID JEDI_DATASET_CONTENTS.DATASETID JEDI_DATASET_CONTENTS.FILEID)) NO_INDEX_FFS(tab JEDI_EVENTS_PK) NO_INDEX_SS(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
@@ -13141,9 +13075,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":s3"] = "scouting"
             varMap[":s4"] = "ready"
             varMap[":s5"] = "scouted"
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlAV + comment, varMap)
             resAV = self.cur.fetchall()
             tmpLog.debug("got tasks")
@@ -13253,8 +13185,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get JDI files
             sqlF = "SELECT c.datasetID,c.fileID FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
             sqlF += "WHERE d.jediTaskID=:jediTaskID "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlF += f"AND d.type IN ({type_var_names_str}) "
+            sqlF += f"AND d.type IN ({INPUT_TYPES_var_str}) "
             sqlF += "AND d.masterID IS NULL "
             sqlF += "AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID AND c.status=:status "
             # sql to get PandaIDs
@@ -13269,8 +13200,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsActive4 WHERE PandaID=:PandaID "
             # sql to get files
             sqlFL = f"SELECT datasetID,fileID FROM {jedi_config.db.schemaPANDA}.filesTable4 "
-            type_var_names_str, type_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
-            sqlFL += f"WHERE PandaID=:PandaID AND type IN ({type_var_names_str}) "
+            sqlFL += f"WHERE PandaID=:PandaID AND type IN ({INPUT_TYPES_var_str}) "
             # sql to update files
             sqlUF = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Dataset_Contents "
             sqlUF += "SET status=:newStatus,proc_status=:proc_status,attemptNr=attemptNr+1,maxAttempt=maxAttempt+1,"
@@ -13285,9 +13215,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = dict()
             varMap[":jediTaskID"] = jediTaskID
             varMap[":status"] = "running"
-            for tmpType in JediDatasetSpec.getInputTypes():
-                mapKey = ":type_" + tmpType
-                varMap[mapKey] = tmpType
+            varMap.update(INPUT_TYPES_var_map)
             self.cur.execute(sqlF + comment, varMap)
             resF = self.cur.fetchall()
             # get PandaIDs
@@ -13312,9 +13240,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if not hasJob:
                     varMap = dict()
                     varMap[":PandaID"] = PandaID
-                    for tmpType in JediDatasetSpec.getInputTypes():
-                        mapKey = ":type_" + tmpType
-                        varMap[mapKey] = tmpType
+                    varMap.update(INPUT_TYPES_var_map)
                     self.cur.execute(sqlFL + comment, varMap)
                     resFL = self.cur.fetchall()
                     # update file
