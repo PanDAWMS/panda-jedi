@@ -8,6 +8,7 @@ import time
 import traceback
 
 from dataservice.DataServiceUtils import select_scope
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils, ProcessGroups
 
@@ -493,7 +494,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     this_pid = f"{socket.getfqdn().split('.')[0]}-{os.getpid()}_{os.getpgrp()}-broker"
     this_component = "Cache.SiteToRunRate"
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     starttime_max = current_time - datetime.timedelta(seconds=cutoff)
     starttime_min = current_time - datetime.timedelta(seconds=time_window)
     # rounded with 10 minutes
@@ -511,7 +512,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
         # try some times
         for _ in range(99):
             # skip if too long after original current time
-            if datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - current_time > datetime.timedelta(seconds=min(10, cache_lifetime / 4)):
+            if naive_utcnow() - current_time > datetime.timedelta(seconds=min(10, cache_lifetime / 4)):
                 # break trying
                 break
             try:
@@ -596,7 +597,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
     # local cache key; a must if not using global variable
     local_cache_key = "_main"
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     # condition of query
     if local_cache_key in CACHE_UsersJobsStats and current_time <= CACHE_UsersJobsStats[local_cache_key]["exp"]:
         # query from local cache
@@ -606,7 +607,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
         # try some times
         for _ in range(99):
             # skip if too long after original current time
-            if datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - current_time > datetime.timedelta(seconds=min(15, cache_lifetime / 4)):
+            if naive_utcnow() - current_time > datetime.timedelta(seconds=min(15, cache_lifetime / 4)):
                 # break trying
                 break
             try:
@@ -672,10 +673,10 @@ def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
     ret_val = False
     ret_map = {}
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     # try some times
     for _ in range(99):
-        now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_time = naive_utcnow()
         # skip if too long after original current time
         if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
@@ -721,10 +722,10 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
     ret_val = False
     ret_map = {}
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     # try some times
     for _ in range(99):
-        now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_time = naive_utcnow()
         # skip if too long after original current time
         if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
@@ -763,10 +764,10 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
     ret_val = False
     ret_map = {}
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     # try some times
     for _ in range(99):
-        now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_time = naive_utcnow()
         # skip if too long after original current time
         if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
@@ -812,10 +813,10 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
     ret_val = False
     ret_map = {}
     # timestamps
-    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    current_time = naive_utcnow()
     # try some times
     for _ in range(99):
-        now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_time = naive_utcnow()
         # skip if too long after original current time
         if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying

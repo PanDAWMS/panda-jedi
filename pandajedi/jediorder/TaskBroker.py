@@ -3,6 +3,7 @@ import sys
 import time
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
@@ -31,7 +32,7 @@ class TaskBroker(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            startTime = naive_utcnow()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -103,7 +104,7 @@ class TaskBroker(JediKnight, FactoryBase):
             tmpLog.debug("done")
             # sleep if needed
             loopCycle = jedi_config.taskbroker.loopCycle
-            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
+            timeDelta = naive_utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

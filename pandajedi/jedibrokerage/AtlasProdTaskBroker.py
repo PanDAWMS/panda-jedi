@@ -6,6 +6,7 @@ import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import JobUtils
@@ -377,7 +378,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                             continue
                         ######################################
                         # data locality
-                        time_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                        time_now = naive_utcnow()
                         availableData = {}
                         if taskSpec.frozenTime and time_now - taskSpec.frozenTime > datetime.timedelta(days=data_location_check_period):
                             tmpLog.info(f"disabled data check since the task was in assigning for " f"{data_location_check_period} days")

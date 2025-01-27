@@ -3,6 +3,7 @@ import smtplib
 import time
 import uuid
 
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.config import panda_config
 from pandaserver.taskbuffer import EventServiceUtils
 
@@ -92,7 +93,7 @@ class PostProcessorBase(object):
         # trigger internal dataset cleanup
         self.taskBufferIF.trigger_cleanup_internal_datasets(taskSpec.jediTaskID)
         # end time
-        taskSpec.endTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        taskSpec.endTime = naive_utcnow()
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, updateDEFT=True)
         # kill or kick child tasks

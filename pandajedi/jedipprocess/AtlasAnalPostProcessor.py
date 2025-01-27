@@ -7,6 +7,7 @@ import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.taskbuffer import EventServiceUtils
 
 from pandajedi.jedirefine import RefinerUtils
@@ -45,7 +46,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             # loop over all datasets
             use_lib = False
             n_ok_lib = 0
-            lock_update_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            lock_update_time = naive_utcnow()
             for datasetSpec in taskSpec.datasetSpecList:
                 # ignore template
                 if datasetSpec.type.startswith("tmpl_"):
@@ -99,7 +100,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                         tmp_logger.debug(f"skip freezing transient datasetID={datasetSpec.datasetID}:Name={datasetSpec.datasetName}")
                 # update dataset
                 datasetSpec.state = "closed"
-                datasetSpec.stateCheckTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                datasetSpec.stateCheckTime = naive_utcnow()
 
                 # check if build step was succeeded
                 if datasetSpec.type == "lib":
@@ -124,8 +125,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     datasetSpec.jediTaskID, datasetSpec.datasetID, {"state": datasetSpec.state, "stateCheckTime": datasetSpec.stateCheckTime}
                 )
                 # update task lock
-                if datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - lock_update_time > datetime.timedelta(minutes=5):
-                    lock_update_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                if naive_utcnow() - lock_update_time > datetime.timedelta(minutes=5):
+                    lock_update_time = naive_utcnow()
                     # update lock
                     self.taskBufferIF.updateTaskLock_JEDI(taskSpec.jediTaskID)
             # dialog
@@ -340,7 +341,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             tmp_logger.debug("DN is empty")
         else:
             # avoid too frequent lookup
-            if db_uptime is not None and datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - db_uptime < datetime.timedelta(hours=1):
+            if db_uptime is not None and naive_utcnow() - db_uptime < datetime.timedelta(hours=1):
                 tmp_logger.debug("no lookup")
                 if not_send_mail or mail_address_db in [None, ""]:
                     return ret_suppressed

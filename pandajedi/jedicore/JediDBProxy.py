@@ -163,9 +163,7 @@ class DBProxy(OraDBProxy.DBProxy):
     # refresh work queue map
     def refreshWorkQueueMap(self):
         # avoid frequent lookup
-        if self.updateTimeForWorkQueue is not None and (
-            datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - self.updateTimeForWorkQueue
-        ) < datetime.timedelta(minutes=10):
+        if self.updateTimeForWorkQueue is not None and (naive_utcnow() - self.updateTimeForWorkQueue) < datetime.timedelta(minutes=10):
             return
         comment = " /* JediDBProxy.refreshWorkQueueMap */"
         methodName = self.getMethodName(comment)
@@ -187,7 +185,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # make map
             self.workQueueMap.makeMap(res, leave_shares)
             tmpLog.debug("done")
-            self.updateTimeForWorkQueue = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            self.updateTimeForWorkQueue = naive_utcnow()
             return True
         except Exception:
             # roll back
@@ -222,8 +220,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     checkInterval = 60
             else:
                 checkInterval = 0
-            varMap[":checkTimeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=checkInterval)
-            varMap[":lockTimeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10)
+            varMap[":checkTimeLimit"] = naive_utcnow() - datetime.timedelta(minutes=checkInterval)
+            varMap[":lockTimeLimit"] = naive_utcnow() - datetime.timedelta(minutes=10)
             sql = f"SELECT {JediDatasetSpec.columnNames('tabD')} "
             if task_id is None:
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
@@ -386,7 +384,7 @@ class DBProxy(OraDBProxy.DBProxy):
         diagMap = {"errMsg": "", "nChunksForScout": nChunksForScout, "nActivatedPending": 0, "isRunningTask": False}
         failedRet = False, 0, None, diagMap
         harmlessRet = None, 0, None, diagMap
-        regStart = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        regStart = naive_utcnow()
         # mutable
         fake_mutable_for_skip_short_output = False
         if (noWaitParent or inputPreStaging) and datasetState == "mutable":
@@ -405,7 +403,7 @@ class DBProxy(OraDBProxy.DBProxy):
             isEventSplit = False
         try:
             # current date
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             # get list of files produced by parent
             if datasetSpec.checkConsistency():
                 # sql to get the list
@@ -1427,7 +1425,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     nInsert, nActivatedPending, nPending - nActivatedPending, nReady, nStaging, nFilesUnprocessed, oldDsStatus, newDsStatus
                 )
             )
-            regTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - regStart
+            regTime = naive_utcnow() - regStart
             tmpLog.debug("took %s.%03d sec" % (regTime.seconds, regTime.microseconds / 1000))
             return retVal
         except Exception:
@@ -1435,7 +1433,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self._rollback()
             # error
             is_fatal, tmp_diag = self.dumpErrorMessage(tmpLog, check_fatal=True)
-            regTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - regStart
+            regTime = naive_utcnow() - regStart
             tmpLog.debug("took %s.%03d sec" % (regTime.seconds, regTime.microseconds / 1000))
             if is_fatal:
                 diagMap["errMsg"] = tmp_diag
@@ -1512,7 +1510,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         try:
             # set attributes
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             datasetSpec.creationTime = timeNow
             datasetSpec.modificationTime = timeNow
             # sql
@@ -1558,7 +1556,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 return failedRet
         try:
             # set attributes
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             datasetSpec.modificationTime = timeNow
             # values for UPDATE
             varMap = datasetSpec.valuesMap(useSeq=False, onlyChanged=True)
@@ -1822,7 +1820,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         try:
             # set attributes
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             taskSpec.creationDate = timeNow
             taskSpec.modificationTime = timeNow
             # sql
@@ -1908,7 +1906,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     self.cur.execute(sqlD + comment, varMap)
                     (nUnassignedDSs,) = self.cur.fetchone()
                     # update task
-                    timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    timeNow = naive_utcnow()
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":updateTime"] = timeNow
@@ -1931,13 +1929,13 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":status"] = "assigning"
                         varMap[":frozenTime"] = timeNow
                         # set old update time to trigger TaskBrokerage immediately
-                        varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=6)
+                        varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
                     else:
                         # skip task brokerage since cloud is preassigned
                         varMap[":status"] = "ready"
                         varMap[":frozenTime"] = None
                         # set old update time to trigger JG immediately
-                        varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=6)
+                        varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug(sqlU + comment + str(varMap))
                     self.cur.execute(sqlU + comment, varMap)
                     # update DEFT task status
@@ -1989,7 +1987,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 return failedRet
         try:
             # set attributes
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             taskSpec.resetChangedAttr("jediTaskID")
             if setOldModTime:
                 taskSpec.modificationTime = timeNow - datetime.timedelta(hours=1)
@@ -2064,7 +2062,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         datasetSpec = JediDatasetSpec()
                         datasetSpec.jediTaskID = taskSpec.jediTaskID
                         datasetSpec.datasetName = tmpUnknownDataset
-                        datasetSpec.creationTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                        datasetSpec.creationTime = naive_utcnow()
                         datasetSpec.modificationTime = datasetSpec.creationTime
                         datasetSpec.type = JediDatasetSpec.getUnknownInputType()
                         varMap = datasetSpec.valuesMap(useSeq=True)
@@ -2201,7 +2199,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
             if lockInterval is not None:
-                varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=lockInterval)
+                varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=lockInterval)
             # begin transaction
             self.conn.begin()
             # select
@@ -2444,7 +2442,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             self.cur.arraysize = 10000
             # get tasks
-            timeLimit = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10)
+            timeLimit = naive_utcnow() - datetime.timedelta(minutes=10)
             varMap[":timeLimit"] = timeLimit
             tmpLog.debug(sqlRT + comment + str(varMap))
             self.cur.execute(sqlRT + comment, varMap)
@@ -2480,7 +2478,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":newStatus"] = "running"
                     varMap[":oldStatus"] = taskStatus
                     # set old update time to trigger JG immediately
-                    varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=6)
+                    varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlSC + comment, varMap)
                     nRows = self.cur.rowcount
                     tmpLog.debug(f"changed status to {varMap[':newStatus']} for jediTaskID={jediTaskID} with {nRows}")
@@ -2956,7 +2954,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlMC += "SET masterID=:masterID "
             sqlMC += " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # current current date
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 100
@@ -3273,7 +3271,7 @@ class DBProxy(OraDBProxy.DBProxy):
     ):
         comment = " /* JediDBProxy.getTasksToBeProcessed_JEDI */"
         methodName = self.getMethodName(comment)
-        timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).strftime("%Y/%m/%d %H:%M:%S")
+        timeNow = naive_utcnow().strftime("%Y/%m/%d %H:%M:%S")
         if simTasks is not None:
             methodName += f" <jediTasks={str(simTasks)}>"
         elif target_tasks:
@@ -3303,7 +3301,7 @@ class DBProxy(OraDBProxy.DBProxy):
             lockInterval = jedi_config.jobgen.lockInterval
         else:
             lockInterval = 10
-        timeLimit = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=lockInterval)
+        timeLimit = naive_utcnow() - datetime.timedelta(minutes=lockInterval)
         try:
             # attribute for GROUP BY
             if workQueue is not None:
@@ -3962,7 +3960,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             if totalNumEventsHPO + totalNumWorkersHPO == 0 and origTaskSpec.frozenTime is None:
                                 varMap = {}
                                 varMap[":jediTaskID"] = jediTaskID
-                                varMap[":frozenTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                                varMap[":frozenTime"] = naive_utcnow()
                                 self.cur.execute(sqlFZT + comment, varMap)
                             elif totalNumEventsHPO + totalNumWorkersHPO > 0 and origTaskSpec.frozenTime is not None:
                                 varMap = {}
@@ -3979,8 +3977,7 @@ class DBProxy(OraDBProxy.DBProxy):
                             if (
                                 totalNumEventsHPO + totalNumWorkersHPO == 0
                                 and origTaskSpec.frozenTime is not None
-                                and datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - origTaskSpec.frozenTime
-                                > datetime.timedelta(hours=waitInterval)
+                                and naive_utcnow() - origTaskSpec.frozenTime > datetime.timedelta(hours=waitInterval)
                             ):
                                 # send finish command
                                 self.sendCommandTaskPanda(jediTaskID, "HPO task finished since inactive for one day", True, "finish", comQualifier="soft")
@@ -4872,7 +4869,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
-            timeLimit = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=waitTime)
+            timeLimit = naive_utcnow() - datetime.timedelta(minutes=waitTime)
             # get orphaned tasks
             varMap = {}
             varMap[":status1"] = "ready"
@@ -4979,7 +4976,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
-            timeToCheck = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=waitTime)
+            timeToCheck = naive_utcnow() - datetime.timedelta(minutes=waitTime)
             varMap = {}
             varMap[":taskstatus1"] = "running"
             varMap[":taskstatus2"] = "scouting"
@@ -5087,7 +5084,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         varMap[":lockedTime"] = None
                     else:
                         varMap[":lockedBy"] = pid
-                        varMap[":lockedTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=24)
+                        varMap[":lockedTime"] = naive_utcnow() - datetime.timedelta(hours=24)
                         tmpLog.debug(f"[jediTaskID={jediTaskID} datasetID={datasetID}] set dummy lock to trigger rescue")
                         ngTasks.add(jediTaskID)
                     self.cur.execute(sqlTU + comment, varMap)
@@ -5127,7 +5124,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlTU = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             # sql to get picked datasets
             sqlDP = f"SELECT datasetID FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4,:type5) "
@@ -5637,7 +5634,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":status1"] = "registered"
             varMap[":status2"] = JediTaskSpec.commandStatusMap()["incexec"]["done"]
             varMap[":status3"] = "staged"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=10)
             sqlOrpS = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status,tabT.parent_tid "
             sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -5735,7 +5732,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             # set attributes
             if taskSpec.status not in ["topreprocess"]:
                 taskSpec.status = "defined"
@@ -7131,7 +7128,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":status"] = "running"
             varMap[":minJobs"] = 5
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=24)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(hours=24)
             sqlSCF = "SELECT tabT.jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{1}.T_TASK tabD ".format(
                 jedi_config.db.schemaJEDI, jedi_config.db.schemaDEFT
@@ -7279,7 +7276,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get tasks for early avalanche
             if simTasks is None:
                 minSuccessScouts = 5
-                timeToCheck = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10)
+                timeToCheck = naive_utcnow() - datetime.timedelta(minutes=10)
                 varMap = {}
                 varMap[":scouting"] = "scouting"
                 varMap[":running"] = "running"
@@ -7705,7 +7702,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":status"] = "assigning"
             varMap[":worldCloud"] = JediTaskSpec.worldCloudName
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=30)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=30)
             sqlSCF = "SELECT jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -8407,8 +8404,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     continue
                 self.conn.begin()
                 # FIXME
-                # varMap[':timeLimit'] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=1)
-                varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)
+                # varMap[':timeLimit'] = naive_utcnow() - datetime.timedelta(hours=1)
+                varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=5)
                 sqlOrpS = "SELECT jediTaskID,errorDialog,oldStatus "
                 sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -8624,7 +8621,7 @@ class DBProxy(OraDBProxy.DBProxy):
             (180, "JOBSARCHVIEW_180DAYS"),
             (365, "JOBSARCHVIEW_365DAYS"),
         ]
-        timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - timeStamp
+        timeDelta = naive_utcnow() - timeStamp
         for timeLimit, archViewName in tableList:
             # +2 for safety margin
             if timeDelta < datetime.timedelta(days=timeLimit + 2):
@@ -8801,11 +8798,11 @@ class DBProxy(OraDBProxy.DBProxy):
         try:
             timeoutDate = None
             if timeoutLimit is not None:
-                timeoutDate = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=timeoutLimit)
+                timeoutDate = naive_utcnow() - datetime.timedelta(hours=timeoutLimit)
             # sql to get pending tasks
             varMap = {}
             varMap[":status"] = "pending"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
             sqlTL = "SELECT jediTaskID,frozenTime,errorDialog,parent_tid,splitRule,startTime "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -8938,7 +8935,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":taskStatus1"] = "defined"
             varMap[":taskStatus2"] = "ready"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
             varMap[":dsType"] = "input"
             varMap[":dsState"] = "mutable"
             varMap[":dsStatus1"] = "ready"
@@ -9034,7 +9031,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get tasks in defined with only ready datasets
             varMap = {}
             varMap[":taskStatus1"] = "defined"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
             varMap[":dsType"] = "input"
             varMap[":dsStatus1"] = "ready"
             if vo not in [None, "any"]:
@@ -9059,7 +9056,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # get tasks in ready with defined datasets
             varMap = {}
             varMap[":taskStatus1"] = "ready"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
             varMap[":dsType"] = "input"
             varMap[":dsStatus1"] = "defined"
             if vo not in [None, "any"]:
@@ -9109,7 +9106,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get stalled tasks
             varMap = {}
             varMap[":taskStatus"] = "exhausted"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=timeLimit)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(hours=timeLimit)
             sqlTL = "SELECT tabT.jediTaskID,tabT.splitRule "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -9312,7 +9309,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # make datasetSpec
             pandaFileSpec = jobSpec.Files[0]
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             datasetSpec = JediDatasetSpec()
             datasetSpec.jediTaskID = jobSpec.jediTaskID
             datasetSpec.creationTime = timeNow
@@ -9530,7 +9527,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         tmpFileSpec.datasetID = datasetSpec.datasetID
                         tmpFileSpec.fileID = new_file_id
                         tmpFileSpec.status = "picked"
-                        tmpFileSpec.creationDate = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                        tmpFileSpec.creationDate = naive_utcnow()
                         tmpFileSpec.keepTrack = 1
                         tmpFileSpec.type = "random_seed"
                         tmpFileSpec.lfn = f"{maxRndSeed}"
@@ -9655,7 +9652,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpFileSpec.jediTaskID = jediTaskID
                 tmpFileSpec.datasetID = datasetSpec.datasetID
                 tmpFileSpec.status = "defined"
-                tmpFileSpec.creationDate = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                tmpFileSpec.creationDate = naive_utcnow()
                 tmpFileSpec.keepTrack = 1
                 tmpFileSpec.type = "log"
                 tmpFileSpec.lfn = f"{datasetSpec.datasetName}._{datasetSpec.nFiles:06d}.log.tgz"
@@ -10100,7 +10097,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 if newTaskStatus != taskOldStatus:
                     tmpLog.debug(f"set taskStatus={newTaskStatus} from {taskStatus} for command={commStr}")
                     # set old update time to trigger subsequent process
-                    varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=6)
+                    varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlUTN + comment, varMap)
                     deftStatus = "ready"
                     self.setSuperStatus_JEDI(jediTaskID, deftStatus)
@@ -10117,7 +10114,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     retried_tasks.append(jediTaskID)
                 else:
                     tmpLog.debug(f"back to taskStatus={newTaskStatus} for command={commStr}")
-                    varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    varMap[":updateTime"] = naive_utcnow()
                     self.cur.execute(sqlUTB + comment, varMap)
                 # update output/lib/log
                 if newTaskStatus != taskOldStatus and taskStatus != "exhausted":
@@ -10178,7 +10175,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     msgStr = f"invalid status={taskStatus} for dataset appending"
                     tmpLog.debug(msgStr)
                 else:
-                    timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    timeNow = naive_utcnow()
                     # list of master dataset names
                     master_dataset_names = [datasetSpec.datasetName for datasetSpec in inMasterDatasetSpecList]
                     # get existing input datasets
@@ -10276,7 +10273,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         # go to finalization since no datasets are appended
                         varMap[":status"] = "prepared"
                     # set old update time to trigger subsequent process
-                    varMap[":updateTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=6)
+                    varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug(f"set taskStatus={varMap[':status']}")
                     self.cur.execute(sqlUT + comment, varMap)
                     # add missing record_task_status_change and push_task_status_message updates
@@ -10401,7 +10398,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[f":{tmpKey}"] = tmpVal
                 else:
                     sqlRT += f"AND tabD.{tmpKey} IS NULL "
-            timeLimit = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=taskLockInterval)
+            timeLimit = naive_utcnow() - datetime.timedelta(minutes=taskLockInterval)
             if taskLockColumn is not None:
                 sqlRT += "AND (tabT.{0} IS NULL OR tabT.{0}<:lockTimeLimit) ".format(taskLockColumn)
                 varMap[":lockTimeLimit"] = timeLimit
@@ -10571,7 +10568,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":vo"] = vo
             varMap[":prodSourceLabel"] = prodSourceLabel
             varMap[":lockedBy"] = "jedi"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=checkInterval)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=checkInterval)
             self.cur.execute(sqlL + comment, varMap)
             resL = self.cur.fetchall()
             # commit
@@ -10634,7 +10631,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get tasks to reassign
             varMap = {}
             varMap[":status"] = "reassigning"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=5)
             sqlSCF = f"SELECT {JediTaskSpec.columnNames('tabT')} "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -10749,13 +10746,13 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlGT = f"SELECT jediTaskID,status FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to change modification time to the time just before pending tasks are reactivated
-            timeLimitT = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)
+            timeLimitT = naive_utcnow() - datetime.timedelta(minutes=5)
             sqlCT = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Tasks "
             sqlCT += "SET modificationTime=CURRENT_DATE-1 "
             sqlCT += "WHERE jediTaskID=:jediTaskID AND modificationTime<:timeLimit "
             sqlCT += "AND status=:status AND lockedBy IS NULL "
             # sql to change state check time
-            timeLimitD = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)
+            timeLimitD = naive_utcnow() - datetime.timedelta(minutes=5)
             sqlCC = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlCC += "SET stateCheckTime=CURRENT_DATE-1 "
             sqlCC += "WHERE jediTaskID=:jediTaskID AND state=:dsState AND stateCheckTime<:timeLimit "
@@ -11136,7 +11133,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 # check task
                 try:
                     numThrottled += 1
-                    throttledTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    throttledTime = naive_utcnow()
                     releaseTime = throttledTime + datetime.timedelta(minutes=waitTime * numThrottled * numThrottled)
                     errorDialog = "#ATM #KV action=throttle jediTaskID={0} due to reason=many_attempts {0} > {1}x{2} ".format(
                         jediTaskID, largestAttemptNr, numThrottled, attemptInterval
@@ -11191,7 +11188,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":jediTaskID"] = jediTaskID
             varMap[":newStatus"] = "throttled"
             varMap[":oldStatus"] = "running"
-            varMap[":releaseTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) + datetime.timedelta(minutes=waitTime)
+            varMap[":releaseTime"] = naive_utcnow() + datetime.timedelta(minutes=waitTime)
             varMap[":errorDialog"] = errorDialog
             self.cur.execute(sqlTH + comment, varMap)
             nRow = self.cur.rowcount
@@ -11453,7 +11450,7 @@ class DBProxy(OraDBProxy.DBProxy):
             baseLFN, maxAttempt, maxFailure = resCT
             baseLFN = int(baseLFN) + 1
             # current date
-            timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            timeNow = naive_utcnow()
             # make files
             varMaps = []
             for i in range(n_records):
@@ -11541,7 +11538,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":workqueue_id"] = workqueue_id
                 varMap[":resource_name"] = resource_name
                 varMap[":component"] = component
-                varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+                varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
                 self.cur.execute(sqlCT + comment, varMap)
                 resCT = self.cur.fetchone()
             else:
@@ -11707,7 +11704,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":workqueue_id"] = workqueue_id
             varMap[":resource_name"] = resource_name
             varMap[":component"] = component
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=5)
             self.cur.execute(sqlCT + comment, varMap)
             resCT = self.cur.fetchone()
             if resCT is not None:
@@ -11781,7 +11778,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             self.cur.arraysize = 10000
             # get tasks
-            timeToCheck = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=timeLimit)
+            timeToCheck = naive_utcnow() - datetime.timedelta(minutes=timeLimit)
             varMap[":timeLimit"] = timeToCheck
             tmpLog.debug(sqlRT + comment + str(varMap))
             self.cur.execute(sqlRT + comment, varMap)
@@ -11922,7 +11919,7 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap = {}
             varMap[":flag"] = flag
             varMap[":hours"] = 3
-            varMap[":laststart"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=timeLimit)
+            varMap[":laststart"] = naive_utcnow() - datetime.timedelta(hours=timeLimit)
             self.cur.execute(sqlCD + comment, varMap)
             resCD = self.cur.fetchall()
             # commit
@@ -12128,7 +12125,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
-        latest_validity = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=60)
+        latest_validity = naive_utcnow() - datetime.timedelta(minutes=60)
 
         varMap = {"dst": dst, "latest_validity": latest_validity}
         i = 0
@@ -12173,7 +12170,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
 
-        latest_validity = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=60)
+        latest_validity = naive_utcnow() - datetime.timedelta(minutes=60)
 
         nqueued_cap = self.getConfigValue("taskbrokerage", "NQUEUED_NUC_CAP", "jedi")
         if nqueued_cap is None:
@@ -12671,7 +12668,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get tasks
             varMap = {}
             varMap[":status"] = "paused"
-            varMap[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10)
+            varMap[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=10)
             sqlTL = "SELECT jediTaskID "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -13948,7 +13945,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         # send task status messages to mq
         try:
-            now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            now_time = naive_utcnow()
             now_ts = int(now_time.timestamp())
             msg_dict = {
                 "msg_type": "task_status",
@@ -13983,7 +13980,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         # send task status messages to mq
         try:
-            now_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            now_time = naive_utcnow()
             now_ts = int(now_time.timestamp())
             # get mbproxy
             msg_dict = {}
@@ -14127,7 +14124,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     ).format(jedi_config.db.schemaPANDA, table)
                 else:
                     # with time range for archived table
-                    varMap[":modificationTime"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=60)
+                    varMap[":modificationTime"] = naive_utcnow() - datetime.timedelta(minutes=60)
                     sqlJ = (
                         "SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite,coreCount "
                         "FROM {0}.{1} "
@@ -14385,7 +14382,7 @@ class DBProxy(OraDBProxy.DBProxy):
         if sub_key is None:
             sub_key = "default"
         # last update time
-        last_update = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        last_update = naive_utcnow()
         last_update_str = last_update.strftime("%Y-%m-%d_%H:%M:%S")
         methodName += f" <main_key={main_key} sub_key={sub_key} last_update={last_update_str}>"
         tmpLog = MsgWrapper(logger, methodName)
@@ -14588,7 +14585,7 @@ class DBProxy(OraDBProxy.DBProxy):
         methodName += f" <vo={vo}>"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
-        now_ts = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_ts = naive_utcnow()
         try:
             retVal = None
             # sql to get all jediTaskID and datasetID of input
@@ -14626,7 +14623,7 @@ class DBProxy(OraDBProxy.DBProxy):
         comment = " /* JediDBProxy.updateDatasetLocality_JEDI */"
         methodName = self.getMethodName(comment)
         # last update time
-        timestamp = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        timestamp = naive_utcnow()
         timestamp_str = timestamp.strftime("%Y-%m-%d_%H:%M:%S")
         methodName += f" <taskID={jedi_taskid} datasetID={datasetid} rse={rse} timestamp={timestamp_str}>"
         tmpLog = MsgWrapper(logger, methodName)
@@ -15122,7 +15119,7 @@ class DBProxy(OraDBProxy.DBProxy):
             self.conn.begin()
             # get pending tasks
             var_map = {":status": "pending", ":taskType": task_type}
-            var_map[":timeLimit"] = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=time_limit_minutes)
+            var_map[":timeLimit"] = naive_utcnow() - datetime.timedelta(minutes=time_limit_minutes)
             self.cur.execute(sql_tasks + comment, var_map)
             res = self.cur.fetchall()
             if res:
