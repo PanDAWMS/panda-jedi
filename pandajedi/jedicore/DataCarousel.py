@@ -29,6 +29,14 @@ final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "to
 # named tuple for attribute with type
 AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
 
+# polars config
+pl.Config.set_ascii_tables(True)
+pl.Config.set_tbl_hide_dataframe_shape(True)
+pl.Config.set_tbl_hide_column_data_types(True)
+pl.Config.set_tbl_rows(-1)
+pl.Config.set_tbl_cols(-1)
+pl.Config.set_tbl_width_chars(120)
+
 # ==============================================================
 
 
@@ -715,6 +723,16 @@ class DataCarouselInterface(object):
             tmp_df = queued_requests_df.filter(pl.col("tape") == tape)
             # get cumulative sum of queued files per physical tape
             tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
+            # print dataframe in log
+            if len(tmp_df):
+                tmp_to_print_df = tmp_df.select(
+                    ["request_id", "source_rse", "jediTaskID", "gshare", "gshare_rank", "task_priority", "total_files", "cum_total_files"]
+                )
+                tmp_to_print_df = tmp_to_print_df.with_columns(gshare_and_rank=pl.concat_str([pl.col("gshare"), pl.col("gshare_rank")], separator=" : "))
+                tmp_to_print_df = tmp_to_print_df.select(
+                    ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
+                )
+                tmp_log.debug(f"  physical_tape={tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
             # filter requests within the tape quota size
             tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
             # append the requests to ret_list
