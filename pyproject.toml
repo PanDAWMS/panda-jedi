@@ -12,7 +12,7 @@ authors = [
     { name = "PanDA Team", email = "panda-support@cern.ch" },
 ]
 dependencies = [
-    'panda-common>=0.1.4',
+    'panda-common>=0.1.5',
     'panda-server>=0.5.1',
     'python-daemon',
     'numpy',
