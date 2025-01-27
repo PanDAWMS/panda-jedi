@@ -250,8 +250,8 @@ class DBProxy(OraDBProxy.DBProxy):
             ds_status_var_names_str, ds_status_var_map = get_sql_IN_bind_variables(
                 JediDatasetSpec.statusToUpdateContents(), prefix=":dsStatus_", value_as_suffix=True
             )
-            varMap.update(ds_status_var_map)
             sql += f" AND ((tabT.status=:ts_defined AND tabD.status IN ({ds_status_var_names_str})) "
+            varMap.update(ds_status_var_map)
             sql += "OR (tabT.status IN (:ts_running,:ts_scouting,:ts_ready,:ts_defined) "
             sql += "AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<=:checkTimeLimit)) "
             sql += "AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL "
@@ -1774,8 +1774,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
             if datasetTypes is not None:
                 dstype_var_names_str, dstype_var_map = get_sql_IN_bind_variables(datasetTypes, prefix=":type_", value_as_suffix=True)
-                varMap.update(dstype_var_map)
                 sql += f"AND type IN ({dstype_var_names_str}) "
+                varMap.update(dstype_var_map)
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -1991,8 +1991,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[crKey] = tmpVal
             if oldStatus is not None:
                 old_status_var_names_str, old_status_var_map = get_sql_IN_bind_variables(oldStatus, prefix=":old_", value_as_suffix=True)
-                varMap.update(old_status_var_map)
                 sql += f"status IN ({old_status_var_names_str}) AND "
+                varMap.update(old_status_var_map)
             sql = sql[:-4]
             # begin transaction
             self.conn.begin()
@@ -2395,8 +2395,8 @@ class DBProxy(OraDBProxy.DBProxy):
             or_taskids_sql = ""
             if target_tasks:
                 taskids_var_name_key_str, taskids_var_map = get_sql_IN_bind_variables(target_tasks, prefix=":jediTaskID")
-                varMap.update(taskids_var_map)
                 or_taskids_sql = f"OR tabT.jediTaskID IN ({taskids_var_name_key_str}) "
+                varMap.update(taskids_var_map)
             sqlRT += f"AND (tabT.jediTaskID>=tabA.min_jediTaskID {or_taskids_sql}) "
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
             if vo not in [None, "any"]:
@@ -3333,8 +3333,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 if cloudName not in [None, "", "any"]:
                     sql += "AND tabT.cloud=:cloud "
                 tstat_var_names_str, tstat_var_map = get_sql_IN_bind_variables(JediTaskSpec.statusForJobGenerator(), prefix=":tstat_", value_as_suffix=True)
-                varMap.update(tstat_var_map)
                 sql += f"AND tabT.status IN ({tstat_var_names_str}) "
+                varMap.update(tstat_var_map)
                 sql += "AND tabT.lockedBy IS NULL "
                 sql += "AND tabT.modificationTime<:timeLimit "
                 sql += "AND "
@@ -3375,16 +3375,17 @@ class DBProxy(OraDBProxy.DBProxy):
                     tasks_to_loop = simTasks
                 else:
                     tasks_to_loop = target_tasks
+                sql += "WHERE tabT.jediTaskID=tabD.jediTaskID "
                 taskid_var_names_str, taskid_var_map = get_sql_IN_bind_variables(tasks_to_loop, prefix=":jediTaskID")
+                sql += f"AND tabT.jediTaskID IN ({taskid_var_names_str}) "
                 varMap.update(taskid_var_map)
-                sql += f"WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ({taskid_var_names_str}) "
                 sql += f"AND type IN ({PROCESS_TYPES_var_str}) "
                 varMap.update(PROCESS_TYPES_var_map)
                 sql += "AND masterID IS NULL "
                 if simDatasets is not None:
                     dsid_var_names_str, dsid_var_map = get_sql_IN_bind_variables(simDatasets, prefix=":datasetID")
-                    varMap.update(dsid_var_map)
                     sql += f"AND tabD.datasetID IN ({dsid_var_names_str}) "
+                    varMap.update(dsid_var_map)
                 if not fullSimulation:
                     varMap[":dsStatusRemoved"] = "removed"
                     sql += "AND nFilesToBeUsed > nFilesUsed AND tabD.status<>:dsStatusRemoved "
@@ -7150,8 +7151,8 @@ class DBProxy(OraDBProxy.DBProxy):
                 sql = "SELECT tabT.jediTaskID,tabT.status "
                 sql += f"FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks tabT "
                 taskid_var_names_str, taskid_var_map = get_sql_IN_bind_variables(simTasks, prefix=":jediTaskID")
-                varMap.update(taskid_var_map)
                 sql += f"WHERE jediTaskID IN ({taskid_var_names_str}) "
+                varMap.update(taskid_var_map)
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -8038,8 +8039,8 @@ class DBProxy(OraDBProxy.DBProxy):
             varMap[":comm_owner"] = "DEFT"
             sqlC = f"SELECT comm_task,comm_cmd,comm_comment FROM {jedi_config.db.schemaDEFT}.PRODSYS_COMM "
             comm_var_names_str, comm_var_map = get_sql_IN_bind_variables(commandStatusMap.keys(), prefix=":comm_cmd_", value_as_suffix=True)
-            varMap.update(comm_var_map)
             sqlC += f"WHERE comm_owner=:comm_owner AND comm_cmd IN ({comm_var_names_str}) "
+            varMap.update(comm_var_map)
             if vo not in [None, "any"]:
                 varMap[":comm_vo"] = vo
                 sqlC += "AND comm_vo=:comm_vo "
@@ -10195,8 +10196,8 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
             status_var_names_str, status_var_map = get_sql_IN_bind_variables(taskStatusList, prefix=":status_", value_as_suffix=True)
-            varMap.update(status_var_map)
             sqlRT += f"AND tabT.status IN ({status_var_names_str}) "
+            varMap.update(status_var_map)
             if vo not in [None, "any"]:
                 varMap[":vo"] = vo
                 sqlRT += "AND tabT.vo=:vo "
@@ -10206,8 +10207,8 @@ class DBProxy(OraDBProxy.DBProxy):
             for tmpKey, tmpVal in taskCriteria.items():
                 if isinstance(tmpVal, list):
                     tmp_var_names_str, tmp_var_map = get_sql_IN_bind_variables(tmpVal, prefix=f":{tmpKey}_", value_as_suffix=True)
-                    varMap.update(tmp_var_map)
                     sqlRT += f"AND tabT.{tmpKey} IN ({tmp_var_names_str}) "
+                    varMap.update(tmp_var_map)
                 elif tmpVal is not None:
                     sqlRT += "AND tabT.{0}=:{0} ".format(tmpKey)
                     varMap[f":{tmpKey}"] = tmpVal
@@ -10216,8 +10217,8 @@ class DBProxy(OraDBProxy.DBProxy):
             for tmpKey, tmpVal in datasetCriteria.items():
                 if isinstance(tmpVal, list):
                     tmp_var_names_str, tmp_var_map = get_sql_IN_bind_variables(tmpVal, prefix=f":{tmpKey}_", value_as_suffix=True)
-                    varMap.update(tmp_var_map)
                     sqlRT += f"AND tabD.{tmpKey} IN ({tmp_var_names_str}) "
+                    varMap.update(tmp_var_map)
                 elif tmpVal is not None:
                     sqlRT += "AND tabD.{0}=:{0} ".format(tmpKey)
                     varMap[f":{tmpKey}"] = tmpVal
@@ -11930,13 +11931,14 @@ class DBProxy(OraDBProxy.DBProxy):
         varMap = {"dst": dst, "latest_validity": latest_validity}
 
         key_var_names_str, key_var_map = get_sql_IN_bind_variables(keyList, prefix=":key")
-        varMap.update(key_var_map)
 
         sql = f"""
         SELECT src, key, value, ts FROM {jedi_config.db.schemaJEDI}.network_matrix_kv
         WHERE dst = :dst AND key IN ({key_var_names_str})
         AND ts > :latest_validity
         """
+
+        varMap.update(key_var_map)
 
         self.cur.execute(sql + comment, varMap)
         resList = self.cur.fetchall()
