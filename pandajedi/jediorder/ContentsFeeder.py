@@ -24,6 +24,7 @@ except ImportError:
     pass
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
@@ -43,7 +44,7 @@ class ContentsFeeder(JediKnight):
         JediKnight.start(self)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            startTime = naive_utcnow()
             try:
                 # loop over all vos
                 for vo in self.vos:
@@ -72,7 +73,7 @@ class ContentsFeeder(JediKnight):
                 logger.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = jedi_config.confeeder.loopCycle
-            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
+            timeDelta = naive_utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
@@ -215,7 +216,7 @@ class ContentsFeederThread(WorkerThread):
                     # get dataset metadata
                     tmpLog.debug("get metadata")
                     gotMetadata = False
-                    stateUpdateTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                    stateUpdateTime = naive_utcnow()
                     try:
                         if not datasetSpec.isPseudo():
                             tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName, ignore_missing=True)

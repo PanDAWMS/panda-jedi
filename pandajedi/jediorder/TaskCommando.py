@@ -6,6 +6,7 @@ import time
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
@@ -34,7 +35,7 @@ class TaskCommando(JediKnight):
         JediKnight.start(self)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            startTime = naive_utcnow()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -66,7 +67,7 @@ class TaskCommando(JediKnight):
                 tmpLog.error(f"failed in {self.__class__.__name__}.start() with {str(e)} {traceback.format_exc()}")
             # sleep if needed
             loopCycle = jedi_config.tcommando.loopCycle
-            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
+            timeDelta = naive_utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

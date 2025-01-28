@@ -5,6 +5,7 @@ import sys
 import time
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
@@ -34,7 +35,7 @@ class PostProcessor(JediKnight, FactoryBase):
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
-            startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            startTime = naive_utcnow()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -76,7 +77,7 @@ class PostProcessor(JediKnight, FactoryBase):
                 tmpLog.error(f"failed in {self.__class__.__name__}.start() with {errtype.__name__} {errvalue}")
             # sleep if needed
             loopCycle = 60
-            timeDelta = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - startTime
+            timeDelta = naive_utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)

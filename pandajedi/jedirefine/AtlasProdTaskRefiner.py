@@ -4,6 +4,7 @@ import re
 import shlex
 import traceback
 
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 
 from pandajedi.jedicore import JediException
@@ -44,7 +45,7 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                 tmpStr += f"num_pending_tasks_AES={nPendingTasks} max_pending_tasks_AES={maxPending} "
                 tmpLog.info(tmpStr)
                 # not chane many tasks at once
-                if lastTaskTime is None or (lastTaskTime < datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=5)):
+                if lastTaskTime is None or (lastTaskTime < naive_utcnow() - datetime.timedelta(minutes=5)):
                     if minNumEvents is not None and nEvents < minNumEvents and maxPending is not None and (maxPending is None or maxPending > nPendingTasks):
                         autoEsConversion = True
                         tmpLog.info("will be converted to AES unless it goes to pending")

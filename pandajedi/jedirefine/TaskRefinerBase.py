@@ -4,6 +4,7 @@ import re
 import sys
 import uuid
 
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.taskbuffer import EventServiceUtils, task_split_rules
 
 from pandajedi.jedicore import Interaction, JediException
@@ -109,7 +110,7 @@ class TaskRefinerBase(object):
         taskSpec.processingType = taskParamMap["processingType"]
         taskSpec.taskType = taskParamMap["taskType"]
         taskSpec.splitRule = splitRule
-        taskSpec.startTime = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        taskSpec.startTime = naive_utcnow()
         if "workingGroup" in taskParamMap:
             taskSpec.workingGroup = taskParamMap["workingGroup"]
         if "countryGroup" in taskParamMap:

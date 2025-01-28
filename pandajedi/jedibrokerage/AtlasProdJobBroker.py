@@ -4,6 +4,7 @@ import re
 
 from dataservice.DataServiceUtils import select_scope
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 
@@ -109,7 +110,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             tmpLog = MsgWrapper(
                 logger,
                 f"<jediTaskID={taskSpec.jediTaskID}>",
-                monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat('/')}>",
+                monToken=f"<jediTaskID={taskSpec.jediTaskID} {naive_utcnow().isoformat('/')}>",
             )
         else:
             tmpLog = glLog
@@ -122,7 +123,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             tmpLog.debug("Network weights are PASSIVE!")
 
-        timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        timeNow = naive_utcnow()
 
         # return for failure
         retFatal = self.SC_FATAL, inputChunk
@@ -1382,7 +1383,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     raise Interaction.JEDITemporaryError("ddmIF.getAvailableFiles failed")
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except Exception as e:
-                tmpLog.error("failed to get available files with {0}".format(str(e).replace("\n", " ")))
+                tmpLog.error(f"failed to get available files with {str(e).replace('\\n', ' ')}")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
             # loop over all sites to get the size of available files

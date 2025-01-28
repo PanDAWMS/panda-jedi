@@ -3,8 +3,10 @@ import re
 import time
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandajedi.jediconfig import jedi_config
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.userinterface import Client
+
+from pandajedi.jediconfig import jedi_config
 
 
 class MsgWrapper:
@@ -12,7 +14,7 @@ class MsgWrapper:
         self.logger = logger
         # use timestamp as token if undefined
         if token is None:
-            self.token = f"<{datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat('/')}>"
+            self.token = f"<{naive_utcnow().isoformat('/')}>"
         else:
             self.token = token
         # token for http logger
@@ -35,7 +37,7 @@ class MsgWrapper:
         if len(self.msgBuffer) > self.lineLimit:
             self.msgBuffer.pop(0)
             self.bareMsg.pop(0)
-        timeNow = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        timeNow = naive_utcnow()
         self.msgBuffer.append(f"{timeNow.isoformat(' ')} : {msg}")
         self.bareMsg.append(msg)
 

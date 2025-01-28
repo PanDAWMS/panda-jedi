@@ -7,6 +7,7 @@ import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import JobUtils
 
@@ -45,9 +46,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             msg_tag = f"<jediTaskID={taskSpec.jediTaskID} datasetID={inputChunk.masterDataset.datasetID}>"
         else:
             msg_tag = f"<jediTaskID={taskSpec.jediTaskID}>"
-        tmpLog = MsgWrapper(
-            logger, msg_tag, monToken=f"<jediTaskID={taskSpec.jediTaskID} {datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat('/')}>"
-        )
+        tmpLog = MsgWrapper(logger, msg_tag, monToken=f"<jediTaskID={taskSpec.jediTaskID} {naive_utcnow().isoformat('/')}>")
         tmpLog.debug("start")
         # return for failure
         retFatal = self.SC_FATAL, inputChunk
@@ -336,11 +335,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             elif io_intensity_cutoff and taskSpec.ioIntensity and io_intensity_cutoff >= taskSpec.ioIntensity:
                 to_ignore_data_loc = True
                 tmp_msg += f"low ioIntensity {taskSpec.ioIntensity} is less than or equal to {io_intensity_key} ({io_intensity_cutoff})"
-            elif (
-                loc_check_timeout_val
-                and taskSpec.frozenTime
-                and datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - taskSpec.frozenTime > datetime.timedelta(hours=loc_check_timeout_val)
-            ):
+            elif loc_check_timeout_val and taskSpec.frozenTime and naive_utcnow() - taskSpec.frozenTime > datetime.timedelta(hours=loc_check_timeout_val):
                 to_ignore_data_loc = True
                 tmp_msg += "check timeout (last successful cycle at {} was more than {} ({}hrs) ago)".format(
                     taskSpec.frozenTime, loc_check_timeout_key, loc_check_timeout_val

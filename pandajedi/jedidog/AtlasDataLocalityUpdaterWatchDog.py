@@ -5,6 +5,7 @@ import sys
 import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
@@ -94,7 +95,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             # lifetime of records
             record_lifetime_hours = 24
             # run
-            now_timestamp = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            now_timestamp = naive_utcnow()
             before_timestamp = now_timestamp - datetime.timedelta(hours=record_lifetime_hours)
             n_rows = self.taskBufferIF.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
             tmpLog.info(f"cleaned up {n_rows} records")
