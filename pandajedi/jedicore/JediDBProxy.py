@@ -7002,7 +7002,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
             # low success rate
             if taskSpec.status != "exhausted" and minNumOkScoutsForExhausted:
-                if taskSpec.getScoutSuccessRate() and extraInfo["successRate"] < taskSpec.getScoutSuccessRate() / 10:
+                if taskSpec.getScoutSuccessRate() and "successRate" in extraInfo and extraInfo["successRate"] < taskSpec.getScoutSuccessRate() / 10:
                     errMsg = "#ATM #KV action=set_exhausted since reason=low_success_rate between {} and {} ".format(
                         minNumOkScoutsForExhausted, taskSpec.getScoutSuccessRate() / 10
                     )
