@@ -1383,7 +1383,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                     raise Interaction.JEDITemporaryError("ddmIF.getAvailableFiles failed")
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except Exception as e:
-                tmpLog.error(f"failed to get available files with {str(e).replace('\\n', ' ')}")
+                tmp_str = str(e).replace("\\n", " ")
+                tmpLog.error(f"failed to get available files with {tmp_str}")
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
             # loop over all sites to get the size of available files

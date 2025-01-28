@@ -1045,12 +1045,14 @@ class JobGeneratorThread(WorkerThread):
 
             # loop over all sub chunks
             for tmpInChunk in inSubChunkList:
+                site_name_list = tmpInChunk["siteName"].split(",")
                 siteName = tmpInChunk["siteName"]
                 inSubChunks = tmpInChunk["subChunks"]
                 siteCandidate = tmpInChunk["siteCandidate"]
-                siteSpec = self.siteMapper.getSite(siteName.split(",")[0])
+                siteSpec = self.siteMapper.getSite(site_name_list[0])
                 scope_input, scope_output = select_scope(siteSpec, taskSpec.prodSourceLabel, JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                 buildFileSpec = None
+                build_file_spec_map = {}
                 # make preprocessing job
                 if taskSpec.usePrePro():
                     tmpStat, preproJobSpec, tmpToRegister = self.doGeneratePrePro(
@@ -1069,20 +1071,25 @@ class JobGeneratorThread(WorkerThread):
                     break
                 # make build job
                 elif taskSpec.useBuild():
-                    tmpStat, buildJobSpec, buildFileSpec, tmpToRegister = self.doGenerateBuild(
-                        taskSpec, cloudName, siteName, siteSpec, taskParamMap, tmpLog, siteCandidate, simul
-                    )
-                    if tmpStat != Interaction.SC_SUCCEEDED:
-                        tmpLog.error("failed to generate build job")
-                        return failedRet
-                    # append
-                    if buildJobSpec is not None:
-                        jobSpecList.append(buildJobSpec)
-                        oldPandaIDs.append([])
-                    # append datasets
-                    for tmpToRegisterItem in tmpToRegister:
-                        if tmpToRegisterItem not in datasetToRegister:
-                            datasetToRegister.append(tmpToRegisterItem)
+                    for idx, tmp_site_name in enumerate(site_name_list):
+                        tmp_site_spec = self.siteMapper.getSite(tmp_site_name)
+                        tmpStat, tmp_buildJobSpec, tmp_buildFileSpec, tmpToRegister = self.doGenerateBuild(
+                            taskSpec, cloudName, tmp_site_name, tmp_site_spec, taskParamMap, tmpLog, siteCandidate, simul
+                        )
+                        if tmpStat != Interaction.SC_SUCCEEDED:
+                            tmpLog.error("failed to generate build job")
+                            return failedRet
+                        if idx == 0:
+                            buildJobSpec, buildFileSpec = tmp_buildJobSpec, tmp_buildFileSpec
+                        # append
+                        if tmp_buildJobSpec is not None:
+                            jobSpecList.append(tmp_buildJobSpec)
+                            oldPandaIDs.append([])
+                        build_file_spec_map[tmp_site_spec.get_unified_name()] = tmp_buildFileSpec
+                        # append datasets
+                        for tmpToRegisterItem in tmpToRegister:
+                            if tmpToRegisterItem not in datasetToRegister:
+                                datasetToRegister.append(tmpToRegisterItem)
                 # make normal jobs
                 tmpJobSpecList = []
                 tmpMasterEventsList = []
@@ -1679,9 +1686,9 @@ class JobGeneratorThread(WorkerThread):
                                     tmpLog.error(f"failed to get DS with datasetID={tmpFileSpec.datasetID}")
                                     return failedRet
                                 outDsMap[tmpFileSpec.datasetID] = tmpDataset
-                    # lib.tgz
+                    # lib.tgz. cloning jobs will set it later in increaseEventServiceConsumers
                     paramList = []
-                    if buildFileSpec is not None:
+                    if buildFileSpec is not None and not taskSpec.useEventService(siteSpec):
                         tmpBuildFileSpec = copy.copy(buildFileSpec)
                         jobSpec.addFile(tmpBuildFileSpec)
                         paramList.append(("LIB", buildFileSpec.lfn))
@@ -1757,6 +1764,7 @@ class JobGeneratorThread(WorkerThread):
                             taskSpec,
                             inputChunk,
                             tmpMasterEventsList,
+                            build_file_spec_map,
                         )
                         oldPandaIDs = oldPandaIDs[: len(jobSpecList)] + incOldPandaIDs
                 # add to all list
@@ -2465,13 +2473,22 @@ class JobGeneratorThread(WorkerThread):
         return parTemplate
 
     # increase event service consumers
-    def increaseEventServiceConsumers(self, pandaJobs, nConsumers, nSitesPerJob, parallelOutMap, outDsMap, oldPandaIDs, taskSpec, inputChunk, masterEventsList):
+    def increaseEventServiceConsumers(
+        self, pandaJobs, nConsumers, nSitesPerJob, parallelOutMap, outDsMap, oldPandaIDs, taskSpec, inputChunk, masterEventsList, build_spec_map
+    ):
         newPandaJobs = []
         newOldPandaIDs = []
         for pandaJob, oldPandaID, masterEvents in zip(pandaJobs, oldPandaIDs, masterEventsList):
             for iConsumers in range(nConsumers):
                 newPandaJob = self.clonePandaJob(
-                    pandaJob, iConsumers, parallelOutMap, outDsMap, taskSpec=taskSpec, inputChunk=inputChunk, totalMasterEvents=masterEvents
+                    pandaJob,
+                    iConsumers,
+                    parallelOutMap,
+                    outDsMap,
+                    taskSpec=taskSpec,
+                    inputChunk=inputChunk,
+                    totalMasterEvents=masterEvents,
+                    build_spec_map=build_spec_map,
                 )
                 newPandaJobs.append(newPandaJob)
                 newOldPandaIDs.append(oldPandaID)
@@ -2479,7 +2496,9 @@ class JobGeneratorThread(WorkerThread):
         return newPandaJobs, newOldPandaIDs
 
     # close panda job with new specialHandling
-    def clonePandaJob(self, pandaJob, index, parallelOutMap, outDsMap, sites=None, forJumbo=False, taskSpec=None, inputChunk=None, totalMasterEvents=None):
+    def clonePandaJob(
+        self, pandaJob, index, parallelOutMap, outDsMap, sites=None, forJumbo=False, taskSpec=None, inputChunk=None, totalMasterEvents=None, build_spec_map=None
+    ):
         newPandaJob = copy.copy(pandaJob)
         if sites is None:
             sites = newPandaJob.computingSite.split(",")
@@ -2561,6 +2580,10 @@ class JobGeneratorThread(WorkerThread):
                     if tmpDestination is not None:
                         newFileSpec.destinationDBlockToken = f"ddd:{tmpDestination['ddm_endpoint_name']}"
             newPandaJob.addFile(newFileSpec)
+        if build_spec_map and newPandaJob.computingSite in build_spec_map:
+            tmp_build_file = copy.copy(build_spec_map[newPandaJob.computingSite])
+            newPandaJob.addFile(tmp_build_file)
+            newPandaJob.jobParameters = newPandaJob.jobParameters.replace("${LIB}", tmp_build_file.lfn)
         return newPandaJob
 
     # make jumbo jobs

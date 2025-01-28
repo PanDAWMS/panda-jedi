@@ -346,7 +346,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     scanSiteLists.append((copy.copy(scanSiteList), False))
                 else:
                     scanSiteLists = [(copy.copy(scanSiteList), False)]
-            elif taskSpec.taskPriority > 1000 or nRealDS > 1:
+            elif taskSpec.taskPriority > 1000 or nRealDS > 1 or taskSpec.getNumSitesPerJob() > 0:
+                # add a loop without data locality check for high priority tasks, tasks with multiple input datasets, or tasks with job cloning
                 scanSiteLists.append((copy.copy(scanSiteList), False))
             # element map
             for datasetSpec in inputChunk.getDatasets():
@@ -359,6 +360,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
         scanSiteWoVP = []
         avoidVP = False
         summaryList = []
+        site_list_with_data = None
+        overall_site_list = set()
         for scanSiteList, checkDataLocality in scanSiteLists:
             useUnionLocality = False
             self.init_summary_list("Job brokerage summary", f"data locality check: {checkDataLocality}", scanSiteList)
@@ -1465,7 +1468,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
 
             ############
             # loop end
-            if len(scanSiteList) > 0:
+            overall_site_list.update(scanSiteList)
+            if site_list_with_data is None:
+                # preserve site list with data
+                site_list_with_data = set(scanSiteList)
+            if len(overall_site_list) >= taskSpec.getNumSitesPerJob():
                 retVal = None
                 break
         # failed
@@ -1473,6 +1480,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retVal
         # get list of available files
+        scanSiteList = list(overall_site_list)
         availableFileMap = {}
         for datasetSpec in inputChunk.getDatasets():
             try:
@@ -1956,19 +1964,28 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if weight not in weightMap:
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)
-        # copy to oldScanSiteList
-        oldScanSiteList = copy.copy(scanSiteList)
-        # sort candidates by weights
+        # sort candidates by weights and data availability
+        candidateSpecListWithData = []
         weightList = sorted(weightMap.keys())
         weightList.reverse()
         for weightVal in weightList:
             sitesWithWeight = weightMap[weightVal]
+            for tmp_site in list(sitesWithWeight):
+                if tmp_site in site_list_with_data:
+                    candidateSpecListWithData.append(tmp_site)
+                    sitesWithWeight.remove(tmp_site)
             random.shuffle(sitesWithWeight)
             candidateSpecList += sitesWithWeight
-        # limit the number of sites. use all sites for distributed datasets
+        candidateSpecList = candidateSpecListWithData + candidateSpecList
+        # limit the number of sites
         if not hasDDS:
-            maxNumSites = 10
+            if taskSpec.getNumSitesPerJob() > 1:
+                # use the number of sites in the task spec for job cloning
+                maxNumSites = max(len(site_list_with_data), taskSpec.getNumSitesPerJob())
+            else:
+                maxNumSites = 10
         else:
+            # use all sites for distributed datasets
             maxNumSites = None
         # remove problematic sites
         oldScanSiteList = copy.copy(scanSiteList)
