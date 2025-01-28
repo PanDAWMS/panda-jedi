@@ -13053,7 +13053,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
             sqlAV += "AND d.jediTaskID=t.jediTaskID "
-            sqlAV += "AND d.type IN ({INPUT_TYPES_var_str}) "
+            sqlAV += f"AND d.type IN ({INPUT_TYPES_var_str}) "
             sqlAV += "AND d.masterID IS NULL "
             # sql to get event stat info
             sqlFR = "SELECT /*+ INDEX_RS_ASC(c (JEDI_DATASET_CONTENTS.JEDITASKID JEDI_DATASET_CONTENTS.DATASETID JEDI_DATASET_CONTENTS.FILEID)) NO_INDEX_FFS(tab JEDI_EVENTS_PK) NO_INDEX_SS(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
@@ -13371,7 +13371,7 @@ class DBProxy(OraDBProxy.DBProxy):
             var_map_datasetids = {}
             dsid_var_names_str = ""
             if len(resGD) > 0:
-                dsid_var_names_str, dsid_var_map = get_sql_IN_bind_variables(resGD, prefix=":datasetID_")
+                dsid_var_names_str, dsid_var_map = get_sql_IN_bind_variables([dsid for (dsid, masterID) in resGD], prefix=":datasetID_")
                 var_map_datasetids.update(dsid_var_map)
             else:
                 to_update_files = False
