@@ -23,6 +23,7 @@ Parameters : {command}
 
 PandaMonURL : https://bigpanda.cern.ch/task/{jedi_task_id}/
 
+Please use the smiley interface on this link to provide feedback on the task execution. 
 
 Estimated carbon footprint for the task
      Succeeded   : {carbon_succeeded}
@@ -78,6 +79,7 @@ jedi_task_html_body = """
 <body>
     <img class="logo" src="https://panda-wms.readthedocs.io/en/latest/_static/PanDA-rev-logo-small-200px.jpg" alt="PanDA Logo">
     <h2>Summary of TaskID: <a href="https://bigpanda.cern.ch/task/{jedi_task_id}">{jedi_task_id}</a> </h2>
+    <p> 🆕 Please use the smiley interface on this link to provide feedback on the task execution.</p>
     <table>
         <tr>
             <th>Detail</th>
