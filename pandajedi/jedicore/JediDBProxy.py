@@ -14297,7 +14297,6 @@ class DBProxy(OraDBProxy.DBProxy):
         # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
         try:
-            self.conn.begin()
             # sql to query
             self.cur.execute(sql_query + comment, params_map)
             taskIDs = self.cur.fetchall()
@@ -14314,6 +14313,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # loop over tasks
             n_updated = 0
             for (jedi_taskid,) in taskIDs:
+                self.conn.begin()
                 varMap = {}
                 varMap[":jediTaskID"] = jedi_taskid
                 varMap[":err"] = reason
@@ -14327,8 +14327,8 @@ class DBProxy(OraDBProxy.DBProxy):
                     tmpLog.debug(f"made pending jediTaskID={jedi_taskid}")
                 elif nRow > 1:
                     tmpLog.error(f"updated {nRow} rows with same jediTaskID={jedi_taskid}")
-            if not self._commit():
-                raise RuntimeError("Commit error")
+                if not self._commit():
+                    raise RuntimeError("Commit error")
             tmpLog.debug(f"done with {n_updated} rows")
             # return
             return n_updated

@@ -177,7 +177,6 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                     "WHERE dl.jediTaskID=t.jediTaskID "
                     "AND dl.rse NOT IN ({rse_params_str}) "
                     ") "
-                    "FOR UPDATE "
                 ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
                 # params map
                 params_map = {
