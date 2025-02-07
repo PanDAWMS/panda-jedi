@@ -205,7 +205,11 @@ class TaskRefinerThread(WorkerThread):
                             tmpLog.info("checking about data carousel")
                             try:
                                 ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
-                                if not ds_list_to_prestage:
+                                if ds_list_to_prestage is None:
+                                    # error to get datasets to prestage
+                                    tmpLog.debug("nothing found to prestage; skipped")
+                                elif not ds_list_to_prestage:
+                                    # found no datasets on tape to prestage
                                     tmpLog.debug("no need to prestage, try to resume task from staging")
                                     # no dataset needs pre-staging; unset inputPreStaging
                                     taskParamMap["inputPreStaging"] = False
@@ -216,7 +220,8 @@ class TaskRefinerThread(WorkerThread):
                                     tmpLog.info("to prestage, submitting data carousel requests")
                                     tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
                                     if tmp_ret:
-                                        tmpLog.info("submitted data carousel requests")
+                                        taskParamMap["toStaging"] = True
+                                        tmpLog.info("submitted data carousel requests; set toStaging")
                                     else:
                                         tmpLog.error("failed to submit data carousel requests")
                             except Exception:
