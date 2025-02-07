@@ -1036,7 +1036,7 @@ class DataCarouselInterface(object):
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
 
-    def clean_up_requests(self, terminated_time_limit_days=3, outdated_time_limit_days=30):
+    def clean_up_requests(self, terminated_time_limit_days=15, outdated_time_limit_days=30):
         """
         Clean up terminated and outdated requests
         """
