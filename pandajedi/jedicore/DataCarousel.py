@@ -438,11 +438,12 @@ class DataCarouselInterface(object):
                         continue
                     else:
                         ddm_rule_id = None
-                        # keep alive staging rule
+                        # with existing staging rule; keep it alive
                         if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
                             ddm_rule_id = staging_rule["id"]
                             self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
                             tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
+                            # FIXME: need to fetch existing source_rse in case ddm rule exists; now if dataset the same, no new request inserted to DB
                         # source tape RSEs from DDM
                         rse_set = {replica for replica in filtered_replicas_map["tape"]}
                         # filter out inactive source tape RSEs according to DC config
@@ -949,13 +950,13 @@ class DataCarouselInterface(object):
                         to_update = True
                 # current staged files
                 current_staged_files = int(the_rule["locks_ok_cnt"])
-                if current_staged_files > dc_req_spec.staged_files:
+                new_staged_files = current_staged_files - dc_req_spec.staged_files
+                if new_staged_files > 0:
                     # have more staged files than before; update request according to DDM rule
                     dc_req_spec.staged_files = current_staged_files
                     dc_req_spec.staged_size = int(dc_req_spec.dataset_size * dc_req_spec.staged_files / dc_req_spec.total_files)
                     to_update = True
-                else:
-                    tmp_log.debug(f"request_id={dc_req_spec.request_id} no new staged files about ddm_rule_id={ddm_rule_id}")
+                tmp_log.debug(f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files")
                 # check completion of staging
                 if dc_req_spec.staged_files == dc_req_spec.total_files:
                     # all files staged; process request to done
