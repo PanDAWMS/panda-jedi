@@ -76,6 +76,8 @@ class DataCarouselRequestSpec(SpecBase):
         AttributeWithType("end_time", datetime),
         AttributeWithType("modification_time", datetime),
         AttributeWithType("check_time", datetime),
+        AttributeWithType("source_tape", str),
+        AttributeWithType("parameters", str),
     )
     # attributes
     attributes = tuple([attr.attribute for attr in attributes_with_types])
@@ -85,6 +87,29 @@ class DataCarouselRequestSpec(SpecBase):
     _forceUpdateAttrs = ()
     # mapping between sequence and attr
     _seqAttrMap = {"request_id": f"{jedi_config.db.schemaJEDI}.JEDI_DATA_CAROUSEL_REQUEST_ID_SEQ.nextval"}
+
+    @property
+    def parameter_map(self) -> dict:
+        """
+        Get the dictionary parsed by the parameters attribute in JSON
+
+        Returns:
+            dict : dict of parameters if it is JSON or empty dict if null
+        """
+        if self.parameters is None:
+            return {}
+        else:
+            return json.loads(self.parameters)
+
+    @parameter_map.setter
+    def parameter_map(self, value_map: dict):
+        """
+        Set the dictionary and store in parameters attribute in JSON
+
+        Args:
+            value_map (dict): dict to set the parameter map
+        """
+        self.parameters = json.dumps(value_map)
 
 
 # ==============================================================
@@ -325,7 +350,7 @@ class DataCarouselInterface(object):
         If the collection is a container, the method returns a list of datasets inside the container
 
         Args:
-        collection (str): name of the DDM collection (container or dataset)
+            collection (str): name of the DDM collection (container or dataset)
 
         Returns:
             list[str] | None : list of datasets if successful; None if failed with exception
@@ -404,7 +429,7 @@ class DataCarouselInterface(object):
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
         Args:
-        task_params_map (dict): task params of the JEDI task
+            task_params_map (dict): task params of the JEDI task
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
@@ -473,8 +498,8 @@ class DataCarouselInterface(object):
         Submit data carousel requests for a task
 
         Args:
-        task_id (int): JEDI task ID
-        dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+            task_id (int): JEDI task ID
+            dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
         Returns:
             bool | None : True if submission successful, or None if failed
@@ -493,6 +518,14 @@ class DataCarouselInterface(object):
             dc_req_spec.staged_size = 0
             dc_req_spec.ddm_rule_id = ddm_rule_id
             dc_req_spec.source_rse = source_rse
+            try:
+                # source_rse is RSE
+                source_tape = self.dc_config_map.source_rses_config[dc_req_spec.source_rse].tape
+            except KeyError:
+                # source_rse is physical tape
+                source_tape = dc_req_spec.source_rse
+            finally:
+                dc_req_spec.source_tape = source_tape
             dc_req_spec.status = DataCarouselRequestStatus.queued
             dc_req_spec.creation_time = now_time
             dc_req_spec_list.append(dc_req_spec)
@@ -506,8 +539,8 @@ class DataCarouselInterface(object):
     #     Get stats of staging of all tapes
 
     #     Args:
-    #     task_id (int): JEDI task ID
-    #     dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+    #         task_id (int): JEDI task ID
+    #         dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
     #     Returns:
     #         bool | None : True if submission successful, or None if failed
@@ -578,22 +611,23 @@ class DataCarouselInterface(object):
         dc_req_df = dc_req_df.filter(pl.col("status") == DataCarouselRequestStatus.staging)
         # get source tapes and RSEs config dataframes
         source_tapes_config_df = self._get_source_tapes_config_dataframe()
-        source_rses_config_df = self._get_source_rses_config_dataframe()
+        # source_rses_config_df = self._get_source_rses_config_dataframe()
         # dataframe of staging requests with physical tapes
-        dc_req_full_df = dc_req_df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
+        # dc_req_full_df = dc_req_df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
+        dc_req_full_df = dc_req_df
         # dataframe of source RSE stats; add remaining_files
         source_rse_stats_df = (
             dc_req_full_df.select(
-                "tape",
+                "source_tape",
                 "total_files",
                 "staged_files",
                 (pl.col("total_files") - pl.col("staged_files")).alias("remaining_files"),
             )
-            .group_by("tape")
+            .group_by("source_tape")
             .sum()
         )
         # make dataframe of source tapes stats; add quota_size
-        df = source_tapes_config_df.join(source_rse_stats_df, on="tape", how="left")
+        df = source_tapes_config_df.join(source_rse_stats_df, on="source_tape", how="left")
         df = df.with_columns(
             pl.col("total_files").fill_null(strategy="zero"),
             pl.col("staged_files").fill_null(strategy="zero"),
@@ -636,13 +670,13 @@ class DataCarouselInterface(object):
         Transfrom Data Carousel queue requests and their tasks into dataframe
 
         Args:
-        queued_requests (list|None): list of tuples in form of (queued_request, [taskspec1, taskspec2, ...])
+            queued_requests (list|None): list of tuples in form of (queued_request, [taskspec1, taskspec2, ...])
 
         Returns:
             polars.DataFrame : dataframe of queued requests
         """
         # get source RSEs config for tape mapping
-        source_rses_config_df = self._get_source_rses_config_dataframe()
+        # source_rses_config_df = self._get_source_rses_config_dataframe()
         # get current gshare rank
         gshare_dict = self._get_gshare_stats()
         gshare_rank_dict = {k: v["rank"] for k, v in gshare_dict.items()}
@@ -654,6 +688,7 @@ class DataCarouselInterface(object):
                     "request_id": dc_req_spec.request_id,
                     "dataset": dc_req_spec.dataset,
                     "source_rse": dc_req_spec.source_rse,
+                    "source_tape": dc_req_spec.source_tape,
                     "total_files": dc_req_spec.total_files,
                     "dataset_size": dc_req_spec.dataset_size,
                     "jediTaskID": task_spec.jediTaskID,
@@ -681,7 +716,7 @@ class DataCarouselInterface(object):
         # fill null
         df.with_columns(pl.col("total_files").fill_null(strategy="zero"), pl.col("dataset_size").fill_null(strategy="zero"))
         # join to add phycial tape
-        df = df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
+        # df = df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
         # return final dataframe
         queued_requests_tasks_df = df
         return queued_requests_tasks_df
@@ -692,7 +727,7 @@ class DataCarouselInterface(object):
         Get the queued requests which should proceed to get staging
 
         Args:
-        ? (?): ?
+            ? (?): ?
 
         Returns:
             list[DataCarouselRequestSpec] : list of requests to stage
@@ -718,10 +753,10 @@ class DataCarouselInterface(object):
         # evaluate per tape
         queued_requests_df = df
         for source_tape_stats_dict in source_tape_stats_dict_list:
-            tape = source_tape_stats_dict["tape"]
+            source_tape = source_tape_stats_dict["source_tape"]
             quota_size = source_tape_stats_dict["quota_size"]
             # dataframe of the phycial tape
-            tmp_df = queued_requests_df.filter(pl.col("tape") == tape)
+            tmp_df = queued_requests_df.filter(pl.col("source_tape") == source_tape)
             # get cumulative sum of queued files per physical tape
             tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
             # print dataframe in log
@@ -733,7 +768,7 @@ class DataCarouselInterface(object):
                 tmp_to_print_df = tmp_to_print_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
                 )
-                tmp_log.debug(f"  physical_tape={tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
+                tmp_log.debug(f"  physical_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
             # filter requests within the tape quota size
             tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
             # append the requests to ret_list
@@ -745,7 +780,7 @@ class DataCarouselInterface(object):
                     ret_list.append(dc_req_spec)
                     sub_count += 1
             if sub_count > 0:
-                tmp_log.debug(f"tape={tape} got {sub_count} requests")
+                tmp_log.debug(f"tape={source_tape} got {sub_count} requests")
         tmp_log.debug(f"totally got {len(ret_list)} requests")
         # return
         return ret_list
@@ -755,7 +790,7 @@ class DataCarouselInterface(object):
         Submit DDM replication rule to stage the dataset of the request
 
         Args:
-        dc_req_spec (DataCarouselRequestSpec): spec of the request
+            dc_req_spec (DataCarouselRequestSpec): spec of the request
 
         Returns:
             str | None : DDM rule_id of the new rule if submission successful, or None if failed
@@ -817,7 +852,7 @@ class DataCarouselInterface(object):
         Stage the dataset of the request and update request status to staging
 
         Args:
-        dc_req_spec (DataCarouselRequestSpec): spec of the request
+            dc_req_spec (DataCarouselRequestSpec): spec of the request
 
         Returns:
             bool : True for success, False otherwise
@@ -856,8 +891,8 @@ class DataCarouselInterface(object):
         Refresh lifetime of the DDM rule
 
         Args:
-        rule_id (str): DDM rule ID
-        lifetime (int): lifetime in seconds to set
+            rule_id (str): DDM rule ID
+            lifetime (int): lifetime in seconds to set
 
         Returns:
             bool : True for success, False otherwise
@@ -982,7 +1017,7 @@ class DataCarouselInterface(object):
         Resume task from staging (to staged-pending)
 
         Args:
-        task_id (int): JEDI task ID
+            task_id (int): JEDI task ID
 
         Returns:
             bool : True for success, False otherwise
@@ -1097,7 +1132,7 @@ class DataCarouselInterface(object):
         Cancel a request
 
         Args:
-        request_id (int): reqeust_id of the request to cancel
+            request_id (int): reqeust_id of the request to cancel
 
         Returns:
             bool|None : True for success, None otherwise
@@ -1110,7 +1145,7 @@ class DataCarouselInterface(object):
         Resubmit a request
 
         Args:
-        dc_req_spec (DataCarouselRequestSpec): spec of the request to resubmit
+            dc_req_spec (DataCarouselRequestSpec): spec of the request to resubmit
 
         Returns:
             bool|None : True for success, None otherwise
