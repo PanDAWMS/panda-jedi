@@ -204,16 +204,14 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(taskParamMap)
+                                ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
                                 if ds_list_to_prestage is None:
                                     # error to get datasets to prestage
                                     tmpLog.debug("nothing found to prestage; skipped")
                                 elif not ds_list_to_prestage:
                                     # found no datasets on tape to prestage
                                     tmpLog.debug("no need to prestage, try to resume task from staging")
-                                    # no dataset needs pre-staging; unset inputPreStaging
-                                    taskParamMap["inputPreStaging"] = False
-                                    # resume task from staging
+                                    # no dataset needs pre-staging; resume task from staging
                                     self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
                                 else:
                                     # submit data carousel requests for dataset to pre-stage

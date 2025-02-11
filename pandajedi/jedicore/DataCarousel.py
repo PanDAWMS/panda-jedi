@@ -399,17 +399,18 @@ class DataCarouselInterface(object):
             return active_source_rses_set
 
     @refresh
-    def get_input_datasets_to_prestage(self, task_params_map):
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> list:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
         Args:
-        task_params_map (dict): task params of the JEDI task
+            task_id (int): JEDI task ID of the task params
+            task_params_map (dict): task params of the JEDI task
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
         """
-        tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
+        tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
             ret_list = []
@@ -431,6 +432,11 @@ class DataCarouselInterface(object):
                     if rse_list := filtered_replicas_map["datadisk"]:
                         # replicas already on datadisk; skip
                         tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
+                        continue
+                    elif staging_rule:
+                        # already staging; skip
+                        ddm_rule_id = staging_rule["id"]
+                        tmp_log.debug(f"dataset={dataset} already staging with ddm_rule_id={ddm_rule_id} ; skipped")
                         continue
                     elif not filtered_replicas_map["tape"]:
                         # no replica on tape; skip
@@ -1003,6 +1009,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "resume_tasks_from_staging")
         ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=["staging"])
+        n_resumed_tasks = 0
         for task_id, request_id_list in ret_relation_map.items():
             to_resume = False
             try:
@@ -1013,28 +1020,35 @@ class DataCarouselInterface(object):
                     continue
                 for request_id in request_id_list:
                     dc_req_spec = ret_requests_map[request_id]
-                    if task_spec.taskType == "prod":
-                        # condition for production tasks: resume if one file staged
-                        if dc_req_spec.status == DataCarouselRequestStatus.done or (dc_req_spec.staged_files and dc_req_spec.staged_files > 0):
-                            # got at least one data carousel request done for the task, to resume
-                            to_resume = True
-                            break
-                    elif task_spec.taskType == "anal":
-                        # condition for analysis tasks
-                        # FIXME: temporary conservative condition for analysis tasks: resume if one dataset staged
-                        if dc_req_spec.status == DataCarouselRequestStatus.done:
-                            # got at least one entire dataset staged, to resume
-                            to_resume = True
-                            break
+                    # if task_spec.taskType == "prod":
+                    #     # condition for production tasks: resume if one file staged
+                    #     if dc_req_spec.status == DataCarouselRequestStatus.done or (dc_req_spec.staged_files and dc_req_spec.staged_files > 0):
+                    #         # got at least one data carousel request done for the task, to resume
+                    #         to_resume = True
+                    #         break
+                    # elif task_spec.taskType == "anal":
+                    #     # condition for analysis tasks
+                    #     # FIXME: temporary conservative condition for analysis tasks: resume if one dataset staged
+                    #     if dc_req_spec.status == DataCarouselRequestStatus.done:
+                    #         # got at least one entire dataset staged, to resume
+                    #         to_resume = True
+                    #         break
+                    # resume as soon as DDM rules are created
+                    if dc_req_spec.ddm_rule_id and dc_req_spec.status in [DataCarouselRequestStatus.staging, DataCarouselRequestStatus.done]:
+                        to_resume = True
+                        break
                 if to_resume:
                     # resume the task
                     ret_val = self._resume_task(task_id)
                     if ret_val:
+                        n_resumed_tasks += 1
                         tmp_log.debug(f"task_id={task_id} resumed the task")
                     else:
                         tmp_log.warning(f"task_id={task_id} failed to resume the task; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
+        # summary
+        tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
     def clean_up_requests(self, terminated_time_limit_days=15, outdated_time_limit_days=30):
         """
