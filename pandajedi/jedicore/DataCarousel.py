@@ -1009,6 +1009,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "resume_tasks_from_staging")
         ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=["staging"])
+        n_resumed_tasks = 0
         for task_id, request_id_list in ret_relation_map.items():
             to_resume = False
             try:
@@ -1040,11 +1041,14 @@ class DataCarouselInterface(object):
                     # resume the task
                     ret_val = self._resume_task(task_id)
                     if ret_val:
+                        n_resumed_tasks += 1
                         tmp_log.debug(f"task_id={task_id} resumed the task")
                     else:
                         tmp_log.warning(f"task_id={task_id} failed to resume the task; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
+        # summary
+        tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
     def clean_up_requests(self, terminated_time_limit_days=15, outdated_time_limit_days=30):
         """
