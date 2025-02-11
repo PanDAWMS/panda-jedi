@@ -399,17 +399,18 @@ class DataCarouselInterface(object):
             return active_source_rses_set
 
     @refresh
-    def get_input_datasets_to_prestage(self, task_params_map):
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> list:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
         Args:
-        task_params_map (dict): task params of the JEDI task
+            task_id (int): JEDI task ID of the task params
+            task_params_map (dict): task params of the JEDI task
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
         """
-        tmp_log = MsgWrapper(logger, "get_input_datasets_to_prestage")
+        tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
             ret_list = []
@@ -431,6 +432,11 @@ class DataCarouselInterface(object):
                     if rse_list := filtered_replicas_map["datadisk"]:
                         # replicas already on datadisk; skip
                         tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
+                        continue
+                    elif staging_rule:
+                        # already staging; skip
+                        ddm_rule_id = staging_rule["id"]
+                        tmp_log.debug(f"dataset={dataset} already staging with ddm_rule_id={ddm_rule_id} ; skipped")
                         continue
                     elif not filtered_replicas_map["tape"]:
                         # no replica on tape; skip
