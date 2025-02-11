@@ -146,20 +146,27 @@ class TaskRefinerThread(WorkerThread):
                                 errStr = f"data carousel interface is undefined for vo={vo}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
+                            # get data carousel config map
+                            dc_config_map = data_carousel_interface.dc_config_map
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to get task refiner with {errtype.__name__}:{errvalue}"
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
-                    # get data carousel config map
-                    if tmpStat == Interaction.SC_SUCCEEDED:
-                        dc_config_map = data_carousel_interface.dc_config_map
                     # adjust task parameters
-                    if "inputPreStaging" not in taskParamMap:
-                        if dc_config_map and (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
-                            # enable input pre-staging for early access user
-                            taskParamMap["inputPreStaging"] = True
-                            tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        tmpLog.info("adjusting task parameters")
+                        try:
+                            if "inputPreStaging" not in taskParamMap:
+                                if dc_config_map and (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
+                                    # enable input pre-staging for early access user
+                                    taskParamMap["inputPreStaging"] = True
+                                    tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
+                        except Exception:
+                            errtype, errvalue = sys.exc_info()[:2]
+                            errStr = f"failed to adjust task parameters with {errtype.__name__}:{errvalue}"
+                            tmpLog.error(errStr)
+                            tmpStat = Interaction.SC_FAILED
                     # extract common parameters
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info("extracting common")
