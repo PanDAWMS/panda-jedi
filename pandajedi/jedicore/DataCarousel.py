@@ -1044,6 +1044,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "resume_tasks_from_staging")
         ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_filter_list=["staging"])
+        n_resumed_tasks = 0
         for task_id, request_id_list in ret_relation_map.items():
             to_resume = False
             try:
@@ -1054,28 +1055,35 @@ class DataCarouselInterface(object):
                     continue
                 for request_id in request_id_list:
                     dc_req_spec = ret_requests_map[request_id]
-                    if task_spec.taskType == "prod":
-                        # condition for production tasks: resume if one file staged
-                        if dc_req_spec.status == DataCarouselRequestStatus.done or (dc_req_spec.staged_files and dc_req_spec.staged_files > 0):
-                            # got at least one data carousel request done for the task, to resume
-                            to_resume = True
-                            break
-                    elif task_spec.taskType == "anal":
-                        # condition for analysis tasks
-                        # FIXME: temporary conservative condition for analysis tasks: resume if one dataset staged
-                        if dc_req_spec.status == DataCarouselRequestStatus.done:
-                            # got at least one entire dataset staged, to resume
-                            to_resume = True
-                            break
+                    # if task_spec.taskType == "prod":
+                    #     # condition for production tasks: resume if one file staged
+                    #     if dc_req_spec.status == DataCarouselRequestStatus.done or (dc_req_spec.staged_files and dc_req_spec.staged_files > 0):
+                    #         # got at least one data carousel request done for the task, to resume
+                    #         to_resume = True
+                    #         break
+                    # elif task_spec.taskType == "anal":
+                    #     # condition for analysis tasks
+                    #     # FIXME: temporary conservative condition for analysis tasks: resume if one dataset staged
+                    #     if dc_req_spec.status == DataCarouselRequestStatus.done:
+                    #         # got at least one entire dataset staged, to resume
+                    #         to_resume = True
+                    #         break
+                    # resume as soon as DDM rules are created
+                    if dc_req_spec.ddm_rule_id and dc_req_spec.status in [DataCarouselRequestStatus.staging, DataCarouselRequestStatus.done]:
+                        to_resume = True
+                        break
                 if to_resume:
                     # resume the task
                     ret_val = self._resume_task(task_id)
                     if ret_val:
+                        n_resumed_tasks += 1
                         tmp_log.debug(f"task_id={task_id} resumed the task")
                     else:
                         tmp_log.warning(f"task_id={task_id} failed to resume the task; skipped")
             except Exception:
                 tmp_log.error(f"task_id={task_id} got error ; {traceback.format_exc()}")
+        # summary
+        tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
     def clean_up_requests(self, terminated_time_limit_days=15, outdated_time_limit_days=30):
         """
