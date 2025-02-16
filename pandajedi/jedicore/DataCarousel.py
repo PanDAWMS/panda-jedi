@@ -424,7 +424,7 @@ class DataCarouselInterface(object):
             return active_source_rses_set
 
     @refresh
-    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> list:
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> tuple[list | list]:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
@@ -434,11 +434,13 @@ class DataCarouselInterface(object):
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+            list[str]: list of datasets which are already on datadisk (meant to be marked as no_staging)
         """
         tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
-            ret_list = []
+            ret_prestaging_list = []
+            ret_ds_on_disk_list = []
             # get active source tapes and rses
             active_source_tapes_set = self._get_active_source_tapes()
             active_source_rses_set = self._get_active_source_rses()
@@ -448,14 +450,15 @@ class DataCarouselInterface(object):
                 dataset_list = self._get_datasets_from_collection(collection)
                 if dataset_list is None:
                     tmp_log.warning(f"collection={collection} is None ; skipped")
-                    return ret_list
+                    return ret_prestaging_list, ret_ds_on_disk_list
                 elif not dataset_list:
                     tmp_log.warning(f"collection={collection} is empty ; skipped")
-                    return ret_list
+                    return ret_prestaging_list, ret_ds_on_disk_list
                 for dataset in dataset_list:
                     filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
                     if rse_list := filtered_replicas_map["datadisk"]:
                         # replicas already on datadisk; skip
+                        ret_ds_on_disk_list.append(dataset)
                         tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
                         continue
                     elif staging_rule:
@@ -492,9 +495,9 @@ class DataCarouselInterface(object):
                             else:
                                 source_rse = random.choice(rse_list)
                         # add to prestage
-                        ret_list.append((dataset, source_rse, ddm_rule_id))
+                        ret_prestaging_list.append((dataset, source_rse, ddm_rule_id))
                         tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
-            return ret_list
+            return ret_prestaging_list, ret_ds_on_disk_list
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             raise e

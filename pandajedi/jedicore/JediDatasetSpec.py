@@ -82,6 +82,7 @@ class JediDatasetSpec(object):
         "reusable": "ru",
         "transient": "tr",
         "useDuplicated": "ud",
+        "no_staging": "ns",
     }
 
     # constructor
@@ -549,3 +550,31 @@ class JediDatasetSpec(object):
     # sort files by old PandaIDs and move files with no PandaIDs to the end
     def sort_files_by_panda_ids(self):
         self.Files = sorted([f for f in self.Files if f.PandaID is not None], key=lambda x: x.PandaID) + [f for f in self.Files if f.PandaID is None]
+
+    # set no staging
+    def set_no_staging(self, value: bool):
+        """
+        Set no_staging (ns) attribute for dataset
+
+        Args:
+            value (bool): value of no_staging; will set attribute = 1 for True or 0 for False
+        """
+        num_repr = 1 if value else 0
+        self.setDatasetAttribute(f"{self.attrToken['no_staging']}={num_repr}")
+
+    # get whether is no_staging
+    def is_no_staging(self) -> bool:
+        """
+        Set no_staging (ns) attribute for dataset
+
+        Returns:
+            bool: whether with no_staging
+        """
+        if self.attributes is not None:
+            for item in self.attributes.split(","):
+                tmpMatch = re.search(self.attrToken["no_staging"] + "=(\d+)", item)
+                if tmpMatch is not None:
+                    num_repr = int(tmpMatch.group(1))
+                    value = bool(num_repr)
+                    return value
+        return False
