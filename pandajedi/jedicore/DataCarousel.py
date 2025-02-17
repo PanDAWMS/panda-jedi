@@ -115,6 +115,18 @@ class DataCarouselRequestSpec(SpecBase):
         """
         self.parameters = json.dumps(value_map)
 
+    def set_parameter(self, param: str, value):
+        """
+        Set the value of one parameter and store in parameters attribute in JSON
+
+        Args:
+            param (str): parameter name
+            value (Any): value of the parameter to set; must be JSON-serializable
+        """
+        tmp_dict = self.parameter_map
+        tmp_dict[param] = value
+        self.parameter_map = tmp_dict
+
 
 # ==============================================================
 # Dataclasses of configurations #
@@ -564,6 +576,7 @@ class DataCarouselInterface(object):
                 # already with DDM rule; go to staging directly
                 dc_req_spec.status = DataCarouselRequestStatus.staging
                 dc_req_spec.start_time = now_time
+                dc_req_spec.set_parameter("reuse_rule", True)
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
         ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
