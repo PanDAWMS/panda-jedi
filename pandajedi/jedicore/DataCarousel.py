@@ -560,6 +560,10 @@ class DataCarouselInterface(object):
                 dc_req_spec.source_tape = source_tape
             dc_req_spec.status = DataCarouselRequestStatus.queued
             dc_req_spec.creation_time = now_time
+            if dc_req_spec.ddm_rule_id:
+                # already with DDM rule; go to staging directly
+                dc_req_spec.status = DataCarouselRequestStatus.staging
+                dc_req_spec.start_time = now_time
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
         ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
@@ -591,7 +595,7 @@ class DataCarouselInterface(object):
         """
         tmp_list = []
         for k, v in self.dc_config_map.source_tapes_config.items():
-            tmp_dict = {"tape": k}
+            tmp_dict = {"source_tape": k}
             tmp_dict.update(asdict(v))
             tmp_list.append(tmp_dict)
         source_tapes_config_df = pl.DataFrame(tmp_list)
@@ -719,6 +723,7 @@ class DataCarouselInterface(object):
                 "request_id": int,
                 "dataset": str,
                 "source_rse": str,
+                "source_tape": str,
                 "total_files": int,
                 "dataset_size": int,
                 "jediTaskID": int,
@@ -783,7 +788,7 @@ class DataCarouselInterface(object):
                 tmp_to_print_df = tmp_to_print_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
                 )
-                tmp_log.debug(f"  physical_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
+                tmp_log.debug(f"  source_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
             # filter requests within the tape quota size
             tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
             # append the requests to ret_list
@@ -795,7 +800,7 @@ class DataCarouselInterface(object):
                     ret_list.append(dc_req_spec)
                     sub_count += 1
             if sub_count > 0:
-                tmp_log.debug(f"tape={source_tape} got {sub_count} requests")
+                tmp_log.debug(f"source_tape={source_tape} got {sub_count} requests")
         tmp_log.debug(f"totally got {len(ret_list)} requests")
         # return
         return ret_list
