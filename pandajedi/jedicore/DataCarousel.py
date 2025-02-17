@@ -1,6 +1,7 @@
 import functools
 import json
 import random
+import re
 import traceback
 from collections import namedtuple
 from dataclasses import MISSING, InitVar, asdict, dataclass, field
@@ -28,6 +29,9 @@ final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "to
 
 # named tuple for attribute with type
 AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
+
+# template strings
+src_repli_expr_prefix = "type=DATADISK"
 
 # polars config
 pl.Config.set_ascii_tables(True)
@@ -441,8 +445,7 @@ class DataCarouselInterface(object):
             # initialize
             ret_prestaging_list = []
             ret_ds_on_disk_list = []
-            # get active source tapes and rses
-            active_source_tapes_set = self._get_active_source_tapes()
+            # get active source rses
             active_source_rses_set = self._get_active_source_rses()
             # loop over inputs
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
@@ -461,42 +464,62 @@ class DataCarouselInterface(object):
                         ret_ds_on_disk_list.append(dataset)
                         tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
                         continue
-                    elif staging_rule:
-                        # already staging; skip
-                        ddm_rule_id = staging_rule["id"]
-                        tmp_log.debug(f"dataset={dataset} already staging with ddm_rule_id={ddm_rule_id} ; skipped")
-                        continue
                     elif not filtered_replicas_map["tape"]:
                         # no replica on tape; skip
                         tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
                         continue
                     else:
+                        # initialize
                         ddm_rule_id = None
-                        # with existing staging rule; keep it alive
-                        if staging_rule and staging_rule["expires_at"] and (staging_rule["expires_at"] - naive_utcnow()) < timedelta(days=30):
-                            ddm_rule_id = staging_rule["id"]
-                            self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
-                            tmp_log.debug(f"dataset={dataset} already has DDM rule ddm_rule_id={ddm_rule_id} ; refreshed it to be 30 days long")
-                            # FIXME: need to fetch existing source_rse in case ddm rule exists; now if dataset the same, no new request inserted to DB
+                        source_rse = None
                         # source tape RSEs from DDM
                         rse_set = {replica for replica in filtered_replicas_map["tape"]}
                         # filter out inactive source tape RSEs according to DC config
                         if active_source_rses_set is not None:
                             rse_set &= active_source_rses_set
-                        rse_list = list(rse_set)
-                        # choose source RSE
-                        source_rse = None
-                        if len(rse_list) == 1:
-                            source_rse = rse_list[0]
-                        else:
-                            non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
-                            if non_CERN_rse_list:
-                                source_rse = random.choice(non_CERN_rse_list)
+                        # whether with existing staging rule
+                        if staging_rule:
+                            # with existing staging rule ; prepare to reuse it
+                            ddm_rule_id = staging_rule["id"]
+                            # extract source RSE from rule
+                            source_replica_expression = staging_rule["source_replica_expression"]
+                            for rse in rse_set:
+                                # match tape rses with source_replica_expression
+                                tmp_match = re.search(rse, source_replica_expression)
+                                if tmp_match is not None:
+                                    source_rse = rse
+                                    break
+                            if source_rse is None:
+                                # direct regex search from source_replica_expression; reluctant as source_replica_expression can be messy
+                                tmp_match = re.search(rf"{src_repli_expr_prefix}\|([A-Za-z0-9-_]+)", source_replica_expression)
+                                if tmp_match is not None:
+                                    source_rse = tmp_match.group(1)
+                            if source_rse is None:
+                                # still not getting source RSE from rule; unexpected
+                                tmp_log.error(
+                                    f"dataset={dataset} ddm_rule_id={ddm_rule_id} cannot get source_rse from source_replica_expression: {source_replica_expression}"
+                                )
                             else:
-                                source_rse = random.choice(rse_list)
+                                tmp_log.debug(f"dataset={dataset} already staging with ddm_rule_id={ddm_rule_id} source_rse={source_rse}")
+                            # keep alive the rule
+                            if (rule_expiration_time := staging_rule["expires_at"]) and (rule_expiration_time - naive_utcnow()) < timedelta(days=30):
+                                self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
+                                tmp_log.debug(f"dataset={dataset} ddm_rule_id={ddm_rule_id} refreshed rule to be 30 days long")
+                        else:
+                            # no existing staging rule ; prepare info for new submission
+                            rse_list = list(rse_set)
+                            # choose source RSE
+                            if len(rse_list) == 1:
+                                source_rse = rse_list[0]
+                            else:
+                                non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
+                                if non_CERN_rse_list:
+                                    source_rse = random.choice(non_CERN_rse_list)
+                                else:
+                                    source_rse = random.choice(rse_list)
+                            tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
                         # add to prestage
                         ret_prestaging_list.append((dataset, source_rse, ddm_rule_id))
-                        tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
             return ret_prestaging_list, ret_ds_on_disk_list
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
@@ -542,23 +565,6 @@ class DataCarouselInterface(object):
         ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
         # return
         return ret
-
-    # def _e(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
-    #     """
-    #     Get stats of staging of all tapes
-
-    #     Args:
-    #         task_id (int): JEDI task ID
-    #         dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
-
-    #     Returns:
-    #         bool | None : True if submission successful, or None if failed
-    #     """
-    #     tmp_log = MsgWrapper(logger, "submit_data_carousel_requests")
-    #     # insert dc requests for the task
-    #     pass
-    #     # return
-    #     # return ret
 
     def _get_dc_requests_table_dataframe(self) -> pl.DataFrame | None:
         """
@@ -812,7 +818,7 @@ class DataCarouselInterface(object):
         source_replica_expression = None
         # source replica expression
         if dc_req_spec.source_rse:
-            source_replica_expression = f"type=DATADISK|{dc_req_spec.source_rse}"
+            source_replica_expression = f"{src_repli_expr_prefix}|{dc_req_spec.source_rse}"
         else:
             # no source_rse; unexpected
             tmp_log.warning(f"source_rse is None ; skipped")
