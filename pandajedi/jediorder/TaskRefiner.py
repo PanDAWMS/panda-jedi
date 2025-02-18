@@ -210,11 +210,13 @@ class TaskRefinerThread(WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
+                        # set of datasets not requiring staging
+                        no_staging_datasets = set()
                         # check datasets to pre-stage
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                ds_list_to_prestage, ds_on_disk_list = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
                                 if ds_list_to_prestage is None:
                                     # error to get datasets to prestage
                                     tmpLog.debug("nothing found to prestage; skipped")
@@ -232,6 +234,8 @@ class TaskRefinerThread(WorkerThread):
                                         tmpLog.info("submitted data carousel requests; set toStaging")
                                     else:
                                         tmpLog.error("failed to submit data carousel requests")
+                                # update no_staging_datasets with datasets already on datadisks
+                                no_staging_datasets.update(set(ds_on_disk_list))
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
                                 errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
@@ -358,6 +362,23 @@ class TaskRefinerThread(WorkerThread):
                                 errStr = f"failed to refine task with {errtype.__name__}:{errvalue}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
+                    # adjust specs after refining
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        try:
+                            if no_staging_datasets:
+                                # set no_staging attribute (for datasets not requiring staging
+                                tmp_ds_set = set()
+                                for dataset_spec in impl.inMasterDatasetSpec:
+                                    if dataset_spec.datasetName in no_staging_datasets:
+                                        dataset_spec.set_no_staging(True)
+                                        tmp_ds_set.add(dataset_spec.datasetName)
+                                if tmp_ds_set:
+                                    tmpLog.debug(f"set no_staging for datasets on DISKs: {list(tmp_ds_set)}")
+                        except Exception:
+                            errtype, errvalue = sys.exc_info()[:2]
+                            errStr = f"failed to adjust spect after refining {errtype.__name__}:{errvalue}"
+                            tmpLog.error(errStr)
+                            tmpStat = Interaction.SC_FAILED
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error("failed to refine the task")
