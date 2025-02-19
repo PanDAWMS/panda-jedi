@@ -1219,6 +1219,11 @@ class AtlasDDMClient(DDMClientBase):
             scope = ".".join(dsn.split(".")[0:2])
         return scope, dsn
 
+    # get DID string as scope:name
+    def get_did_str(self, raw_name):
+        scope, name = self.extract_scope(raw_name)
+        return f"{scope}:{name}"
+
     # open dataset
     def openDataset(self, datasetName):
         methodName = "openDataset"

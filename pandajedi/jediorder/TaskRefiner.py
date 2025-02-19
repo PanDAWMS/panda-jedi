@@ -235,7 +235,9 @@ class TaskRefinerThread(WorkerThread):
                                     else:
                                         tmpLog.error("failed to submit data carousel requests")
                                 # update no_staging_datasets with datasets already on datadisks
-                                no_staging_datasets.update(set(ds_on_disk_list))
+                                if ds_on_disk_list:
+                                    tmpLog.debug(f"datasets already on datadisks: {ds_on_disk_list}")
+                                    no_staging_datasets.update(set(ds_on_disk_list))
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
                                 errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
@@ -366,7 +368,7 @@ class TaskRefinerThread(WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         try:
                             if no_staging_datasets:
-                                # set no_staging attribute (for datasets not requiring staging
+                                # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
                                 for dataset_spec in impl.inMasterDatasetSpec:
                                     if dataset_spec.datasetName in no_staging_datasets:

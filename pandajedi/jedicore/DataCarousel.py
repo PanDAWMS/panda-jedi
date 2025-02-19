@@ -372,8 +372,11 @@ class DataCarouselInterface(object):
             list[str] | None : list of datasets if successful; None if failed with exception
         """
         tmp_log = MsgWrapper(logger, f"_get_datasets_from_collections collection={collection}")
-        # fill dc request spec for each input dataset
         try:
+            # assure the DID format of the collection to be scope:dataset_name
+            collection = self.ddmIF.get_did_str(collection)
+            tmp_log = MsgWrapper(logger, f"_get_datasets_from_collections collection={collection}")
+            # check the collection
             ret_list = []
             collection_meta = self.ddmIF.getDatasetMetaData(collection)
             did_type = collection_meta["did_type"]
