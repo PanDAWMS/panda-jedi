@@ -608,7 +608,7 @@ class ContentsFeederThread(WorkerThread):
                                 tmpErrStr = "insufficient inputs are ready. "
                                 if inputPreStaging:
                                     # message for pending for staging
-                                    tmpErrStr = "inputs are staging from a tape. "
+                                    tmpErrStr += "inputs are staging from a tape. "
                                 tmpErrStr += diagMap["errMsg"]
                                 tmpLog.debug(tmpErrStr + ". skipping secondary datasets from now")
                                 taskSpec.setErrDiag(tmpErrStr)
