@@ -1477,7 +1477,7 @@ class AtlasDDMClient(DDMClientBase):
                     account=client.account,
                     locked=False,
                     notify=notify,
-                    ignore_availability=True,
+                    ignore_availability=False,
                     activity=activity,
                     asynchronous=False,
                     source_replica_expression=source_replica_expression,
