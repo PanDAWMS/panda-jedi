@@ -157,11 +157,17 @@ class TaskRefinerThread(WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info("adjusting task parameters")
                         try:
-                            if "inputPreStaging" not in taskParamMap:
-                                if dc_config_map and (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
-                                    # enable input pre-staging for early access user
-                                    taskParamMap["inputPreStaging"] = True
-                                    tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
+                            # Data Carousel; only for analysis for now
+                            if taskType == "anal" and prodSourceLabel == "user" and dc_config_map:
+                                if "inputPreStaging" not in taskParamMap:
+                                    if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
+                                        # enable input pre-staging for all users
+                                        taskParamMap["inputPreStaging"] = True
+                                        tmpLog.debug(f"set inputPreStaging for data carousel ALL users")
+                                    elif (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
+                                        # enable input pre-staging for early access user
+                                        taskParamMap["inputPreStaging"] = True
+                                        tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust task parameters with {errtype.__name__}:{errvalue}"
