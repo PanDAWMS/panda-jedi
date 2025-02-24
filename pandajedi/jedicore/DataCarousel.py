@@ -31,7 +31,8 @@ final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "to
 AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
 
 # template strings
-src_repli_expr_prefix = "type=DATADISK"
+# source replica expression prefix
+src_repli_expr_prefix = "rse_type=DISK"
 
 # polars config
 pl.Config.set_ascii_tables(True)
