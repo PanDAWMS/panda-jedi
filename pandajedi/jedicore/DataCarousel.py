@@ -31,7 +31,8 @@ final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "to
 AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
 
 # template strings
-src_repli_expr_prefix = "type=DATADISK"
+# source replica expression prefix
+src_repli_expr_prefix = "rse_type=DISK"
 
 # polars config
 pl.Config.set_ascii_tables(True)
@@ -200,6 +201,56 @@ class DataCarouselMainConfig:
                 for key, value in _map.items():
                     converted_dict[key] = klass(**value)
                 setattr(self, attr, converted_dict)
+
+
+# ==============================================================
+# Functions #
+# ===========
+
+
+def get_resubmit_request_spec(dc_req_spec: DataCarouselRequestSpec) -> DataCarouselRequestSpec | None:
+    """
+    Get a new request spec to resubmit according to original request spec
+
+    Args:
+        dc_req_spec (DataCarouselRequestSpec): oringal spec of the request
+
+    Returns:
+        DataCarouselRequestSpec|None : spec of the request to resubmit, or None if failed
+    """
+    tmp_log = MsgWrapper(logger, f"get_resubmit_request_spec")
+    try:
+        # make new request spec
+        now_time = naive_utcnow()
+        dc_req_spec_to_resubmit = DataCarouselRequestSpec()
+        # attributes to reset
+        dc_req_spec_to_resubmit.staged_files = 0
+        dc_req_spec_to_resubmit.staged_size = 0
+        dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
+        dc_req_spec_to_resubmit.creation_time = now_time
+        # get attributes from original request
+        # TODO: now copy source_rse and source tape from original; may need to re-choose source in the future
+        dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
+        dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
+        dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
+        dc_req_spec_to_resubmit.source_rse = dc_req_spec.source_rse
+        dc_req_spec_to_resubmit.source_tape = dc_req_spec.source_tape
+        # parameters according to original requests
+        # orig_parameter_map = dc_req_spec.parameter_map
+        # orig_excluded_dst_set = set(orig_parameter_map.get("excluded_dst_list", []))
+        # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
+        dc_req_spec_to_resubmit.parameter_map = {
+            "resub_from": dc_req_spec.request_id,  # resubmitted from this oringal request ID
+            "prev_src": dc_req_spec.source_rse,  # previous source RSE
+            "prev_dst": dc_req_spec.destination_rse,  # previous destination RSE
+            # "excluded_dst_list": list(orig_excluded_dst_set.add(dc_req_spec.destination_rse)),  # list of excluded destination RSEs;
+            "excluded_dst_list": [dc_req_spec.destination_rse],  # list of excluded destination RSEs; default to be previous destination
+        }
+        # return
+        tmp_log.debug(f"got resubmit request spec for request_id={dc_req_spec.request_id}")
+        return dc_req_spec_to_resubmit
+    except Exception:
+        tmp_log.error(f"got error ; {traceback.format_exc()}")
 
 
 # ==============================================================
@@ -869,6 +920,10 @@ class DataCarouselInterface(object):
         else:
             # destination_expression
             expression = source_tape_config.destination_expression
+        # adjust destination_expression according to excluded_dst_list
+        if (the_parameter_map := dc_req_spec.parameter_map) and (excluded_dst_list := the_parameter_map.get("excluded_dst_list")):
+            for excluded_dst_rse in excluded_dst_list:
+                expression += f"\\{excluded_dst_rse}"
         # submit ddm staging rule
         ddm_rule_id = self.ddmIF.make_staging_rule(
             dataset_name=dc_req_spec.dataset,
@@ -1181,30 +1236,35 @@ class DataCarouselInterface(object):
         Returns:
             bool|None : True for success, None otherwise
         """
-        ret = self.taskBufferIF.cancel_or_resubmit_data_carousel_request_JEDI(request_id)
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id}")
+        # cancel
+        ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
+        if ret:
+            tmp_log.debug(f"cancelled")
+        else:
+            tmp_log.error(f"failed to cancel")
+        # return
         return ret
 
-    def resubmit_request(self, dc_req_spec: DataCarouselRequestSpec) -> bool | None:
+    def resubmit_request(self, request_id: int) -> DataCarouselRequestSpec | None:
         """
         Resubmit a request
+        The request must be in statging status
 
         Args:
-            dc_req_spec (DataCarouselRequestSpec): spec of the request to resubmit
+            request_id (int): request_id of the request to resubmit from
 
         Returns:
-            bool|None : True for success, None otherwise
+            DataCarouselRequestSpec|None : spec of the resubmitted reqeust spec if success, None otherwise
         """
-        now_time = naive_utcnow()
-        # make new request spec
-        dc_req_spec_to_resubmit = DataCarouselRequestSpec()
-        dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
-        dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
-        dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
-        dc_req_spec_to_resubmit.staged_files = 0
-        dc_req_spec_to_resubmit.staged_size = 0
-        dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
-        dc_req_spec_to_resubmit.creation_time = now_time
-        # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
+        tmp_log = MsgWrapper(logger, f"resubmit_request orig_request_id={request_id}")
+        # resubmit
+        dc_req_spec_resubmitted = self.taskBufferIF.resubmit_data_carousel_request_JEDI(request_id)
+        if dc_req_spec_resubmitted:
+            tmp_log.debug(f"resubmitted request_id={dc_req_spec_resubmitted.request_id}")
+        elif dc_req_spec_resubmitted is False:
+            tmp_log.warning(f"request not found or not in statgin; skipped")
+        else:
+            tmp_log.error(f"failed to resubmit")
         # return
-        ret = self.taskBufferIF.cancel_or_resubmit_data_carousel_request_JEDI(dc_req_spec.request_id, dc_req_spec_to_resubmit)
-        return ret
+        return dc_req_spec_resubmitted
