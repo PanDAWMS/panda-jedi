@@ -204,6 +204,53 @@ class DataCarouselMainConfig:
 
 
 # ==============================================================
+# Functions #
+# ===========
+
+
+def get_resubmit_request_spec(dc_req_spec: DataCarouselRequestSpec) -> DataCarouselRequestSpec | None:
+    """
+    Get a new request spec to resubmit according to original request spec
+
+    Args:
+        dc_req_spec (DataCarouselRequestSpec): oringal spec of the request
+
+    Returns:
+        DataCarouselRequestSpec|None : spec of the request to resubmit, or None if failed
+    """
+    tmp_log = MsgWrapper(logger, f"get_resubmit_request_spec")
+    try:
+        # make new request spec
+        now_time = naive_utcnow()
+        dc_req_spec_to_resubmit = DataCarouselRequestSpec()
+        # attributes to reset
+        dc_req_spec_to_resubmit.staged_files = 0
+        dc_req_spec_to_resubmit.staged_size = 0
+        dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
+        dc_req_spec_to_resubmit.creation_time = now_time
+        # get attributes from original request
+        dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
+        dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
+        dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
+        # parameters according to original requests
+        # orig_parameter_map = dc_req_spec.parameter_map
+        # orig_excluded_dst_set = set(orig_parameter_map.get("excluded_dst_list", []))
+        # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
+        dc_req_spec_to_resubmit.parameter_map = {
+            "resub_from": dc_req_spec.request_id,  # resubmitted from this oringal request ID
+            "prev_src": dc_req_spec.source_rse,  # previous source RSE
+            "prev_dst": dc_req_spec.destination_rse,  # previous destination RSE
+            # "excluded_dst_list": list(orig_excluded_dst_set.add(dc_req_spec.destination_rse)),  # list of excluded destination RSEs;
+            "excluded_dst_list": [dc_req_spec.destination_rse],  # list of excluded destination RSEs; default to be previous destination
+        }
+        # return
+        tmp_log.debug(f"got resubmit request spec for request_id={dc_req_spec.request_id}")
+        return dc_req_spec_to_resubmit
+    except Exception:
+        tmp_log.error(f"got error ; {traceback.format_exc()}")
+
+
+# ==============================================================
 
 
 class DataCarouselInterface(object):
@@ -1195,47 +1242,6 @@ class DataCarouselInterface(object):
             tmp_log.error(f"failed to cancel")
         # return
         return ret
-
-    def get_resubmit_request_spec(self, dc_req_spec: DataCarouselRequestSpec) -> DataCarouselRequestSpec | None:
-        """
-        Get a new request spec to resubmit according to original request spec
-
-        Args:
-            dc_req_spec (DataCarouselRequestSpec): oringal spec of the request
-
-        Returns:
-            DataCarouselRequestSpec|None : spec of the request to resubmit, or None if failed
-        """
-        tmp_log = MsgWrapper(logger, f"get_resubmit_request_spec")
-        try:
-            # make new request spec
-            now_time = naive_utcnow()
-            dc_req_spec_to_resubmit = DataCarouselRequestSpec()
-            # attributes to reset
-            dc_req_spec_to_resubmit.staged_files = 0
-            dc_req_spec_to_resubmit.staged_size = 0
-            dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
-            dc_req_spec_to_resubmit.creation_time = now_time
-            # get attributes from original request
-            dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
-            dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
-            dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
-            # parameters according to original requests
-            # orig_parameter_map = dc_req_spec.parameter_map
-            # orig_excluded_dst_set = set(orig_parameter_map.get("excluded_dst_list", []))
-            # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
-            dc_req_spec_to_resubmit.parameter_map = {
-                "resub_from": dc_req_spec.request_id,  # resubmitted from this oringal request ID
-                "prev_src": dc_req_spec.source_rse,  # previous source RSE
-                "prev_dst": dc_req_spec.destination_rse,  # previous destination RSE
-                # "excluded_dst_list": list(orig_excluded_dst_set.add(dc_req_spec.destination_rse)),  # list of excluded destination RSEs;
-                "excluded_dst_list": [dc_req_spec.destination_rse],  # list of excluded destination RSEs; default to be previous destination
-            }
-            # return
-            tmp_log.debug(f"got resubmit request spec for request_id={dc_req_spec.request_id}")
-            return dc_req_spec_to_resubmit
-        except Exception:
-            tmp_log.error(f"got error ; {traceback.format_exc()}")
 
     def resubmit_request(self, request_id: int) -> DataCarouselRequestSpec | None:
         """

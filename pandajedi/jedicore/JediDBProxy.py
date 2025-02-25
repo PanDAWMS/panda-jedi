@@ -24,7 +24,11 @@ from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
 from pandajedi.jediconfig import jedi_config
 
 from . import JediCoreUtils, ParseJobXML
-from .DataCarousel import DataCarouselRequestSpec, DataCarouselRequestStatus
+from .DataCarousel import (
+    DataCarouselRequestSpec,
+    DataCarouselRequestStatus,
+    get_resubmit_request_spec,
+)
 from .InputChunk import InputChunk
 from .JediCacheSpec import JediCacheSpec
 from .JediDatasetSpec import JediDatasetSpec
@@ -15370,7 +15374,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 break
             # prepare new request spec to resubmit
             if dc_req_spec:
-                dc_req_spec_to_resubmit = DataCarouselRequestSpec.get_resubmit_request_spec(dc_req_spec)
+                dc_req_spec_to_resubmit = get_resubmit_request_spec(dc_req_spec)
             else:
                 # roll back
                 self._rollback()
