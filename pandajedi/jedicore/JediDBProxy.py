@@ -15347,7 +15347,7 @@ class DBProxy(OraDBProxy.DBProxy):
 
     # resubmit a data carousel request
     def resubmit_data_carousel_request_JEDI(self, request_id):
-        comment = " /* JediDBProxy.cancel_or_resubmit_data_carousel_request_JEDI */"
+        comment = " /* JediDBProxy.resubmit_data_carousel_request_JEDI */"
         method_name = self.getMethodName(comment)
         method_name += f" <request_id={request_id}>"
         to_resubmit = False
@@ -15417,17 +15417,14 @@ class DBProxy(OraDBProxy.DBProxy):
             if new_request_id is None:
                 raise RuntimeError("new_request_id is None")
             tmp_log.debug(f"resubmitted request with new_request_id={new_request_id}")
-            # sql to insert relations according to the relations of the old request
-            sql_insert_relations = (
-                f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_relations (request_id, task_id) "
-                f"SELECT :new_request_id, req.task_id "
-                f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests req "
-                f"WHERE req.request_id=:old_request_id "
+            # sql to update relations according to the relations of the old request
+            sql_update_relations = (
+                f"UPDATE {jedi_config.db.schemaJEDI}.data_carousel_relations " f"SET request_id=:new_request_id " f"WHERE request_id=:old_request_id "
             )
             var_map = {":new_request_id": new_request_id, ":old_request_id": request_id}
-            self.cur.execute(sql_insert_relations + comment, var_map)
+            self.cur.execute(sql_update_relations + comment, var_map)
             ret_rel = self.cur.rowcount
-            tmp_log.debug(f"inserted {ret_rel} relations about new_request_id={new_request_id}")
+            tmp_log.debug(f"updated {ret_rel} relations about new_request_id={new_request_id}")
             # fill new request_id
             dc_req_spec_resubmitted = dc_req_spec_to_resubmit
             dc_req_spec_resubmitted.request_id = new_request_id

@@ -229,9 +229,12 @@ def get_resubmit_request_spec(dc_req_spec: DataCarouselRequestSpec) -> DataCarou
         dc_req_spec_to_resubmit.status = DataCarouselRequestStatus.queued
         dc_req_spec_to_resubmit.creation_time = now_time
         # get attributes from original request
+        # TODO: now copy source_rse and source tape from original; may need to re-choose source in the future
         dc_req_spec_to_resubmit.dataset = dc_req_spec.dataset
         dc_req_spec_to_resubmit.total_files = dc_req_spec.total_files
         dc_req_spec_to_resubmit.dataset_size = dc_req_spec.dataset_size
+        dc_req_spec_to_resubmit.source_rse = dc_req_spec.source_rse
+        dc_req_spec_to_resubmit.source_tape = dc_req_spec.source_tape
         # parameters according to original requests
         # orig_parameter_map = dc_req_spec.parameter_map
         # orig_excluded_dst_set = set(orig_parameter_map.get("excluded_dst_list", []))
