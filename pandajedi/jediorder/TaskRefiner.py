@@ -222,15 +222,30 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                ds_list_to_prestage, ds_on_disk_list = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
-                                if ds_list_to_prestage is None:
-                                    # error to get datasets to prestage
-                                    tmpLog.debug("nothing found to prestage; skipped")
-                                elif not ds_list_to_prestage:
-                                    # found no datasets on tape to prestage
-                                    tmpLog.debug("no need to prestage, try to resume task from staging")
-                                    # no dataset needs pre-staging; resume task from staging
-                                    self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
+                                ds_list_to_prestage, ds_on_disk_list, ds_unfound_list = data_carousel_interface.get_input_datasets_to_prestage(
+                                    jediTaskID, taskParamMap
+                                )
+                                if not ds_list_to_prestage:
+                                    # found no datasets only on tape to prestage
+                                    if ds_on_disk_list:
+                                        # update no_staging_datasets with datasets already on disks
+                                        tmpLog.debug(f"datasets already on disks: {ds_on_disk_list}")
+                                        no_staging_datasets.update(set(ds_on_disk_list))
+                                    if ds_unfound_list:
+                                        # some datasets unfound
+                                        if taskParamMap.get("waitInput"):
+                                            # task has waitInput; to be checked again by TaskRefiner later
+                                            tmpLog.debug("task has waitInput and waiting for inputs to be created; skipped")
+                                        else:
+                                            # not to wait input
+                                            tmpLog.warning(f"some input datasets unfound: {ds_unfound_list}; skipped")
+                                    else:
+                                        # all datasets on disks
+                                        tmpLog.debug("no need to prestage, try to resume task from staging")
+                                        # no dataset needs pre-staging; resume task from staging
+                                        self.taskBufferIF.sendCommandTaskPanda(
+                                            jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
+                                        )
                                 else:
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
@@ -240,10 +255,6 @@ class TaskRefinerThread(WorkerThread):
                                         tmpLog.info("submitted data carousel requests; set toStaging")
                                     else:
                                         tmpLog.error("failed to submit data carousel requests")
-                                # update no_staging_datasets with datasets already on datadisks
-                                if ds_on_disk_list:
-                                    tmpLog.debug(f"datasets already on datadisks: {ds_on_disk_list}")
-                                    no_staging_datasets.update(set(ds_on_disk_list))
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
                                 errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"

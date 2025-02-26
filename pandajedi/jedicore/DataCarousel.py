@@ -505,12 +505,14 @@ class DataCarouselInterface(object):
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
             list[str]: list of datasets which are already on disk (meant to be marked as no_staging)
+            list[str]: list of datasets unfound
         """
         tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
             ret_prestaging_list = []
             ret_ds_on_disk_list = []
+            ret_ds_unfound_list = []
             # get active source rses
             active_source_rses_set = self._get_active_source_rses()
             # loop over inputs
@@ -531,10 +533,12 @@ class DataCarouselInterface(object):
                         tmp_log.debug(f"dataset={dataset} already has replica on disks {rse_list} ; skipped")
                         continue
                     elif not filtered_replicas_map["tape"]:
-                        # no replica on tape; skip
-                        tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
+                        # no replica found on tape nor on disk; skip
+                        ret_ds_unfound_list.append(dataset)
+                        tmp_log.debug(f"dataset={dataset} has no replica on any tape or disk ; skipped")
                         continue
                     else:
+                        # replicas only on tape
                         # initialize
                         ddm_rule_id = None
                         source_rse = None
@@ -586,7 +590,7 @@ class DataCarouselInterface(object):
                             tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
                         # add to prestage
                         ret_prestaging_list.append((dataset, source_rse, ddm_rule_id))
-            return ret_prestaging_list, ret_ds_on_disk_list
+            return ret_prestaging_list, ret_ds_on_disk_list, ret_ds_unfound_list
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             raise e
