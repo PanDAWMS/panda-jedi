@@ -78,6 +78,12 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
                     taskParamMap["decAttOnFailedES"] = True
                 taskParamMap["coreCount"] = 0
                 taskParamMap["resurrectConsumers"] = True
+        # push status changes, choose N % of tasks to enable
+        if "pushStatusChanges" not in taskParamMap:
+            prod_pc_percent = self.taskBufferIF.getConfigValue("taskrefiner", "PROD_TASKS_PUSH_STATUS_CHANGES_PERCENT", "jedi", "atlas")
+            if prod_pc_percent and random.uniform(0, 100) <= prod_pc_percent:
+                taskParamMap["pushStatusChanges"] = True
+        # call base method
         TaskRefinerBase.extractCommon(self, jediTaskID, taskParamMap, workQueueMapper, splitRule)
 
     # main

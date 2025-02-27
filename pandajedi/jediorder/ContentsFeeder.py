@@ -754,7 +754,7 @@ class ContentsFeederThread(WorkerThread):
         return True, None
 
 
-# lauch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):
