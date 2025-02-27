@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import sys
 import time
 import traceback
@@ -159,7 +160,10 @@ class TaskRefinerThread(WorkerThread):
                         try:
                             # Data Carousel; only for analysis for now
                             if taskType == "anal" and prodSourceLabel == "user" and dc_config_map:
-                                if "inputPreStaging" not in taskParamMap:
+                                if taskParamMap.get("noInput"):
+                                    # noInput task, skipped
+                                    pass
+                                elif "inputPreStaging" not in taskParamMap:
                                     if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
                                         # enable input pre-staging for all users
                                         taskParamMap["inputPreStaging"] = True
@@ -222,28 +226,42 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                ds_list_to_prestage, ds_on_disk_list = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
-                                if ds_list_to_prestage is None:
-                                    # error to get datasets to prestage
-                                    tmpLog.debug("nothing found to prestage; skipped")
-                                elif not ds_list_to_prestage:
-                                    # found no datasets on tape to prestage
-                                    tmpLog.debug("no need to prestage, try to resume task from staging")
-                                    # no dataset needs pre-staging; resume task from staging
-                                    self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
+                                prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                if not prestaging_list:
+                                    # found no datasets only on tape to prestage
+                                    if pseudo_ds_list := ds_list_dict["pseudo_ds_list"]:
+                                        # update no_staging_datasets with pseudo input datasets
+                                        tmpLog.debug(f"pseudo input datasets: {pseudo_ds_list}")
+                                        no_staging_datasets.update(set(pseudo_ds_list))
+                                    if disk_ds_list := ds_list_dict["disk_ds_list"]:
+                                        # update no_staging_datasets with datasets already on disks
+                                        tmpLog.debug(f"datasets already on disks: {disk_ds_list}")
+                                        no_staging_datasets.update(set(disk_ds_list))
+                                    if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
+                                        # some datasets unfound
+                                        if taskParamMap.get("waitInput"):
+                                            # task has waitInput; to be checked again by TaskRefiner later
+                                            tmpLog.debug("task has waitInput and waiting for inputs to be created; skipped")
+                                        else:
+                                            # not to wait input; update no_staging_datasets with datasets unfound
+                                            tmpLog.warning(f"some input datasets unfound: {unfound_ds_list}")
+                                            no_staging_datasets.update(set(unfound_ds_list))
+                                    else:
+                                        # all datasets on disks
+                                        tmpLog.debug("no need to prestage, try to resume task from staging")
+                                        # no dataset needs pre-staging; resume task from staging
+                                        self.taskBufferIF.sendCommandTaskPanda(
+                                            jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
+                                        )
                                 else:
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
                                     if tmp_ret:
                                         taskParamMap["toStaging"] = True
                                         tmpLog.info("submitted data carousel requests; set toStaging")
                                     else:
                                         tmpLog.error("failed to submit data carousel requests")
-                                # update no_staging_datasets with datasets already on datadisks
-                                if ds_on_disk_list:
-                                    tmpLog.debug(f"datasets already on datadisks: {ds_on_disk_list}")
-                                    no_staging_datasets.update(set(ds_on_disk_list))
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
                                 errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
@@ -376,12 +394,12 @@ class TaskRefinerThread(WorkerThread):
                             if no_staging_datasets:
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
-                                for dataset_spec in impl.inMasterDatasetSpec:
+                                for dataset_spec in itertools.chain(impl.inMasterDatasetSpec, impl.inSecDatasetSpecList):
                                     if dataset_spec.datasetName in no_staging_datasets:
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_spec.datasetName)
                                 if tmp_ds_set:
-                                    tmpLog.debug(f"set no_staging for datasets on DISKs: {list(tmp_ds_set)}")
+                                    tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust spect after refining {errtype.__name__}:{errvalue}"

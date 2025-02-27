@@ -267,7 +267,7 @@ class DataCarouselInterface(object):
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.tape_rses = []
-        self.datadisk_rses = []
+        self.disk_rses = []
         self.dc_config_map = None
         self._last_update_ts_dict = {}
         # refresh
@@ -309,11 +309,11 @@ class DataCarouselInterface(object):
                 tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
                 if tape_rses is not None:
                     self.tape_rses = list(tape_rses)
-                datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
-                if datadisk_rses is not None:
-                    self.datadisk_rses = list(datadisk_rses)
-                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
-                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
+                disk_rses = self.ddmIF.list_rses("rse_type=DISK")
+                if disk_rses is not None:
+                    self.disk_rses = list(disk_rses)
+                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DISK: {self.disk_rses}")
+                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.disk_rses)} disks")
                 # update last update timestamp
                 self._last_update_ts_dict[nickname] = naive_utcnow()
         except Exception:
@@ -375,40 +375,40 @@ class DataCarouselInterface(object):
         """
         ds_repli_dict = self.ddmIF.convertOutListDatasetReplicas(dataset, skip_incomplete_element=True)
         tape_replicas = []
-        datadisk_replicas = []
+        disk_replicas = []
         for rse in ds_repli_dict:
             if rse in self.tape_rses:
                 tape_replicas.append(rse)
-            if rse in self.datadisk_rses:
-                datadisk_replicas.append(rse)
-        return {"tape": tape_replicas, "datadisk": datadisk_replicas}
+            if rse in self.disk_rses:
+                disk_replicas.append(rse)
+        return {"tape": tape_replicas, "disk": disk_replicas}
 
     def _get_filtered_replicas(self, dataset):
         """
         Get filtered replicas of a dataset and the staging rule and whether all replicas are without rules
         """
         replicas_map = self._get_full_replicas_per_type(dataset)
-        rules = self.ddmIF.list_did_rules(dataset)
+        rules = self.ddmIF.list_did_rules(dataset, all_accounts=True)
         rse_expression_list = []
         staging_rule = None
         for rule in rules:
-            if rule["activity"] == "Staging":
-                # rule of the dataset already exists; reuse it
+            if rule["account"] in ["panda"] and rule["activity"] == "Staging":
+                # rule of the dataset from ProdSys or PanDA already exists; reuse it
                 staging_rule = rule
             else:
                 rse_expression_list.append(rule["rse_expression"])
-        filtered_replicas_map = {"tape": [], "datadisk": []}
-        has_datadisk_replica = len(replicas_map["datadisk"]) > 0
+        filtered_replicas_map = {"tape": [], "disk": []}
+        has_disk_replica = len(replicas_map["disk"]) > 0
         for replica in replicas_map["tape"]:
             if replica in rse_expression_list:
                 filtered_replicas_map["tape"].append(replica)
         if len(replicas_map["tape"]) >= 1 and len(filtered_replicas_map["tape"]) == 0 and len(rules) == 0:
             filtered_replicas_map["tape"] = replicas_map["tape"]
-        for replica in replicas_map["datadisk"]:
+        for replica in replicas_map["disk"]:
             if staging_rule is not None or replica in rse_expression_list:
-                filtered_replicas_map["datadisk"].append(replica)
-        all_datadisk_replicas_without_rules = has_datadisk_replica and len(filtered_replicas_map["datadisk"]) == 0
-        return filtered_replicas_map, staging_rule, all_datadisk_replicas_without_rules
+                filtered_replicas_map["disk"].append(replica)
+        all_disk_replicas_without_rules = has_disk_replica and len(filtered_replicas_map["disk"]) == 0
+        return filtered_replicas_map, staging_rule, all_disk_replicas_without_rules
 
     def _get_datasets_from_collection(self, collection: str) -> list[str] | None:
         """
@@ -493,8 +493,123 @@ class DataCarouselInterface(object):
         else:
             return active_source_rses_set
 
+    def _get_source_type_of_dataset(self, dataset: str, active_source_rses_set: set | None = None) -> tuple[(str | None) | (set | None) | (str | None)]:
+        """
+        Get source type and tape RSEs of a dataset
+
+        Args:
+            dataset (str): dataset name
+            active_source_rses_set (set | None): active source RSE set to reuse. If None, will get a new one in the method
+
+        Returns:
+            str | None : source type of the dataset, "DISK" if replica on any disk, "TAPE" if replica only on tapes, None if not found
+            set | None : set of tape RSEs, otherwise None
+            str | None : staging rule if existing, otherwise None
+        """
+        tmp_log = MsgWrapper(logger, f"_get_source_type_of_dataset dataset={dataset}")
+        try:
+            # initialize
+            source_type = None
+            rse_set = None
+            # get active source rses
+            if active_source_rses_set is None:
+                active_source_rses_set = self._get_active_source_rses()
+            # get filtered replicas and staging rule of the dataset
+            filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
+            # algorithm
+            if filtered_replicas_map["disk"]:
+                # replicas already on disk
+                source_type = "DISK"
+                # source disk RSEs from DDM
+                rse_set = {replica for replica in filtered_replicas_map["disk"]}
+            elif not filtered_replicas_map["tape"]:
+                # no replica found on tape nor on disk; skip
+                pass
+            else:
+                # replicas only on tape
+                source_type = "TAPE"
+                # source tape RSEs from DDM
+                rse_set = {replica for replica in filtered_replicas_map["tape"]}
+                # filter out inactive source tape RSEs according to DC config
+                if active_source_rses_set is not None:
+                    rse_set &= active_source_rses_set
+                # condiser unfound if no active source tape
+                if not rse_set:
+                    source_type = None
+                    tmp_log.warning(f"all its source tapes are inactive")
+            # return
+            return source_type, rse_set, staging_rule
+        except Exception as e:
+            # other unexpected errors
+            raise e
+
+    def _choose_tape_source_rse(self, dataset: str, rse_set: set, staging_rule) -> tuple[str | (str | None) | (str | None)]:
+        """
+        Choose a TAPE source RSE
+        If with exsiting staging rule, then get source RSE from it
+
+        Args:
+            dataset (str): dataset name
+            rse_set (set): set of TAPE source RSE set to choose from
+            staging_rule: DDM staging rule
+
+        Returns:
+            str: the dataset name
+            str | None : source RSE found or chosen, None if failed
+            str | None : DDM rule ID of staging rule if existing, otherwise None
+        """
+        tmp_log = MsgWrapper(logger, f"_choose_tape_source_rse dataset={dataset}")
+        try:
+            # initialize
+            ddm_rule_id = None
+            source_rse = None
+            # whether with existing staging rule
+            if staging_rule:
+                # with existing staging rule ; prepare to reuse it
+                ddm_rule_id = staging_rule["id"]
+                # extract source RSE from rule
+                source_replica_expression = staging_rule["source_replica_expression"]
+                for rse in rse_set:
+                    # match tape rses with source_replica_expression
+                    tmp_match = re.search(rse, source_replica_expression)
+                    if tmp_match is not None:
+                        source_rse = rse
+                        break
+                if source_rse is None:
+                    # direct regex search from source_replica_expression; reluctant as source_replica_expression can be messy
+                    tmp_match = re.search(rf"{src_repli_expr_prefix}\|([A-Za-z0-9-_]+)", source_replica_expression)
+                    if tmp_match is not None:
+                        source_rse = tmp_match.group(1)
+                if source_rse is None:
+                    # still not getting source RSE from rule; unexpected
+                    tmp_log.error(f"ddm_rule_id={ddm_rule_id} cannot get source_rse from source_replica_expression: {source_replica_expression}")
+                else:
+                    tmp_log.debug(f"already staging with ddm_rule_id={ddm_rule_id} source_rse={source_rse}")
+                # keep alive the rule
+                if (rule_expiration_time := staging_rule["expires_at"]) and (rule_expiration_time - naive_utcnow()) < timedelta(days=30):
+                    self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
+                    tmp_log.debug(f"ddm_rule_id={ddm_rule_id} refreshed rule to be 30 days long")
+            else:
+                # no existing staging rule ; prepare info for new submission
+                rse_list = list(rse_set)
+                # choose source RSE
+                if len(rse_list) == 1:
+                    source_rse = rse_list[0]
+                else:
+                    non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
+                    if non_CERN_rse_list:
+                        source_rse = random.choice(non_CERN_rse_list)
+                    else:
+                        source_rse = random.choice(rse_list)
+                tmp_log.debug(f"chose source_rse={source_rse}")
+            # add to prestage
+            return (dataset, source_rse, ddm_rule_id)
+        except Exception as e:
+            # other unexpected errors
+            raise e
+
     @refresh
-    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> tuple[list | list]:
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> tuple[list | dict]:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
@@ -504,89 +619,62 @@ class DataCarouselInterface(object):
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
-            list[str]: list of datasets which are already on datadisk (meant to be marked as no_staging)
+            dict[str|list]: dict of list of datasets, including pseudo inputs (meant to be marked as no_staging), already on disk (meant to be marked as no_staging), only on tape, and not found
         """
         tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
-            ret_prestaging_list = []
-            ret_ds_on_disk_list = []
+            ret_prestaging_list = None
+            ret_map = {
+                "pseudo_ds_list": [],
+                "tape_ds_list": [],
+                "disk_ds_list": [],
+                "unfound_ds_list": [],
+            }
             # get active source rses
             active_source_rses_set = self._get_active_source_rses()
             # loop over inputs
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
-            for collection in input_collection_map:
+            for collection, job_param in input_collection_map.items():
+                # pseudo inputs
+                if job_param.get("param_type") == "pseudo_input":
+                    ret_map["pseudo_ds_list"].append(collection)
+                    tmp_log.debug(f"collection={collection} is pseudo input ; skipped")
+                    continue
+                # with real inputs
                 dataset_list = self._get_datasets_from_collection(collection)
                 if dataset_list is None:
                     tmp_log.warning(f"collection={collection} is None ; skipped")
-                    return ret_prestaging_list, ret_ds_on_disk_list
+                    continue
                 elif not dataset_list:
                     tmp_log.warning(f"collection={collection} is empty ; skipped")
-                    return ret_prestaging_list, ret_ds_on_disk_list
+                    continue
+                # check source of each dataset
+                ret_prestaging_list = []
                 for dataset in dataset_list:
-                    filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
-                    if rse_list := filtered_replicas_map["datadisk"]:
-                        # replicas already on datadisk; skip
-                        ret_ds_on_disk_list.append(dataset)
-                        tmp_log.debug(f"dataset={dataset} already has replica on datadisks {rse_list} ; skipped")
+                    # get source type and RSEs
+                    source_type, rse_set, staging_rule = self._get_source_type_of_dataset(dataset, active_source_rses_set)
+                    if source_type == "DISK":
+                        # replicas already on disk; skip
+                        ret_map["disk_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} already has replica on disks {list(rse_set)} ; skipped")
                         continue
-                    elif not filtered_replicas_map["tape"]:
-                        # no replica on tape; skip
-                        tmp_log.debug(f"dataset={dataset} has no replica on any tape ; skipped")
-                        continue
-                    else:
-                        # initialize
-                        ddm_rule_id = None
-                        source_rse = None
-                        # source tape RSEs from DDM
-                        rse_set = {replica for replica in filtered_replicas_map["tape"]}
-                        # filter out inactive source tape RSEs according to DC config
-                        if active_source_rses_set is not None:
-                            rse_set &= active_source_rses_set
-                        # whether with existing staging rule
-                        if staging_rule:
-                            # with existing staging rule ; prepare to reuse it
-                            ddm_rule_id = staging_rule["id"]
-                            # extract source RSE from rule
-                            source_replica_expression = staging_rule["source_replica_expression"]
-                            for rse in rse_set:
-                                # match tape rses with source_replica_expression
-                                tmp_match = re.search(rse, source_replica_expression)
-                                if tmp_match is not None:
-                                    source_rse = rse
-                                    break
-                            if source_rse is None:
-                                # direct regex search from source_replica_expression; reluctant as source_replica_expression can be messy
-                                tmp_match = re.search(rf"{src_repli_expr_prefix}\|([A-Za-z0-9-_]+)", source_replica_expression)
-                                if tmp_match is not None:
-                                    source_rse = tmp_match.group(1)
-                            if source_rse is None:
-                                # still not getting source RSE from rule; unexpected
-                                tmp_log.error(
-                                    f"dataset={dataset} ddm_rule_id={ddm_rule_id} cannot get source_rse from source_replica_expression: {source_replica_expression}"
-                                )
-                            else:
-                                tmp_log.debug(f"dataset={dataset} already staging with ddm_rule_id={ddm_rule_id} source_rse={source_rse}")
-                            # keep alive the rule
-                            if (rule_expiration_time := staging_rule["expires_at"]) and (rule_expiration_time - naive_utcnow()) < timedelta(days=30):
-                                self._refresh_ddm_rule(ddm_rule_id, 86400 * 30)
-                                tmp_log.debug(f"dataset={dataset} ddm_rule_id={ddm_rule_id} refreshed rule to be 30 days long")
-                        else:
-                            # no existing staging rule ; prepare info for new submission
-                            rse_list = list(rse_set)
-                            # choose source RSE
-                            if len(rse_list) == 1:
-                                source_rse = rse_list[0]
-                            else:
-                                non_CERN_rse_list = [rse for rse in rse_list if "CERN-PROD" not in rse]
-                                if non_CERN_rse_list:
-                                    source_rse = random.choice(non_CERN_rse_list)
-                                else:
-                                    source_rse = random.choice(rse_list)
-                            tmp_log.debug(f"dataset={dataset} chose source_rse={source_rse}")
+                    elif source_type == "TAPE":
+                        # replicas only on tape
+                        ret_map["tape_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} on tapes {list(rse_set)} ; choosing one")
+                        # choose source RSE
+                        prestaging_tuple = self._choose_tape_source_rse(dataset, rse_set, staging_rule)
+                        tmp_log.debug(f"got prestaging: {prestaging_tuple}")
                         # add to prestage
-                        ret_prestaging_list.append((dataset, source_rse, ddm_rule_id))
-            return ret_prestaging_list, ret_ds_on_disk_list
+                        ret_prestaging_list.append(prestaging_tuple)
+                    else:
+                        # no replica found on tape nor on disk; skip
+                        ret_map["unfound_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} has no replica on any tape or disk ; skipped")
+                        continue
+            # return
+            return ret_prestaging_list, ret_map
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             raise e

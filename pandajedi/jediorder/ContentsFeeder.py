@@ -702,6 +702,9 @@ class ContentsFeederThread(WorkerThread):
         try:
             c = iDDS_Client(idds.common.utils.get_rest_host())
             for datasetSpec in ds_list:
+                if datasetSpec.is_no_staging():
+                    # skip no_staging
+                    continue
                 # get rule
                 try:
                     tmp_scope, tmp_name = datasetSpec.datasetName.split(":")
@@ -751,7 +754,7 @@ class ContentsFeederThread(WorkerThread):
         return True, None
 
 
-# lauch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):

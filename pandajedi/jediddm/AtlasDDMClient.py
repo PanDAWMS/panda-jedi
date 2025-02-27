@@ -1551,9 +1551,9 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, ret_list
 
     # list DID rules
-    def list_did_rules(self, dataset_name):
+    def list_did_rules(self, dataset_name, all_accounts=False):
         methodName = "list_did_rules"
-        methodName += f" datasetName={dataset_name}"
+        methodName += f" datasetName={dataset_name} all_accounts={all_accounts}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         ret_list = []
@@ -1564,7 +1564,7 @@ class AtlasDDMClient(DDMClientBase):
             scope, dsn = self.extract_scope(dataset_name)
             # get rules
             for rule in client.list_did_rules(scope=scope, name=dsn):
-                if rule["account"] == client.account:
+                if rule["account"] == client.account or all_accounts:
                     ret_list.append(rule)
         except Exception as e:
             errType = e
