@@ -388,12 +388,12 @@ class DataCarouselInterface(object):
         Get filtered replicas of a dataset and the staging rule and whether all replicas are without rules
         """
         replicas_map = self._get_full_replicas_per_type(dataset)
-        rules = self.ddmIF.list_did_rules(dataset)
+        rules = self.ddmIF.list_did_rules(dataset, all_accounts=True)
         rse_expression_list = []
         staging_rule = None
         for rule in rules:
-            if rule["activity"] == "Staging":
-                # rule of the dataset already exists; reuse it
+            if rule["account"] in ["prodsys", "panda"] and rule["activity"] == "Staging":
+                # rule of the dataset from ProdSys or PanDA already exists; reuse it
                 staging_rule = rule
             else:
                 rse_expression_list.append(rule["rse_expression"])
