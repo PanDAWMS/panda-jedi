@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import sys
 import time
 import traceback
@@ -390,7 +391,7 @@ class TaskRefinerThread(WorkerThread):
                             if no_staging_datasets:
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
-                                for dataset_spec in impl.inMasterDatasetSpec:
+                                for dataset_spec in itertools.chain(impl.inMasterDatasetSpec, impl.inSecDatasetSpecList):
                                     if dataset_spec.datasetName in no_staging_datasets:
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_spec.datasetName)

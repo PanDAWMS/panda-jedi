@@ -503,7 +503,7 @@ class DataCarouselInterface(object):
 
         Returns:
             str | None : source type of the dataset, "DISK" if replica on any disk, "TAPE" if replica only on tapes, None if not found
-            set | None : set of tape RSEs if source type is "DISK", otherwise None
+            set | None : set of tape RSEs, otherwise None
             str | None : staging rule if existing, otherwise None
         """
         tmp_log = MsgWrapper(logger, f"_get_source_type_of_dataset dataset={dataset}")
@@ -517,9 +517,11 @@ class DataCarouselInterface(object):
             # get filtered replicas and staging rule of the dataset
             filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
             # algorithm
-            if rse_list := filtered_replicas_map["disk"]:
-                # replicas already on disk; skip
+            if filtered_replicas_map["disk"]:
+                # replicas already on disk
                 source_type = "DISK"
+                # source disk RSEs from DDM
+                rse_set = {replica for replica in filtered_replicas_map["disk"]}
             elif not filtered_replicas_map["tape"]:
                 # no replica found on tape nor on disk; skip
                 pass
@@ -633,19 +635,21 @@ class DataCarouselInterface(object):
             active_source_rses_set = self._get_active_source_rses()
             # loop over inputs
             input_collection_map = self._get_input_ds_from_task_params(task_params_map)
-            for collection, job_param in input_collection_map:
+            for collection, job_param in input_collection_map.items():
+                # pseudo inputs
+                if job_param.get("param_type") == "pseudo_input":
+                    ret_map["pseudo_ds_list"].append(collection)
+                    tmp_log.debug(f"collection={collection} is pseudo input ; skipped")
+                    continue
+                # with real inputs
                 dataset_list = self._get_datasets_from_collection(collection)
                 if dataset_list is None:
                     tmp_log.warning(f"collection={collection} is None ; skipped")
-                    return ret_prestaging_list, ret_map
+                    continue
                 elif not dataset_list:
                     tmp_log.warning(f"collection={collection} is empty ; skipped")
-                    return ret_prestaging_list, ret_map
-                elif job_param.get("param_type") == "pseudo_input":
-                    # pseudo inputs
-                    ret_map["pseudo_ds_list"] = list(dataset_list)
-                    return ret_prestaging_list, ret_map
-                # with real inputs, check source of each dataset
+                    continue
+                # check source of each dataset
                 ret_prestaging_list = []
                 for dataset in dataset_list:
                     # get source type and RSEs
@@ -653,13 +657,15 @@ class DataCarouselInterface(object):
                     if source_type == "DISK":
                         # replicas already on disk; skip
                         ret_map["disk_ds_list"].append(dataset)
-                        tmp_log.debug(f"dataset={dataset} already has replica on disks {rse_list} ; skipped")
+                        tmp_log.debug(f"dataset={dataset} already has replica on disks {list(rse_set)} ; skipped")
                         continue
                     elif source_type == "TAPE":
                         # replicas only on tape
                         ret_map["tape_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} on tapes {list(rse_set)} ; choosing one")
                         # choose source RSE
                         prestaging_tuple = self._choose_tape_source_rse(dataset, rse_set, staging_rule)
+                        tmp_log.debug(f"got prestaging: {prestaging_tuple}")
                         # add to prestage
                         ret_prestaging_list.append(prestaging_tuple)
                     else:
