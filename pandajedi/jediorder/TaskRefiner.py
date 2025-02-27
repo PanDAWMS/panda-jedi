@@ -222,23 +222,26 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                ds_list_to_prestage, ds_on_disk_list, ds_unfound_list = data_carousel_interface.get_input_datasets_to_prestage(
-                                    jediTaskID, taskParamMap
-                                )
-                                if not ds_list_to_prestage:
+                                prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                if not prestaging_list:
                                     # found no datasets only on tape to prestage
-                                    if ds_on_disk_list:
+                                    if pseudo_ds_list := ds_list_dict["pseudo_ds_list"]:
+                                        # update no_staging_datasets with pseudo input datasets
+                                        tmpLog.debug(f"pseudo input datasets: {pseudo_ds_list}")
+                                        no_staging_datasets.update(set(pseudo_ds_list))
+                                    if disk_ds_list := ds_list_dict["disk_ds_list"]:
                                         # update no_staging_datasets with datasets already on disks
-                                        tmpLog.debug(f"datasets already on disks: {ds_on_disk_list}")
-                                        no_staging_datasets.update(set(ds_on_disk_list))
-                                    if ds_unfound_list:
+                                        tmpLog.debug(f"datasets already on disks: {disk_ds_list}")
+                                        no_staging_datasets.update(set(disk_ds_list))
+                                    if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
                                         # some datasets unfound
                                         if taskParamMap.get("waitInput"):
                                             # task has waitInput; to be checked again by TaskRefiner later
                                             tmpLog.debug("task has waitInput and waiting for inputs to be created; skipped")
                                         else:
-                                            # not to wait input
-                                            tmpLog.warning(f"some input datasets unfound: {ds_unfound_list}; skipped")
+                                            # not to wait input; update no_staging_datasets with datasets unfound
+                                            tmpLog.warning(f"some input datasets unfound: {unfound_ds_list}")
+                                            no_staging_datasets.update(set(unfound_ds_list))
                                     else:
                                         # all datasets on disks
                                         tmpLog.debug("no need to prestage, try to resume task from staging")
@@ -249,7 +252,7 @@ class TaskRefinerThread(WorkerThread):
                                 else:
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
                                     if tmp_ret:
                                         taskParamMap["toStaging"] = True
                                         tmpLog.info("submitted data carousel requests; set toStaging")
@@ -392,7 +395,7 @@ class TaskRefinerThread(WorkerThread):
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_spec.datasetName)
                                 if tmp_ds_set:
-                                    tmpLog.debug(f"set no_staging for datasets on DISKs: {list(tmp_ds_set)}")
+                                    tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust spect after refining {errtype.__name__}:{errvalue}"
