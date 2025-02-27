@@ -392,7 +392,7 @@ class DataCarouselInterface(object):
         rse_expression_list = []
         staging_rule = None
         for rule in rules:
-            if rule["account"] in ["prodsys", "panda"] and rule["activity"] == "Staging":
+            if rule["account"] in ["panda"] and rule["activity"] == "Staging":
                 # rule of the dataset from ProdSys or PanDA already exists; reuse it
                 staging_rule = rule
             else:
