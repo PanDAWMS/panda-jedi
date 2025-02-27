@@ -160,7 +160,10 @@ class TaskRefinerThread(WorkerThread):
                         try:
                             # Data Carousel; only for analysis for now
                             if taskType == "anal" and prodSourceLabel == "user" and dc_config_map:
-                                if "inputPreStaging" not in taskParamMap:
+                                if taskParamMap.get("noInput"):
+                                    # noInput task, skipped
+                                    pass
+                                elif "inputPreStaging" not in taskParamMap:
                                     if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
                                         # enable input pre-staging for all users
                                         taskParamMap["inputPreStaging"] = True
