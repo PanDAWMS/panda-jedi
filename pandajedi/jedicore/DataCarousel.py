@@ -710,27 +710,30 @@ class DataCarouselInterface(object):
                         tmp_log.debug(f"dataset={dataset} has no replica on any tape or datadisk ; skipped")
                         continue
             # return
+            tmp_log.debug(f"got {len(ret_prestaging_list)} input datasets to prestage")
             return ret_prestaging_list, ret_map
         except Exception as e:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             raise e
 
-    def submit_data_carousel_requests(self, task_id: int, dataset_source_list: list[tuple[str, str | None, str | None]]) -> bool | None:
+    def submit_data_carousel_requests(self, task_id: int, prestaging_list: list[tuple[str, str | None, str | None]]) -> bool | None:
         """
         Submit data carousel requests for a task
 
         Args:
             task_id (int): JEDI task ID
-            dataset_source_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+            prestaging_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
         Returns:
             bool | None : True if submission successful, or None if failed
         """
-        tmp_log = MsgWrapper(logger, "submit_data_carousel_requests")
+        tmp_log = MsgWrapper(logger, f"submit_data_carousel_requests task_id={task_id}")
+        n_req_to_submit = len(prestaging_list)
+        tmp_log.debug(f"to submit {len(prestaging_list)} requests")
         # fill dc request spec for each input dataset
         dc_req_spec_list = []
         now_time = naive_utcnow()
-        for dataset, source_rse, ddm_rule_id in dataset_source_list:
+        for dataset, source_rse, ddm_rule_id in prestaging_list:
             dc_req_spec = DataCarouselRequestSpec()
             dc_req_spec.dataset = dataset
             dataset_meta = self.ddmIF.getDatasetMetaData(dataset)
@@ -758,6 +761,7 @@ class DataCarouselInterface(object):
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
         ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
+        tmp_log.info(f"submitted {ret}/{n_req_to_submit} requests")
         # return
         return ret
 
