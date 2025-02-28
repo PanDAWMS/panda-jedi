@@ -14960,6 +14960,8 @@ class DBProxy(OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             # insert requests
+            n_req_inserted = 0
+            n_rel_inserted = 0
             for dc_req_spec in dc_req_specs:
                 # sql to query request of the dataset
                 sql_query = f"SELECT request_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dataset=:dataset AND status<>:antistatus "
@@ -14985,6 +14987,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     var_map[":new_request_id"] = self.cur.var(varNUMBER)
                     self.cur.execute(sql_insert_request + comment, var_map)
                     the_request_id = int(self.getvalue_corrector(self.cur.getvalue(var_map[":new_request_id"])))
+                    n_req_inserted += 1
                 if the_request_id is None:
                     raise RuntimeError("the_request_id is None")
                 # sql to insert relation
@@ -14993,12 +14996,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 )
                 var_map = {":request_id": the_request_id, ":task_id": task_id}
                 self.cur.execute(sql_insert_relation + comment, var_map)
+                n_rel_inserted += 1
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmp_log.debug(f"inserted {len(dc_req_specs)} requests")
-            return True
+            tmp_log.debug(f"inserted {n_req_inserted}/{len(dc_req_specs)} requests and {n_rel_inserted} relations")
+            return n_req_inserted
         except Exception:
             # roll back
             self._rollback()
