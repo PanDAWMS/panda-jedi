@@ -267,7 +267,7 @@ class DataCarouselInterface(object):
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.tape_rses = []
-        self.disk_rses = []
+        self.datadisk_rses = []
         self.dc_config_map = None
         self._last_update_ts_dict = {}
         # refresh
@@ -293,9 +293,14 @@ class DataCarouselInterface(object):
 
         return wrapper
 
-    def _update_rses(self, time_limit_minutes=30):
+    def _update_rses(self, time_limit_minutes: int | float = 30):
         """
-        Update RSEs per type cached in this object
+        Update RSEs per TAPE and DATADISK cached in this object
+        Run if cache outdated; else do nothing
+        Check DATADISK only since data on other DISK sources like SCRATCHDISK or LOCALDISK are transient
+
+        Args:
+            time_limit_minutes (int|float): time limit of the cache in minutes
         """
         tmp_log = MsgWrapper(logger, "_update_rses")
         nickname = "rses"
@@ -309,19 +314,23 @@ class DataCarouselInterface(object):
                 tape_rses = self.ddmIF.list_rses("rse_type=TAPE")
                 if tape_rses is not None:
                     self.tape_rses = list(tape_rses)
-                disk_rses = self.ddmIF.list_rses("rse_type=DISK")
-                if disk_rses is not None:
-                    self.disk_rses = list(disk_rses)
-                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DISK: {self.disk_rses}")
-                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.disk_rses)} disks")
+                datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
+                if datadisk_rses is not None:
+                    self.datadisk_rses = list(datadisk_rses)
+                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DISK: {self.datadisk_rses}")
+                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
                 # update last update timestamp
                 self._last_update_ts_dict[nickname] = naive_utcnow()
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
 
-    def _update_dc_config(self, time_limit_minutes=5):
+    def _update_dc_config(self, time_limit_minutes: int | float = 5):
         """
         Update Data Carousel configuration from DB
+        Run if cache outdated; else do nothing
+
+        Args:
+            time_limit_minutes (int|float): time limit of the cache in minutes
         """
         tmp_log = MsgWrapper(logger, "_update_dc_config")
         nickname = "main"
@@ -358,9 +367,15 @@ class DataCarouselInterface(object):
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
 
-    def _get_input_ds_from_task_params(self, task_params_map):
+    def _get_input_ds_from_task_params(self, task_params_map: dict) -> dict:
         """
         Get input datasets from tasks parameters
+
+        Args:
+            task_params_map (dict): task parameter map
+
+        Returns:
+            dict : map with elements in form of datasets: jobParameters
         """
         ret_map = {}
         for job_param in task_params_map.get("jobParameters", []):
@@ -369,23 +384,37 @@ class DataCarouselInterface(object):
                 ret_map[dataset] = job_param
         return ret_map
 
-    def _get_full_replicas_per_type(self, dataset):
+    def _get_full_replicas_per_type(self, dataset: str) -> dict:
         """
         Get full replicas per type of a dataset
+
+        Args:
+            dataset (str): dataset name
+
+        Returns:
+            dict : map in form of datasets: jobParameters
         """
         ds_repli_dict = self.ddmIF.convertOutListDatasetReplicas(dataset, skip_incomplete_element=True)
         tape_replicas = []
-        disk_replicas = []
+        datadisk_replicas = []
         for rse in ds_repli_dict:
             if rse in self.tape_rses:
                 tape_replicas.append(rse)
-            if rse in self.disk_rses:
-                disk_replicas.append(rse)
-        return {"tape": tape_replicas, "disk": disk_replicas}
+            if rse in self.datadisk_rses:
+                datadisk_replicas.append(rse)
+        return {"tape": tape_replicas, "datadisk": datadisk_replicas}
 
-    def _get_filtered_replicas(self, dataset):
+    def _get_filtered_replicas(self, dataset: str) -> tuple[dict | (str | None) | bool]:
         """
         Get filtered replicas of a dataset and the staging rule and whether all replicas are without rules
+
+        Args:
+            dataset (str): dataset name
+
+        Returns:
+            dict : filtered replicas map
+            str | None : staging rule, None if not existing
+            bool: whether all replicas on datadisk are without rules
         """
         replicas_map = self._get_full_replicas_per_type(dataset)
         rules = self.ddmIF.list_did_rules(dataset, all_accounts=True)
@@ -397,18 +426,18 @@ class DataCarouselInterface(object):
                 staging_rule = rule
             else:
                 rse_expression_list.append(rule["rse_expression"])
-        filtered_replicas_map = {"tape": [], "disk": []}
-        has_disk_replica = len(replicas_map["disk"]) > 0
+        filtered_replicas_map = {"tape": [], "datadisk": []}
+        has_datadisk_replica = len(replicas_map["datadisk"]) > 0
         for replica in replicas_map["tape"]:
             if replica in rse_expression_list:
                 filtered_replicas_map["tape"].append(replica)
         if len(replicas_map["tape"]) >= 1 and len(filtered_replicas_map["tape"]) == 0 and len(rules) == 0:
             filtered_replicas_map["tape"] = replicas_map["tape"]
-        for replica in replicas_map["disk"]:
+        for replica in replicas_map["datadisk"]:
             if staging_rule is not None or replica in rse_expression_list:
-                filtered_replicas_map["disk"].append(replica)
-        all_disk_replicas_without_rules = has_disk_replica and len(filtered_replicas_map["disk"]) == 0
-        return filtered_replicas_map, staging_rule, all_disk_replicas_without_rules
+                filtered_replicas_map["datadisk"].append(replica)
+        all_datadisk_replicas_without_rules = has_datadisk_replica and len(filtered_replicas_map["datadisk"]) == 0
+        return filtered_replicas_map, staging_rule, all_datadisk_replicas_without_rules
 
     def _get_datasets_from_collection(self, collection: str) -> list[str] | None:
         """
@@ -429,7 +458,11 @@ class DataCarouselInterface(object):
             tmp_log = MsgWrapper(logger, f"_get_datasets_from_collections collection={collection}")
             # check the collection
             ret_list = []
-            collection_meta = self.ddmIF.getDatasetMetaData(collection)
+            collection_meta = self.ddmIF.getDatasetMetaData(collection, ignore_missing=True)
+            if collection_meta["state"] == "missing":
+                # DID not found
+                tmp_log.warning(f"DID not found")
+                return None
             did_type = collection_meta["did_type"]
             if did_type == "CONTAINER":
                 # is container, get datasets inside
@@ -495,15 +528,15 @@ class DataCarouselInterface(object):
 
     def _get_source_type_of_dataset(self, dataset: str, active_source_rses_set: set | None = None) -> tuple[(str | None) | (set | None) | (str | None)]:
         """
-        Get source type and tape RSEs of a dataset
+        Get source type and permanent (tape or datadisk) RSEs of a dataset
 
         Args:
             dataset (str): dataset name
             active_source_rses_set (set | None): active source RSE set to reuse. If None, will get a new one in the method
 
         Returns:
-            str | None : source type of the dataset, "DISK" if replica on any disk, "TAPE" if replica only on tapes, None if not found
-            set | None : set of tape RSEs, otherwise None
+            str | None : source type of the dataset, "datadisk" if replica on any datadisk, "tape" if replica only on tapes, None if not found
+            set | None : set of permanent RSEs, otherwise None
             str | None : staging rule if existing, otherwise None
         """
         tmp_log = MsgWrapper(logger, f"_get_source_type_of_dataset dataset={dataset}")
@@ -517,17 +550,14 @@ class DataCarouselInterface(object):
             # get filtered replicas and staging rule of the dataset
             filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
             # algorithm
-            if filtered_replicas_map["disk"]:
-                # replicas already on disk
-                source_type = "DISK"
-                # source disk RSEs from DDM
-                rse_set = {replica for replica in filtered_replicas_map["disk"]}
-            elif not filtered_replicas_map["tape"]:
-                # no replica found on tape nor on disk; skip
-                pass
-            else:
-                # replicas only on tape
-                source_type = "TAPE"
+            if filtered_replicas_map["datadisk"]:
+                # replicas already on datadisk
+                source_type = "datadisk"
+                # source datadisk RSEs from DDM
+                rse_set = {replica for replica in filtered_replicas_map["datadisk"]}
+            elif filtered_replicas_map["tape"]:
+                # replicas only on tape, not on datadisk
+                source_type = "tape"
                 # source tape RSEs from DDM
                 rse_set = {replica for replica in filtered_replicas_map["tape"]}
                 # filter out inactive source tape RSEs according to DC config
@@ -537,8 +567,11 @@ class DataCarouselInterface(object):
                 if not rse_set:
                     source_type = None
                     tmp_log.warning(f"all its source tapes are inactive")
+            else:
+                # no replica found on tape nor on datadisk (can be on transient disk); skip
+                pass
             # return
-            return source_type, rse_set, staging_rule
+            return (source_type, rse_set, staging_rule)
         except Exception as e:
             # other unexpected errors
             raise e
@@ -619,16 +652,18 @@ class DataCarouselInterface(object):
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
-            dict[str|list]: dict of list of datasets, including pseudo inputs (meant to be marked as no_staging), already on disk (meant to be marked as no_staging), only on tape, and not found
+            dict[str|list]: dict of list of datasets, including pseudo inputs (meant to be marked as no_staging), already on datadisk (meant to be marked as no_staging), only on tape, and not found
         """
         tmp_log = MsgWrapper(logger, f"get_input_datasets_to_prestage task_id={task_id}")
         try:
             # initialize
-            ret_prestaging_list = None
+            ret_prestaging_list = []
             ret_map = {
-                "pseudo_ds_list": [],
+                "pseudo_coll_list": [],
+                "unfound_coll_list": [],
+                "empty_coll_list": [],
                 "tape_ds_list": [],
-                "disk_ds_list": [],
+                "datadisk_ds_list": [],
                 "unfound_ds_list": [],
             }
             # get active source rses
@@ -638,28 +673,29 @@ class DataCarouselInterface(object):
             for collection, job_param in input_collection_map.items():
                 # pseudo inputs
                 if job_param.get("param_type") == "pseudo_input":
-                    ret_map["pseudo_ds_list"].append(collection)
+                    ret_map["pseudo_coll_list"].append(collection)
                     tmp_log.debug(f"collection={collection} is pseudo input ; skipped")
                     continue
                 # with real inputs
                 dataset_list = self._get_datasets_from_collection(collection)
                 if dataset_list is None:
-                    tmp_log.warning(f"collection={collection} is None ; skipped")
+                    ret_map["unfound_coll_list"].append(collection)
+                    tmp_log.warning(f"collection={collection} not found ; skipped")
                     continue
                 elif not dataset_list:
+                    ret_map["empty_coll_list"].append(collection)
                     tmp_log.warning(f"collection={collection} is empty ; skipped")
                     continue
                 # check source of each dataset
-                ret_prestaging_list = []
                 for dataset in dataset_list:
                     # get source type and RSEs
                     source_type, rse_set, staging_rule = self._get_source_type_of_dataset(dataset, active_source_rses_set)
-                    if source_type == "DISK":
-                        # replicas already on disk; skip
-                        ret_map["disk_ds_list"].append(dataset)
-                        tmp_log.debug(f"dataset={dataset} already has replica on disks {list(rse_set)} ; skipped")
+                    if source_type == "datadisk":
+                        # replicas already on datadisk; skip
+                        ret_map["datadisk_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} already has replica on datadisks {list(rse_set)} ; skipped")
                         continue
-                    elif source_type == "TAPE":
+                    elif source_type == "tape":
                         # replicas only on tape
                         ret_map["tape_ds_list"].append(dataset)
                         tmp_log.debug(f"dataset={dataset} on tapes {list(rse_set)} ; choosing one")
@@ -669,9 +705,9 @@ class DataCarouselInterface(object):
                         # add to prestage
                         ret_prestaging_list.append(prestaging_tuple)
                     else:
-                        # no replica found on tape nor on disk; skip
+                        # no replica found on tape nor on datadisk; skip
                         ret_map["unfound_ds_list"].append(dataset)
-                        tmp_log.debug(f"dataset={dataset} has no replica on any tape or disk ; skipped")
+                        tmp_log.debug(f"dataset={dataset} has no replica on any tape or datadisk ; skipped")
                         continue
             # return
             return ret_prestaging_list, ret_map
