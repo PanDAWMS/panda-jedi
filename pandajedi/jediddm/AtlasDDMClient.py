@@ -25,6 +25,7 @@ from rucio.common.exception import (
     DuplicateContent,
     DuplicateRule,
     InvalidObject,
+    RuleNotFound,
     UnsupportedOperation,
 )
 
@@ -1598,7 +1599,7 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, True
 
     # get replication rule by rule ID
-    def get_rule_by_id(self, rule_id):
+    def get_rule_by_id(self, rule_id, allow_missing=True):
         methodName = "get_rule_by_id"
         methodName += f" pid={self.pid}"
         methodName = f"{methodName} rule_id={rule_id}"
@@ -1609,6 +1610,12 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # get rules
             rule = client.get_replication_rule(rule_id)
+        except RuleNotFound as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            if allow_missing:
+                tmpLog.debug(errMsg)
+                return self.SC_SUCCEEDED, None
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
