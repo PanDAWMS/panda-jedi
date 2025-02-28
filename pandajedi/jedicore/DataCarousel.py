@@ -1347,8 +1347,11 @@ class DataCarouselInterface(object):
                 ddm_rule_id = dc_req_spec.ddm_rule_id
                 if ddm_rule_id:
                     try:
-                        self.ddmIF.delete_replication_rule(ddm_rule_id)
-                        tmp_log.debug(f"request_id={request_id} ddm_rule_id={ddm_rule_id} deleted DDM rule")
+                        ret = self.ddmIF.delete_replication_rule(ddm_rule_id)
+                        if ret is False:
+                            tmp_log.warning(f"request_id={request_id} ddm_rule_id={ddm_rule_id} rule not found ; skipped")
+                        else:
+                            tmp_log.debug(f"request_id={request_id} ddm_rule_id={ddm_rule_id} deleted DDM rule")
                     except Exception:
                         tmp_log.error(f"request_id={request_id} ddm_rule_id={ddm_rule_id} failed to delete DDM rule; {traceback.format_exc()}")
             # delete terminated requests

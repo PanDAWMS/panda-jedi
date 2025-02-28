@@ -1647,7 +1647,7 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, ret
 
     # delete replication rule by rule ID
-    def delete_replication_rule(self, rule_id):
+    def delete_replication_rule(self, rule_id, allow_missing=True):
         methodName = "delete_replication_rule"
         methodName += f" pid={self.pid}"
         methodName = f"{methodName} rule_id={rule_id}"
@@ -1658,6 +1658,12 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # get rules
             ret = client.delete_replication_rule(rule_id)
+        except RuleNotFound as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            if allow_missing:
+                tmpLog.debug(errMsg)
+                return self.SC_SUCCEEDED, False
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
