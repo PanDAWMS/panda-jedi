@@ -1615,7 +1615,7 @@ class AtlasDDMClient(DDMClientBase):
             errCode, errMsg = self.checkError(errType)
             if allow_missing:
                 tmpLog.debug(errMsg)
-                return self.SC_SUCCEEDED, None
+                return self.SC_SUCCEEDED, False
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)

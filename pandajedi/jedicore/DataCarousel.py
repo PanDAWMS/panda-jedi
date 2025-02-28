@@ -1131,9 +1131,19 @@ class DataCarouselInterface(object):
                 # get DDM rule
                 ddm_rule_id = dc_req_spec.ddm_rule_id
                 the_rule = self.ddmIF.get_rule_by_id(ddm_rule_id)
-                if the_rule is None:
+                if the_rule is False:
+                    # rule not found
+                    dc_req_spec.set_parameter("rule_unfound", True)
+                    tmp_log.error(f"request_id={dc_req_spec.request_id} ddm_rule_id={ddm_rule_id} rule not found")
+                    tmp_ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
+                    if tmp_ret is not None:
+                        tmp_log.debug(f"request_id={dc_req_spec.request_id} updated DB about rule not found")
+                    else:
+                        tmp_log.error(f"request_id={dc_req_spec.request_id} failed to update DB ; skipped")
+                    continue
+                elif the_rule is None:
                     # got error when getting the rule
-                    tmp_log.error(f"request_id={dc_req_spec.request_id} cannot get rule of ddm_rule_id={ddm_rule_id}")
+                    tmp_log.error(f"request_id={dc_req_spec.request_id} failed to get rule of ddm_rule_id={ddm_rule_id} ; skipped")
                     continue
                 # rule lifetime
                 rule_lifetime = None
@@ -1175,9 +1185,19 @@ class DataCarouselInterface(object):
                 # get DDM rule
                 ddm_rule_id = dc_req_spec.ddm_rule_id
                 the_rule = self.ddmIF.get_rule_by_id(ddm_rule_id)
-                if the_rule is None:
+                if the_rule is False:
+                    # rule not found
+                    dc_req_spec.set_parameter("rule_unfound", True)
+                    tmp_log.error(f"request_id={dc_req_spec.request_id} ddm_rule_id={ddm_rule_id} rule not found")
+                    tmp_ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
+                    if tmp_ret is not None:
+                        tmp_log.debug(f"request_id={dc_req_spec.request_id} updated DB about rule not found")
+                    else:
+                        tmp_log.error(f"request_id={dc_req_spec.request_id} failed to update DB ; skipped")
+                    continue
+                elif the_rule is None:
                     # got error when getting the rule
-                    tmp_log.error(f"request_id={dc_req_spec.request_id} cannot get rule of ddm_rule_id={ddm_rule_id}")
+                    tmp_log.error(f"request_id={dc_req_spec.request_id} failed to get rule of ddm_rule_id={ddm_rule_id} ; skipped")
                     continue
                 # Destination RSE
                 if dc_req_spec.destination_rse is None:
@@ -1315,12 +1335,11 @@ class DataCarouselInterface(object):
                         # the request is also mapped to some active task, not to be cleaned up; skipped
                         continue
                     dc_req_spec = terminated_tasks_requests_map[request_id]
-                    if (
-                        dc_req_spec.status in DataCarouselRequestStatus.final_statuses
-                        and dc_req_spec.end_time
-                        and dc_req_spec.end_time < now_time - timedelta(days=terminated_time_limit_days)
+                    if dc_req_spec.status in DataCarouselRequestStatus.final_statuses and (
+                        (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=terminated_time_limit_days))
+                        or dc_req_spec.parameter_map.get("rule_unfound")
                     ):
-                        # request terminated and old enough
+                        # request terminated and old enough or DDM rule not found
                         terminated_requests_set.add(request_id)
             # delete ddm rules of terminate requests
             for request_id in terminated_requests_set:
@@ -1338,7 +1357,7 @@ class DataCarouselInterface(object):
                 if ret_terminated is None:
                     tmp_log.warning(f"failed to delete terminated requests; skipped")
                 else:
-                    tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days")
+                    tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days or with DDM rule not found")
             else:
                 tmp_log.debug(f"no terminated requests to delete; skipped")
             # clean up outdated requests
