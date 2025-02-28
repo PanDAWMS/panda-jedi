@@ -15002,7 +15002,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             tmp_log.debug(f"inserted {n_req_inserted}/{len(dc_req_specs)} requests and {n_rel_inserted} relations")
-            return True
+            return n_req_inserted
         except Exception:
             # roll back
             self._rollback()

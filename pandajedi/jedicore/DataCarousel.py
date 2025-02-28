@@ -760,8 +760,9 @@ class DataCarouselInterface(object):
                 dc_req_spec.set_parameter("reuse_rule", True)
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
-        ret = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
-        tmp_log.info(f"submitted {ret}/{n_req_to_submit} requests")
+        n_req_inserted = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
+        tmp_log.info(f"submitted {n_req_inserted}/{n_req_to_submit} requests")
+        ret = n_req_inserted is not None
         # return
         return ret
 
