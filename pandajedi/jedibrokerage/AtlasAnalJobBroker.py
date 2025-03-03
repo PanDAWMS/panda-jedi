@@ -9,6 +9,7 @@ import traceback
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.srvcore import CoreUtils
 from pandaserver.taskbuffer import JobUtils
 
 from pandajedi.jedicore import Interaction, JediCoreUtils
@@ -1348,7 +1349,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     continue
             ######################################
             # consider grid usage of the user
-            user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
+            user_name = CoreUtils.clean_user_id(taskSpec.userName)
             tmpSt, jobsStatsPerUser = AtlasBrokerUtils.getUsersJobsStats(
                 tbIF=self.taskBufferIF, vo=taskSpec.vo, prod_source_label=taskSpec.prodSourceLabel, cache_lifetime=60
             )

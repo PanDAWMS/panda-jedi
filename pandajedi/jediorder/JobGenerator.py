@@ -2192,6 +2192,9 @@ class JobGeneratorThread(WorkerThread):
         # set zero if undefined
         if skipEvents is None:
             skipEvents = 0
+        # set -1 if maxEvents is zero since it breaks some apps
+        if maxEvents == 0:
+            maxEvents = -1
         # output
         if self.time_profile_level >= TIME_PROFILE_DEEP:
             tmp_log.debug(stop_watch.get_elapsed_time("output"))
