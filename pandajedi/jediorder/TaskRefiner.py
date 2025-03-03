@@ -404,6 +404,14 @@ class TaskRefinerThread(WorkerThread):
                     # adjust specs after refining
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         try:
+                            if impl.taskSpec.inputPreStaging():
+                                # for now, no staging for all secondary datasets
+                                tmp_ds_set = set()
+                                for dataset_spec in impl.inSecDatasetSpecList:
+                                    dataset_spec.set_no_staging(True)
+                                    tmp_ds_set.add(dataset_spec.datasetName)
+                                if tmp_ds_set:
+                                    tmpLog.debug(f"set no_staging for secondary datasets: {list(tmp_ds_set)}")
                             if no_staging_datasets:
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
@@ -413,15 +421,6 @@ class TaskRefinerThread(WorkerThread):
                                         tmp_ds_set.add(dataset_spec.datasetName)
                                 if tmp_ds_set:
                                     tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
-                            if impl.taskSpec.inputPreStaging():
-                                # for now, no staging for secondary datasets
-                                tmp_ds_set = set()
-                                for dataset_spec in impl.inSecDatasetSpecList:
-                                    if dataset_spec.datasetName in no_staging_datasets:
-                                        dataset_spec.set_no_staging(True)
-                                        tmp_ds_set.add(dataset_spec.datasetName)
-                                if tmp_ds_set:
-                                    tmpLog.debug(f"set no_staging for secondary datasets: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust spect after refining {errtype.__name__}:{errvalue}"
