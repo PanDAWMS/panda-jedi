@@ -30,9 +30,9 @@ taskParam = tbIF.getTaskParamsWithID_JEDI(jediTaskID)
 taskParamMap = RefinerUtils.decodeJSON(taskParam)
 
 print(f"get_input_datasets_to_prestage")
-ds_list_to_prestage = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+prestaging_list, ret_map = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
 
-if not ds_list_to_prestage:
+if not prestaging_list:
     # no dataset needs pre-staging; unset inputPreStaging
     print("no need to prestage")
     # resume the task from staging
@@ -41,7 +41,7 @@ if not ds_list_to_prestage:
 else:
     # submit data carousel requests for dataset to pre-stage
     print("to prestage, submitting data carousel requests")
-    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, ds_list_to_prestage)
+    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
     if tmp_ret:
         print(f"submitted data carousel requests for {jediTaskID}: {tmp_ret}")
     else:

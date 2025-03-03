@@ -317,7 +317,7 @@ class DataCarouselInterface(object):
                 datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
                 if datadisk_rses is not None:
                     self.datadisk_rses = list(datadisk_rses)
-                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DISK: {self.datadisk_rses}")
+                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
                 # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
                 # update last update timestamp
                 self._last_update_ts_dict[nickname] = naive_utcnow()
@@ -394,6 +394,7 @@ class DataCarouselInterface(object):
         Returns:
             dict : map in form of datasets: jobParameters
         """
+        tmp_log = MsgWrapper(logger, f"_get_full_replicas_per_type dataset={dataset}")
         ds_repli_dict = self.ddmIF.convertOutListDatasetReplicas(dataset, skip_incomplete_element=True)
         tape_replicas = []
         datadisk_replicas = []
@@ -402,7 +403,10 @@ class DataCarouselInterface(object):
                 tape_replicas.append(rse)
             if rse in self.datadisk_rses:
                 datadisk_replicas.append(rse)
-        return {"tape": tape_replicas, "datadisk": datadisk_replicas}
+        # return
+        ret = {"tape": tape_replicas, "datadisk": datadisk_replicas}
+        tmp_log.debug(f"{ret}")
+        return ret
 
     def _get_filtered_replicas(self, dataset: str) -> tuple[dict | (str | None) | bool]:
         """

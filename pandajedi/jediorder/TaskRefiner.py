@@ -404,10 +404,18 @@ class TaskRefinerThread(WorkerThread):
                     # adjust specs after refining
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         try:
+                            if impl.taskSpec.inputPreStaging():
+                                # for now, no staging for all secondary datasets
+                                tmp_ds_set = set()
+                                for dataset_spec in impl.inSecDatasetSpecList:
+                                    dataset_spec.set_no_staging(True)
+                                    tmp_ds_set.add(dataset_spec.datasetName)
+                                if tmp_ds_set:
+                                    tmpLog.debug(f"set no_staging for secondary datasets: {list(tmp_ds_set)}")
                             if no_staging_datasets:
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
-                                for dataset_spec in itertools.chain(impl.inMasterDatasetSpec, impl.inSecDatasetSpecList):
+                                for dataset_spec in impl.inMasterDatasetSpec:
                                     if dataset_spec.datasetName in no_staging_datasets:
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_spec.datasetName)
