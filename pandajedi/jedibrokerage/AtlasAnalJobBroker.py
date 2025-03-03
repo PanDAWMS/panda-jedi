@@ -329,7 +329,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     nRealDS += 1
             task_prio_cutoff_for_input_data_motion = 2000
             to_ignore_data_loc = False
-            tmp_msg = "ignoring input data locality due to "
+            tmp_msg = "ignoring input data locality in the second loop due to "
             if taskSpec.taskPriority >= task_prio_cutoff_for_input_data_motion:
                 to_ignore_data_loc = True
                 tmp_msg += f"high taskPriority {taskSpec.taskPriority} is larger than or equal to {task_prio_cutoff_for_input_data_motion}"
@@ -343,10 +343,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 )
             if to_ignore_data_loc:
                 tmpLog.info(tmp_msg)
-                if inputChunk.isMerging:
-                    scanSiteLists.append((copy.copy(scanSiteList), False))
-                else:
-                    scanSiteLists = [(copy.copy(scanSiteList), False)]
+                scanSiteLists.append((copy.copy(scanSiteList), False))
             elif taskSpec.taskPriority > 1000 or nRealDS > 1 or taskSpec.getNumSitesPerJob() > 0:
                 # add a loop without data locality check for high priority tasks, tasks with multiple input datasets, or tasks with job cloning
                 scanSiteLists.append((copy.copy(scanSiteList), False))
@@ -439,7 +436,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     )
                     # check if the data is available at somewhere
                     if not complete_disk_ok[datasetName] and not complete_tape_ok[datasetName] and not datasetSpec.isDistributed():
-                        err_msg = f"{datasetName} is incomplete/missing at online endpoints. "
+                        err_msg = f"{datasetName} is unavailable/incomplete at storages that are currently not in downtime."
                         if not taskSpec.allow_incomplete_input():
                             tmpLog.error(err_msg)
                             taskSpec.setErrDiag(err_msg)
