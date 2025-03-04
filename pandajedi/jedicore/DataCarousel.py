@@ -1087,13 +1087,12 @@ class DataCarouselInterface(object):
         tmp_log = MsgWrapper(logger, f"stage_request request_id={dc_req_spec.request_id}")
         is_ok = False
         # check existing DDM rule of the dataset
-        if dc_req_spec.ddm_rule_id is not None:
+        if (ddm_rule_id := dc_req_spec.ddm_rule_id) is not None:
             # DDM rule exists; no need to submit
             tmp_log.debug(f"dataset={dc_req_spec.dataset} already has active DDM rule ddm_rule_id={ddm_rule_id}")
         else:
             # no existing rule; submit DDM rule
             ddm_rule_id = self._submit_ddm_rule(dc_req_spec)
-            now_time = naive_utcnow()
             if ddm_rule_id:
                 # DDM rule submitted; update ddm_rule_id
                 dc_req_spec.ddm_rule_id = ddm_rule_id
@@ -1103,6 +1102,7 @@ class DataCarouselInterface(object):
                 tmp_log.warning(f"failed to submitted DDM rule ; skipped")
                 return is_ok
         # update request to be staging
+        now_time = naive_utcnow()
         dc_req_spec.status = DataCarouselRequestStatus.staging
         dc_req_spec.start_time = now_time
         ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
@@ -1494,7 +1494,7 @@ class DataCarouselInterface(object):
                 else:
                     tmp_log.warning(f"failed to get related tasks; skipped to submit iDDS requests")
         elif dc_req_spec_resubmitted is False:
-            tmp_log.warning(f"request not found or not in statging; skipped")
+            tmp_log.warning(f"request not found or not in staging; skipped")
         else:
             tmp_log.error(f"failed to resubmit")
         # return
