@@ -1,10 +1,12 @@
 import sys
 
 from pandajedi.jedicore.DataCarousel import (
+    DataCarouselInterface,
     DataCarouselRequestSpec,
     DataCarouselRequestStatus,
 )
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jediddm.DDMInterface import DDMInterface
 
 vo = "atlas"
 task_id = int(sys.argv[1])
@@ -13,6 +15,10 @@ request_id = int(sys.argv[2])
 print("set tbIF")
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface(max_size=1)
+
+print("set ddmIF")
+ddmIF = DDMInterface()
+ddmIF.setupInterface()
 
 print("set DCIF")
 data_carousel_interface = DataCarouselInterface(tbIF, ddmIF.getInterface(vo))
@@ -42,7 +48,7 @@ if res_list:
         dc_req_spec = DataCarouselRequestSpec()
         dc_req_spec.pack(res)
         # submit iDDS stage-in reqeust
-        ret = data_carousel_interface._submit_idds_stagein_request(dc_req_spec)
+        ret = data_carousel_interface._submit_idds_stagein_request(task_id, dc_req_spec)
         print(f"Done submit to iDDS; iDDS_requestID={ret}")
         break
 else:

@@ -1404,12 +1404,13 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def _submit_idds_stagein_request(self, dc_req_spec: DataCarouselRequestSpec) -> Any:
+    def _submit_idds_stagein_request(self, task_id: int, dc_req_spec: DataCarouselRequestSpec) -> Any:
         """
-        Submit corresponding iDDS stage-in request
+        Submit corresponding iDDS stage-in request for given Data Carousel request and task
         Currently only used for manual testing or after resubmitting Data Carousel requests
 
         Args:
+            task_id (int): jediTaskID of the task
             dc_req_spec (DataCarouselRequestSpec): request to submit iDDS stage-in request
 
         Returns:
@@ -1442,7 +1443,27 @@ class DataCarouselInterface(object):
         ret = c.add_request(**req)
         tmp_log.debug(f"done submit; iDDS_requestID={ret}")
         # return
-        return dc_req_spec_resubmitted
+        return ret
+
+    def _get_related_tasks(self, request_id: int) -> list[int] | None:
+        """
+        Get all related tasks to the give request
+
+        Args:
+            request_id (int): request_id of the request
+
+        Returns:
+            list[int]|None : list of jediTaskID of related tasks, or None if failed
+        """
+        # tmp_log = MsgWrapper(logger, f"_get_related_tasks request_id={request_id}")
+        sql = f"SELECT task_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations " f"WHERE request_id=:request_id " f"ORDER BY task_id "
+        var_map = {":request_id": request_id}
+        res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
+        if res is not None:
+            ret_list = [x[0] for x in res]
+            return ret_list
+        else:
+            return None
 
     def resubmit_request(self, request_id: int, submit_idds_request=True) -> DataCarouselRequestSpec | None:
         """
@@ -1462,10 +1483,18 @@ class DataCarouselInterface(object):
             new_request_id = dc_req_spec_resubmitted.request_id
             tmp_log.debug(f"resubmitted request_id={new_request_id}")
             if submit_idds_request:
-                self._submit_idds_stagein_request(new_request_id)
-                tmp_log.debug(f"submitted corresponding iDDS request")
+                # to submit iDDS staging requests
+                # get all tasks related to this request
+                task_id_list = self._get_related_tasks(new_request_id)
+                if task_id_list:
+                    tmp_log.debug(f"related tasks: {task_id_list}")
+                    for task_id in task_id_list:
+                        self._submit_idds_stagein_request(task_id, new_request_id)
+                    tmp_log.debug(f"submitted corresponding iDDS requests for related tasks")
+                else:
+                    tmp_log.warning(f"failed to get related tasks; skipped to submit iDDS requests")
         elif dc_req_spec_resubmitted is False:
-            tmp_log.warning(f"request not found or not in statgin; skipped")
+            tmp_log.warning(f"request not found or not in statging; skipped")
         else:
             tmp_log.error(f"failed to resubmit")
         # return
