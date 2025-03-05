@@ -8,7 +8,10 @@ from dataclasses import MISSING, InitVar, asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+import idds.common.constants
+import idds.common.utils
 import polars as pl
+from idds.client.client import Client as iDDS_Client
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.base import SpecBase
 from pandacommon.pandautils.PandaUtils import naive_utcnow
@@ -1084,13 +1087,12 @@ class DataCarouselInterface(object):
         tmp_log = MsgWrapper(logger, f"stage_request request_id={dc_req_spec.request_id}")
         is_ok = False
         # check existing DDM rule of the dataset
-        if dc_req_spec.ddm_rule_id is not None:
+        if (ddm_rule_id := dc_req_spec.ddm_rule_id) is not None:
             # DDM rule exists; no need to submit
             tmp_log.debug(f"dataset={dc_req_spec.dataset} already has active DDM rule ddm_rule_id={ddm_rule_id}")
         else:
             # no existing rule; submit DDM rule
             ddm_rule_id = self._submit_ddm_rule(dc_req_spec)
-            now_time = naive_utcnow()
             if ddm_rule_id:
                 # DDM rule submitted; update ddm_rule_id
                 dc_req_spec.ddm_rule_id = ddm_rule_id
@@ -1100,6 +1102,7 @@ class DataCarouselInterface(object):
                 tmp_log.warning(f"failed to submitted DDM rule ; skipped")
                 return is_ok
         # update request to be staging
+        now_time = naive_utcnow()
         dc_req_spec.status = DataCarouselRequestStatus.staging
         dc_req_spec.start_time = now_time
         ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
@@ -1401,7 +1404,68 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def resubmit_request(self, request_id: int) -> DataCarouselRequestSpec | None:
+    def _submit_idds_stagein_request(self, task_id: int, dc_req_spec: DataCarouselRequestSpec) -> Any:
+        """
+        Submit corresponding iDDS stage-in request for given Data Carousel request and task
+        Currently only used for manual testing or after resubmitting Data Carousel requests
+
+        Args:
+            task_id (int): jediTaskID of the task
+            dc_req_spec (DataCarouselRequestSpec): request to submit iDDS stage-in request
+
+        Returns:
+            Any : iDDS requests ID returned from iDDS
+        """
+        tmp_log = MsgWrapper(logger, f"_submit_idds_stagein_request request_id={dc_req_spec.request_id}")
+        # dataset and rule_id
+        dataset = dc_req_spec.dataset
+        rule_id = dc_req_spec.ddm_rule_id
+        ds_str_list = dataset.split(":")
+        tmp_scope = ds_str_list[0]
+        tmp_name = ds_str_list[1]
+        # iDDS request
+        c = iDDS_Client(idds.common.utils.get_rest_host())
+        req = {
+            "scope": tmp_scope,
+            "name": tmp_name,
+            "requester": "panda",
+            "request_type": idds.common.constants.RequestType.StageIn,
+            "transform_tag": idds.common.constants.RequestType.StageIn.value,
+            "status": idds.common.constants.RequestStatus.New,
+            "priority": 0,
+            "lifetime": 30,
+            "request_metadata": {
+                "workload_id": task_id,
+                "rule_id": rule_id,
+            },
+        }
+        tmp_log.debug(f"iDDS request: {req}")
+        ret = c.add_request(**req)
+        tmp_log.debug(f"done submit; iDDS_requestID={ret}")
+        # return
+        return ret
+
+    def _get_related_tasks(self, request_id: int) -> list[int] | None:
+        """
+        Get all related tasks to the give request
+
+        Args:
+            request_id (int): request_id of the request
+
+        Returns:
+            list[int]|None : list of jediTaskID of related tasks, or None if failed
+        """
+        # tmp_log = MsgWrapper(logger, f"_get_related_tasks request_id={request_id}")
+        sql = f"SELECT task_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations " f"WHERE request_id=:request_id " f"ORDER BY task_id "
+        var_map = {":request_id": request_id}
+        res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
+        if res is not None:
+            ret_list = [x[0] for x in res]
+            return ret_list
+        else:
+            return None
+
+    def resubmit_request(self, request_id: int, submit_idds_request=True) -> DataCarouselRequestSpec | None:
         """
         Resubmit a request
         The request must be in statging status
@@ -1416,9 +1480,21 @@ class DataCarouselInterface(object):
         # resubmit
         dc_req_spec_resubmitted = self.taskBufferIF.resubmit_data_carousel_request_JEDI(request_id)
         if dc_req_spec_resubmitted:
-            tmp_log.debug(f"resubmitted request_id={dc_req_spec_resubmitted.request_id}")
+            new_request_id = dc_req_spec_resubmitted.request_id
+            tmp_log.debug(f"resubmitted request_id={new_request_id}")
+            if submit_idds_request:
+                # to submit iDDS staging requests
+                # get all tasks related to this request
+                task_id_list = self._get_related_tasks(new_request_id)
+                if task_id_list:
+                    tmp_log.debug(f"related tasks: {task_id_list}")
+                    for task_id in task_id_list:
+                        self._submit_idds_stagein_request(task_id, new_request_id)
+                    tmp_log.debug(f"submitted corresponding iDDS requests for related tasks")
+                else:
+                    tmp_log.warning(f"failed to get related tasks; skipped to submit iDDS requests")
         elif dc_req_spec_resubmitted is False:
-            tmp_log.warning(f"request not found or not in statgin; skipped")
+            tmp_log.warning(f"request not found or not in staging; skipped")
         else:
             tmp_log.error(f"failed to resubmit")
         # return
