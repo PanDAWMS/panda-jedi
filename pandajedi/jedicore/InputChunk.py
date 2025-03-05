@@ -353,6 +353,7 @@ class InputChunk:
                 break
             # get size
             tmpAtomSize = 0
+            lfn_set = set()
             for tmpDatasetSpec, tmpFileSpecList in subChunk:
                 if (effectiveSize or getNumEvents) and not tmpDatasetSpec.isMaster():
                     continue
@@ -362,6 +363,9 @@ class InputChunk:
                     elif getNumEvents:
                         tmpAtomSize += tmpFileSpec.getEffectiveNumEvents()
                     else:
+                        if tmpFileSpec.lfn in lfn_set:
+                            continue
+                        lfn_set.add(tmpFileSpec.lfn)
                         tmpAtomSize += tmpFileSpec.fsize
             if maxAtomSize < tmpAtomSize:
                 maxAtomSize = tmpAtomSize
