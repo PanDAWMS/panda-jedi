@@ -126,7 +126,7 @@ def get_initial_global_share(task_buffer, task_id, task_spec=None, task_param_ma
             _, task_spec = task_buffer.getTaskWithID_JEDI(task_id)
         # get share based on definition
         gshare = task_buffer.get_share_for_task(task_spec)
-        if gshare is None:
+        if gshare == "Undefined":
             error_message = "task definition does not match any global share"
             raise RuntimeError(error_message)
     return gshare
