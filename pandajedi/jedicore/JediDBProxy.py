@@ -15334,14 +15334,13 @@ class DBProxy(OraDBProxy.DBProxy):
             ret_req = self.cur.rowcount
             if not ret_req:
                 tmp_log.warning(f"already terminated; cannot be cancelled ; skipped")
-                return
             else:
                 tmp_log.debug(f"cancelled request")
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            return True
+            return ret_req
         except Exception:
             # roll back
             self._rollback()
