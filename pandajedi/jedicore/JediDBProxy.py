@@ -14962,6 +14962,8 @@ class DBProxy(OraDBProxy.DBProxy):
             # insert requests
             n_req_inserted = 0
             n_rel_inserted = 0
+            n_req_reused = 0
+            n_rel_reused = 0
             for dc_req_spec in dc_req_specs:
                 # sql to query request of the dataset
                 sql_query = f"SELECT request_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dataset=:dataset AND status<>:antistatus "
@@ -14974,6 +14976,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     # have existing request; reuse it
                     for (request_id,) in res:
                         the_request_id = request_id
+                        n_req_reused += 1
                         break
                 else:
                     # no existing request; insert new one
@@ -14990,18 +14993,32 @@ class DBProxy(OraDBProxy.DBProxy):
                     n_req_inserted += 1
                 if the_request_id is None:
                     raise RuntimeError("the_request_id is None")
-                # sql to insert relation
-                sql_insert_relation = (
-                    f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_relations (request_id, task_id) " f"VALUES(:request_id, :task_id) "
+                # sql to query relation
+                sql_rel_query = (
+                    f"SELECT request_id, task_id "
+                    f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations "
+                    f"WHERE request_id=:request_id AND task_id=:task_id "
                 )
                 var_map = {":request_id": the_request_id, ":task_id": task_id}
-                self.cur.execute(sql_insert_relation + comment, var_map)
-                n_rel_inserted += 1
+                self.cur.execute(sql_rel_query + comment, var_map)
+                res = self.cur.fetchall()
+                if res:
+                    # have existing relation; skipped
+                    n_rel_reused += 1
+                else:
+                    # sql to insert relation
+                    sql_insert_relation = (
+                        f"INSERT INTO {jedi_config.db.schemaJEDI}.data_carousel_relations (request_id, task_id) " f"VALUES(:request_id, :task_id) "
+                    )
+                    self.cur.execute(sql_insert_relation + comment, var_map)
+                    n_rel_inserted += 1
             # commit
             if not self._commit():
                 raise RuntimeError("Commit error")
             # return
-            tmp_log.debug(f"inserted {n_req_inserted}/{len(dc_req_specs)} requests and {n_rel_inserted} relations")
+            tmp_log.debug(
+                f"inserted {n_req_inserted}/{len(dc_req_specs)} requests and {n_rel_inserted} relations ; reused {n_req_reused} requests and {n_rel_reused} relations"
+            )
             return n_req_inserted
         except Exception:
             # roll back
