@@ -3654,9 +3654,6 @@ class DBProxy(OraDBProxy.DBProxy):
                 "(SELECT j.PandaID,f.datasetID FROM {0}.jobsDefined4 j, {0}.filesTable4 f "
                 "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
                 "UNION "
-                "SELECT j.PandaID,f.datasetID FROM {0}.jobsWaiting4 j, {0}.filesTable4 f "
-                "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
-                "UNION "
                 "SELECT j.PandaID,f.datasetID FROM {0}.jobsActive4 j, {0}.filesTable4 f "
                 "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type) "
                 "MINUS "
@@ -8345,7 +8342,6 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get PandaIDs
             tables = [
                 f"{jedi_config.db.schemaPANDA}.jobsDefined4",
-                f"{jedi_config.db.schemaPANDA}.jobsWaiting4",
                 f"{jedi_config.db.schemaPANDA}.jobsActive4",
             ]
             if not onlyActive:
@@ -8391,7 +8387,6 @@ class DBProxy(OraDBProxy.DBProxy):
             # sql to get PandaIDs
             tables = [
                 f"{jedi_config.db.schemaPANDA}.jobsDefined4",
-                f"{jedi_config.db.schemaPANDA}.jobsWaiting4",
                 f"{jedi_config.db.schemaPANDA}.jobsActive4",
             ]
             sqlP = ""
@@ -12184,10 +12179,6 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         try:
             # sql
-            sql = "SELECT PandaID,jobStatus,computingSite "
-            sql += f"FROM {jedi_config.db.schemaPANDA}.jobsWaiting4 "
-            sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
-            sql += "UNION "
             sql += "SELECT PandaID,jobStatus,computingSite "
             sql += f"FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
@@ -13204,8 +13195,6 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileid=:fileID "
             sqlP += "ORDER BY PandaID DESC "
             # sql to check jobs
-            sqlJ = f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsWaiting4 WHERE PandaID=:PandaID "
-            sqlJ += "UNION "
             sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsDefined4 WHERE PandaID=:PandaID "
             sqlJ += "UNION "
             sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsActive4 WHERE PandaID=:PandaID "
