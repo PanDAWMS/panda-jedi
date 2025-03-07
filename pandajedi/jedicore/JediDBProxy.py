@@ -12179,7 +12179,7 @@ class DBProxy(OraDBProxy.DBProxy):
         tmpLog.debug("start")
         try:
             # sql
-            sql += "SELECT PandaID,jobStatus,computingSite "
+            sql = "SELECT PandaID,jobStatus,computingSite "
             sql += f"FROM {jedi_config.db.schemaPANDA}.jobsDefined4 "
             sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
             sql += "UNION "
@@ -13195,7 +13195,7 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileid=:fileID "
             sqlP += "ORDER BY PandaID DESC "
             # sql to check jobs
-            sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsDefined4 WHERE PandaID=:PandaID "
+            sqlJ = f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsDefined4 WHERE PandaID=:PandaID "
             sqlJ += "UNION "
             sqlJ += f"SELECT 1 FROM {jedi_config.db.schemaPANDA}.jobsActive4 WHERE PandaID=:PandaID "
             # sql to get files
