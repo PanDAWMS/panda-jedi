@@ -60,6 +60,7 @@ class DataCarouselRequestStatus(object):
 
     active_statuses = [queued, staging]
     final_statuses = [done, cancelled]
+    unfinished_statuses = [staging, cancelled]
 
 
 class DataCarouselRequestSpec(SpecBase):
@@ -982,8 +983,10 @@ class DataCarouselInterface(object):
             tmp_df = queued_requests_df.filter(pl.col("source_tape") == source_tape)
             # get cumulative sum of queued files per physical tape
             tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
+            # number of queued requests at the physical tape
+            n_queued = len(tmp_df)
             # print dataframe in log
-            if len(tmp_df):
+            if n_queued:
                 tmp_to_print_df = tmp_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare", "gshare_rank", "task_priority", "total_files", "cum_total_files"]
                 )
@@ -992,19 +995,19 @@ class DataCarouselInterface(object):
                     ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
                 )
                 tmp_log.debug(f"  source_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
-            # filter requests within the tape quota size
-            tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
+            # filter requests to respect the tape quota size; at most one request can reach or exceed quota size
+            to_stage_df = pl.concat([tmp_df.filter(pl.col("cum_total_files") < quota_size), tmp_df.filter(pl.col("cum_total_files") >= quota_size).head(1)])
             # append the requests to ret_list
-            request_id_list = tmp_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            request_id_list = to_stage_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
             sub_count = 0
             for request_id in request_id_list:
                 dc_req_spec = request_id_spec_map.get(request_id)
                 if dc_req_spec:
                     ret_list.append(dc_req_spec)
                     sub_count += 1
-            if sub_count > 0:
-                tmp_log.debug(f"source_tape={source_tape} got {sub_count} requests")
-        tmp_log.debug(f"totally got {len(ret_list)} requests")
+            if n_queued:
+                tmp_log.debug(f"source_tape={source_tape} got {sub_count}/{n_queued} requests to stage")
+        tmp_log.debug(f"totally got {len(ret_list)} requests to stage")
         # return
         return ret_list
 
@@ -1326,35 +1329,71 @@ class DataCarouselInterface(object):
         # summary
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
-    def clean_up_requests(self, terminated_time_limit_days=15, outdated_time_limit_days=30):
+    def cancel_request(self, request_id: int, manual: bool = True) -> bool | None:
+        """
+        Cancel a request
+
+        Args:
+            request_id (int): reqeust_id of the request to cancel
+            manual (bool): whehter the method is called manually
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} manual={manual}")
+        # cancel
+        ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
+        if ret:
+            tmp_log.debug(f"cancelled")
+        elif ret == 0:
+            tmp_log.debug(f"already terminated; skipped")
+        else:
+            tmp_log.error(f"failed to cancel")
+        # return
+        return ret
+
+    def clean_up_requests(self, done_time_limit_days=30, outdated_time_limit_days=30):
         """
         Clean up terminated and outdated requests
+
+        Args:
+            rule_id (str): DDM rule ID
+            lifetime (int): lifetime in seconds to set
         """
         tmp_log = MsgWrapper(logger, "clean_up_requests")
         try:
             # initialize
-            terminated_requests_set = set()
+            done_requests_set = set()
+            cancelled_requests_set = set()
             # get requests of terminated and active tasks
             terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
                 status_filter_list=final_task_statuses
             )
             active_tasks_requests_map, _ = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
             now_time = naive_utcnow()
-            # loop over terminated tasks
-            for task_id, request_id_list in terminated_tasks_relation_map.items():
-                for request_id in request_id_list:
-                    if request_id in active_tasks_requests_map:
-                        # the request is also mapped to some active task, not to be cleaned up; skipped
-                        continue
-                    dc_req_spec = terminated_tasks_requests_map[request_id]
-                    if dc_req_spec.status in DataCarouselRequestStatus.final_statuses and (
-                        (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=terminated_time_limit_days))
-                        or dc_req_spec.parameter_map.get("rule_unfound")
-                    ):
-                        # request terminated and old enough or DDM rule not found
-                        terminated_requests_set.add(request_id)
-            # delete ddm rules of terminate requests
-            for request_id in terminated_requests_set:
+            # set of requests of terminated tasks
+            request_ids_of_terminated_tasks = set()
+            for request_id_list in terminated_tasks_relation_map.values():
+                request_ids_of_terminated_tasks |= set(request_id_list)
+            # loop over requests
+            for request_id in request_ids_of_terminated_tasks:
+                if request_id in active_tasks_requests_map:
+                    # the request is also mapped to some active task, not to be cleaned up; skipped
+                    continue
+                dc_req_spec = terminated_tasks_requests_map[request_id]
+                if dc_req_spec.status == DataCarouselRequestStatus.done and (
+                    (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=done_time_limit_days))
+                ):
+                    # requests done and old enough; to clean up
+                    done_requests_set.add(request_id)
+                elif dc_req_spec.status == DataCarouselRequestStatus.staging:
+                    # requests staging while related tasks all terminated or DDM rule not found; to cancel (not to clean up immediately)
+                    self.cancel_request(request_id, manual=False)
+                elif dc_req_spec.status == DataCarouselRequestStatus.cancelled:
+                    # requests cancelled; to clean up
+                    cancelled_requests_set.add(request_id)
+            # delete ddm rules of terminated requests of terminated tasks
+            for request_id in done_requests_set | cancelled_requests_set:
                 dc_req_spec = terminated_tasks_requests_map[request_id]
                 ddm_rule_id = dc_req_spec.ddm_rule_id
                 if ddm_rule_id:
@@ -1366,13 +1405,22 @@ class DataCarouselInterface(object):
                             tmp_log.debug(f"request_id={request_id} ddm_rule_id={ddm_rule_id} deleted DDM rule")
                     except Exception:
                         tmp_log.error(f"request_id={request_id} ddm_rule_id={ddm_rule_id} failed to delete DDM rule; {traceback.format_exc()}")
-            # delete terminated requests
-            if terminated_requests_set:
-                ret_terminated = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(terminated_requests_set))
-                if ret_terminated is None:
-                    tmp_log.warning(f"failed to delete terminated requests; skipped")
-                else:
-                    tmp_log.debug(f"deleted {ret_terminated} terminated requests older than {terminated_time_limit_days} days or with DDM rule not found")
+            # delete terminated requests of terminated tasks
+            if done_requests_set or cancelled_requests_set:
+                if done_requests_set:
+                    # done requests
+                    ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(done_requests_set))
+                    if ret is None:
+                        tmp_log.warning(f"failed to delete done requests; skipped")
+                    else:
+                        tmp_log.debug(f"deleted {ret} done requests older than {done_time_limit_days} days")
+                if cancelled_requests_set:
+                    # cancelled requests
+                    ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(cancelled_requests_set))
+                    if ret is None:
+                        tmp_log.warning(f"failed to delete cancelled requests; skipped")
+                    else:
+                        tmp_log.debug(f"deleted {ret} cancelled requests")
             else:
                 tmp_log.debug(f"no terminated requests to delete; skipped")
             # clean up outdated requests
@@ -1383,26 +1431,6 @@ class DataCarouselInterface(object):
                 tmp_log.debug(f"deleted {ret_outdated} outdated requests older than {outdated_time_limit_days} days")
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
-
-    def cancel_request(self, request_id: int) -> bool | None:
-        """
-        Cancel a request
-
-        Args:
-            request_id (int): reqeust_id of the request to cancel
-
-        Returns:
-            bool|None : True for success, None otherwise
-        """
-        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id}")
-        # cancel
-        ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
-        if ret:
-            tmp_log.debug(f"cancelled")
-        else:
-            tmp_log.error(f"failed to cancel")
-        # return
-        return ret
 
     def _submit_idds_stagein_request(self, task_id: int, dc_req_spec: DataCarouselRequestSpec) -> Any:
         """
