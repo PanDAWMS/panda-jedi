@@ -983,8 +983,10 @@ class DataCarouselInterface(object):
             tmp_df = queued_requests_df.filter(pl.col("source_tape") == source_tape)
             # get cumulative sum of queued files per physical tape
             tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
+            # number of queued requests at the physical tape
+            n_queued = len(tmp_df)
             # print dataframe in log
-            if len(tmp_df):
+            if n_queued:
                 tmp_to_print_df = tmp_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare", "gshare_rank", "task_priority", "total_files", "cum_total_files"]
                 )
@@ -993,19 +995,19 @@ class DataCarouselInterface(object):
                     ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
                 )
                 tmp_log.debug(f"  source_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
-            # filter requests within the tape quota size
-            tmp_df = tmp_df.filter(pl.col("cum_total_files") <= quota_size)
+            # filter requests to respect the tape quota size; at most one request can reach or exceed quota size
+            to_stage_df = pl.concat([tmp_df.filter(pl.col("cum_total_files") < quota_size), tmp_df.filter(pl.col("cum_total_files") >= quota_size).head(1)])
             # append the requests to ret_list
-            request_id_list = tmp_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            request_id_list = to_stage_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
             sub_count = 0
             for request_id in request_id_list:
                 dc_req_spec = request_id_spec_map.get(request_id)
                 if dc_req_spec:
                     ret_list.append(dc_req_spec)
                     sub_count += 1
-            if sub_count > 0:
-                tmp_log.debug(f"source_tape={source_tape} got {sub_count} requests")
-        tmp_log.debug(f"totally got {len(ret_list)} requests")
+            if n_queued:
+                tmp_log.debug(f"source_tape={source_tape} got {sub_count}/{n_queued} requests to stage")
+        tmp_log.debug(f"totally got {len(ret_list)} requests to stage")
         # return
         return ret_list
 
