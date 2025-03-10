@@ -670,6 +670,7 @@ class DataCarouselInterface(object):
                 "pseudo_coll_list": [],
                 "unfound_coll_list": [],
                 "empty_coll_list": [],
+                "no_tape_coll_did_list": [],
                 "tape_ds_list": [],
                 "datadisk_ds_list": [],
                 "unfound_ds_list": [],
@@ -695,6 +696,7 @@ class DataCarouselInterface(object):
                     tmp_log.warning(f"collection={collection} is empty ; skipped")
                     continue
                 # check source of each dataset
+                got_on_tape = False
                 for dataset in dataset_list:
                     # get source type and RSEs
                     source_type, rse_set, staging_rule = self._get_source_type_of_dataset(dataset, active_source_rses_set)
@@ -705,6 +707,7 @@ class DataCarouselInterface(object):
                         continue
                     elif source_type == "tape":
                         # replicas only on tape
+                        got_on_tape = True
                         ret_map["tape_ds_list"].append(dataset)
                         tmp_log.debug(f"dataset={dataset} on tapes {list(rse_set)} ; choosing one")
                         # choose source RSE
@@ -717,6 +720,10 @@ class DataCarouselInterface(object):
                         ret_map["unfound_ds_list"].append(dataset)
                         tmp_log.debug(f"dataset={dataset} has no replica on any tape or datadisk ; skipped")
                         continue
+                # collection DID without datasets on tape
+                if not got_on_tape:
+                    collection_did = self.ddmIF.get_did_str(collection)
+                    ret_map["no_tape_coll_did_list"].append(collection_did)
             # return
             tmp_log.debug(f"got {len(ret_prestaging_list)} input datasets to prestage")
             return ret_prestaging_list, ret_map
