@@ -108,7 +108,7 @@ class TaskRefinerThread(WorkerThread):
                 # loop over all tasks
                 for jediTaskID, splitRule, taskStatus, parent_tid in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger, f"< jediTaskID={jediTaskID} >")
+                    tmpLog = MsgWrapper(self.logger, f"< jediTaskID={jediTaskID} >", monToken=f"<jediTaskID={jediTaskID}>")
                     tmpLog.debug("start")
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ""
@@ -223,7 +223,8 @@ class TaskRefinerThread(WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # data carousel (input pre-staging) ; currently only for analysis tasks
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        # set of datasets not requiring staging
+                        # set of datasets requiring and not requiring staging
+                        to_staging_datasets = set()
                         no_staging_datasets = set()
                         # check datasets to pre-stage
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
@@ -267,12 +268,15 @@ class TaskRefinerThread(WorkerThread):
                                             no_staging_datasets.update(set(unfound_ds_list))
                                     if not unfound_coll_list or not taskParamMap.get("waitInput"):
                                         # all input collections do not need staging (found, or unfound but waiting)
-                                        tmpLog.debug("no need to prestage, try to resume task from staging")
+                                        tmpLog.info("no need to prestage, try to resume task from staging")
                                         # no dataset needs pre-staging; resume task from staging
                                         self.taskBufferIF.sendCommandTaskPanda(
                                             jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
                                         )
                                 else:
+                                    if tape_ds_list := ds_list_dict["tape_ds_list"]:
+                                        # update to_staging_datasets with datasets only on tapes
+                                        to_staging_datasets.update(set(tape_ds_list))
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
                                     tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
@@ -424,7 +428,11 @@ class TaskRefinerThread(WorkerThread):
                                 for dataset_spec in impl.inMasterDatasetSpec:
                                     dataset_name = dataset_spec.datasetName
                                     dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
-                                    if dataset_name in no_staging_datasets or dataset_did in no_staging_datasets:
+                                    if (
+                                        dataset_name in no_staging_datasets
+                                        or dataset_did in no_staging_datasets
+                                        or (dataset_name not in to_staging_datasets and dataset_did not in to_staging_datasets)
+                                    ):
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_name)
                                 if tmp_ds_set:
