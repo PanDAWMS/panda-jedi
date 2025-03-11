@@ -75,7 +75,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                     # about files or datasets in good status
                     if msg_type == "file_stagein":
                         tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, update about files...")
-                        res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
+                        res = self.tbIF.updateInputFilesStaged_JEDI(jeditaskid, scope, name_dict, by="iDDS")
                         if res is None:
                             # got error and rollback in dbproxy
                             err_str = f"jeditaskid={jeditaskid}, scope={scope}, failed to update files"
@@ -83,7 +83,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                         tmp_log.info(f"jeditaskid={jeditaskid}, scope={scope}, updated {res} files")
                     elif msg_type == "collection_stagein":
                         tmp_log.debug(f"jeditaskid={jeditaskid}, scope={scope}, update about datasets...")
-                        res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
+                        res = self.tbIF.updateInputDatasetsStaged_JEDI(jeditaskid, scope, name_dict, by="iDDS")
                         if res is None:
                             # got error and rollback in dbproxy
                             err_str = f"jeditaskid={jeditaskid}, scope={scope}, failed to update datasets"

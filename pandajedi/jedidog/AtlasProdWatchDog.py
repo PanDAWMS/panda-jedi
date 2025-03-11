@@ -317,7 +317,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
                 if total_all_ok:
                     # all rules ok; provoke the task
                     gTmpLog.info(f"provoking task {task_id}")
-                    self.taskBufferIF.updateInputDatasetsStagedAboutIdds_JEDI(task_id, None, None)
+                    self.taskBufferIF.updateInputDatasetsStaged_JEDI(task_id, None, None, by="AtlasProdWatchDog")
                     gTmpLog.info(f"all staging rules of task {task_id} are OK; provoked")
                 else:
                     gTmpLog.debug(f"not all staging rules of task {task_id} are OK; skipped ")

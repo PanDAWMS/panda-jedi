@@ -8165,7 +8165,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     if isOK:
                         # actions in transaction
                         if commandStr == "release":
-                            self.updateInputDatasetsStagedAboutIdds_JEDI(jediTaskID, None, use_commit=False)
+                            self.updateInputDatasetsStaged_JEDI(jediTaskID, None, use_commit=False, by="release")
                     if isOK and update_task:
                         # update task status
                         varMap = {}
@@ -9836,8 +9836,8 @@ class DBProxy(OraDBProxy.DBProxy):
                                 changedMasterList.append(datasetID)
                                 # release unstaged
                                 if release_unstaged:
-                                    self.updateInputDatasetsStagedAboutIdds_JEDI(
-                                        jediTaskID, datasetName.split(":")[0], [datasetName.split(":")[-1]], use_commit=False
+                                    self.updateInputDatasetsStaged_JEDI(
+                                        jediTaskID, datasetName.split(":")[0], [datasetName.split(":")[-1]], use_commit=False, by="retry"
                                     )
                         # update secondary
                         for masterID in changedMasterList:
@@ -13309,11 +13309,13 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmp_log)
             return {}
 
-    # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500):
-        comment = " /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */"
+    # update input files stage-in done (according to message from iDDS, called by other methods, etc.)
+    def updateInputFilesStaged_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500, by=None):
+        comment = " /* JediDBProxy.updateInputFilesStaged_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" < jediTaskID={jeditaskid} >"
+        if by:
+            methodName += f" by={by}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
@@ -13548,11 +13550,13 @@ class DBProxy(OraDBProxy.DBProxy):
             self.cur.execute(sqlUD + comment, varMap)
             tmpLog.debug(f"updated {n} files for datasetID={secondaryID}")
 
-    # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict=None, use_commit=True):
-        comment = " /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */"
+    # update input datasets stage-in done (according to message from iDDS, called by other methods, etc.)
+    def updateInputDatasetsStaged_JEDI(self, jeditaskid, scope, dsnames_dict=None, use_commit=True, by=None):
+        comment = " /* JediDBProxy.updateInputDatasetsStaged_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += f" < jediTaskID={jeditaskid} >"
+        if by:
+            methodName += f" by={by}"
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:

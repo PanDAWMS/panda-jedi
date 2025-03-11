@@ -170,11 +170,11 @@ class TaskRefinerThread(WorkerThread):
                                     if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
                                         # enable input pre-staging for all users
                                         taskParamMap["inputPreStaging"] = True
-                                        tmpLog.debug(f"set inputPreStaging for data carousel ALL users")
+                                        tmpLog.info(f"set inputPreStaging for data carousel ALL users")
                                     elif (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
                                         # enable input pre-staging for early access user
                                         taskParamMap["inputPreStaging"] = True
-                                        tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
+                                        tmpLog.info(f"set inputPreStaging for data carousel early access user {user_name}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust task parameters with {errtype.__name__}:{errvalue}"
@@ -249,6 +249,9 @@ class TaskRefinerThread(WorkerThread):
                                             # not to wait input; update no_staging_datasets with unfound input collections
                                             tmpLog.debug(f"some input collections not found: {unfound_coll_list}")
                                             no_staging_datasets.update(set(unfound_coll_list))
+                                    if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
+                                        # update no_staging_datasets for all collections without constituent datasets on tape source
+                                        no_staging_datasets.update(set(no_tape_coll_did_list))
                                     if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
                                         tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
@@ -419,14 +422,16 @@ class TaskRefinerThread(WorkerThread):
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
                                 for dataset_spec in impl.inMasterDatasetSpec:
-                                    if dataset_spec.datasetName in no_staging_datasets:
+                                    dataset_name = dataset_spec.datasetName
+                                    dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                    if dataset_name in no_staging_datasets or dataset_did in no_staging_datasets:
                                         dataset_spec.set_no_staging(True)
-                                        tmp_ds_set.add(dataset_spec.datasetName)
+                                        tmp_ds_set.add(dataset_name)
                                 if tmp_ds_set:
                                     tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
-                            errStr = f"failed to adjust spect after refining {errtype.__name__}:{errvalue}"
+                            errStr = f"failed to adjust spec after refining {errtype.__name__}:{errvalue}"
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # register
