@@ -1336,18 +1336,18 @@ class DataCarouselInterface(object):
         # summary
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
-    def cancel_request(self, request_id: int, manual: bool = True) -> bool | None:
+    def cancel_request(self, request_id: int, by: str = "manual") -> bool | None:
         """
         Cancel a request
 
         Args:
             request_id (int): reqeust_id of the request to cancel
-            manual (bool): whehter the method is called manually
+            by (str): annotation of the caller of this method; default is "manual"
 
         Returns:
             bool|None : True for success, None otherwise
         """
-        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} manual={manual}")
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}")
         # cancel
         ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
         if ret:
@@ -1359,13 +1359,14 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def clean_up_requests(self, done_time_limit_days=30, outdated_time_limit_days=30):
+    def clean_up_requests(self, done_age_limit_days: int | float = 30, outdated_age_limit_days: int | float = 30, by: str = "watchdog"):
         """
         Clean up terminated and outdated requests
 
         Args:
-            rule_id (str): DDM rule ID
-            lifetime (int): lifetime in seconds to set
+            done_age_limit_days (int|float): age limit in days for requests done and without active tasks
+            outdated_age_limit_days (int|float): age limit in days for outdated requests
+            by (str): annotation of the caller of this method; default is "watchdog"
         """
         tmp_log = MsgWrapper(logger, "clean_up_requests")
         try:
@@ -1389,13 +1390,13 @@ class DataCarouselInterface(object):
                     continue
                 dc_req_spec = terminated_tasks_requests_map[request_id]
                 if dc_req_spec.status == DataCarouselRequestStatus.done and (
-                    (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=done_time_limit_days))
+                    (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=done_age_limit_days))
                 ):
                     # requests done and old enough; to clean up
                     done_requests_set.add(request_id)
                 elif dc_req_spec.status == DataCarouselRequestStatus.staging:
                     # requests staging while related tasks all terminated or DDM rule not found; to cancel (not to clean up immediately)
-                    self.cancel_request(request_id, manual=False)
+                    self.cancel_request(request_id, by=by)
                 elif dc_req_spec.status == DataCarouselRequestStatus.cancelled:
                     # requests cancelled; to clean up
                     cancelled_requests_set.add(request_id)
@@ -1420,7 +1421,7 @@ class DataCarouselInterface(object):
                     if ret is None:
                         tmp_log.warning(f"failed to delete done requests; skipped")
                     else:
-                        tmp_log.debug(f"deleted {ret} done requests older than {done_time_limit_days} days")
+                        tmp_log.debug(f"deleted {ret} done requests older than {done_age_limit_days} days")
                 if cancelled_requests_set:
                     # cancelled requests
                     ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(cancelled_requests_set))
@@ -1431,11 +1432,11 @@ class DataCarouselInterface(object):
             else:
                 tmp_log.debug(f"no terminated requests to delete; skipped")
             # clean up outdated requests
-            ret_outdated = self.taskBufferIF.clean_up_data_carousel_requests_JEDI(time_limit_days=outdated_time_limit_days)
+            ret_outdated = self.taskBufferIF.clean_up_data_carousel_requests_JEDI(time_limit_days=outdated_age_limit_days)
             if ret_outdated is None:
                 tmp_log.warning(f"failed to delete outdated requests; skipped")
             else:
-                tmp_log.debug(f"deleted {ret_outdated} outdated requests older than {outdated_time_limit_days} days")
+                tmp_log.debug(f"deleted {ret_outdated} outdated requests older than {outdated_age_limit_days} days")
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
 
