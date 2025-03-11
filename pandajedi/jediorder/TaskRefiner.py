@@ -170,11 +170,11 @@ class TaskRefinerThread(WorkerThread):
                                     if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
                                         # enable input pre-staging for all users
                                         taskParamMap["inputPreStaging"] = True
-                                        tmpLog.debug(f"set inputPreStaging for data carousel ALL users")
+                                        tmpLog.info(f"set inputPreStaging for data carousel ALL users")
                                     elif (user_name := taskParamMap.get("userName")) in dc_config_map.early_access_users:
                                         # enable input pre-staging for early access user
                                         taskParamMap["inputPreStaging"] = True
-                                        tmpLog.debug(f"set inputPreStaging for data carousel early access user {user_name}")
+                                        tmpLog.info(f"set inputPreStaging for data carousel early access user {user_name}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust task parameters with {errtype.__name__}:{errvalue}"
@@ -423,7 +423,7 @@ class TaskRefinerThread(WorkerThread):
                                 tmp_ds_set = set()
                                 for dataset_spec in impl.inMasterDatasetSpec:
                                     dataset_name = dataset_spec.datasetName
-                                    dataset_did = self.ddmIF.get_did_str(dataset_name)
+                                    dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
                                     if dataset_name in no_staging_datasets or dataset_did in no_staging_datasets:
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_name)
