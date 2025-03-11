@@ -274,6 +274,9 @@ class TaskRefinerThread(WorkerThread):
                                             jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
                                         )
                                 else:
+                                    if tape_coll_did_list := ds_list_dict["tape_coll_did_list"]:
+                                        # update to_staging_datasets with collections with datasets only on tapes
+                                        to_staging_datasets.update(set(tape_coll_did_list))
                                     if tape_ds_list := ds_list_dict["tape_ds_list"]:
                                         # update to_staging_datasets with datasets only on tapes
                                         to_staging_datasets.update(set(tape_ds_list))
