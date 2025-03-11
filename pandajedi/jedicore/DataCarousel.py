@@ -403,9 +403,11 @@ class DataCarouselInterface(object):
         """
         ret_map = {}
         for job_param in task_params_map.get("jobParameters", []):
-            dataset = job_param.get("dataset")
-            if dataset and job_param.get("param_type") in ["input", "pseudo_input"]:
-                ret_map[dataset] = job_param
+            # dataset names can be comma-separated
+            dataset_list = job_param.get("dataset").split(",")
+            for dataset in dataset_list:
+                if dataset and job_param.get("param_type") in ["input", "pseudo_input"]:
+                    ret_map[dataset] = job_param
         return ret_map
 
     def _get_full_replicas_per_type(self, dataset: str) -> dict:
