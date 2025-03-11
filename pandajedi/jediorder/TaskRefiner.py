@@ -108,7 +108,7 @@ class TaskRefinerThread(WorkerThread):
                 # loop over all tasks
                 for jediTaskID, splitRule, taskStatus, parent_tid in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger, f"< jediTaskID={jediTaskID} >")
+                    tmpLog = MsgWrapper(self.logger, f"< jediTaskID={jediTaskID} >", monToken=f"<jediTaskID={jediTaskID}>")
                     tmpLog.debug("start")
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ""
@@ -267,7 +267,7 @@ class TaskRefinerThread(WorkerThread):
                                             no_staging_datasets.update(set(unfound_ds_list))
                                     if not unfound_coll_list or not taskParamMap.get("waitInput"):
                                         # all input collections do not need staging (found, or unfound but waiting)
-                                        tmpLog.debug("no need to prestage, try to resume task from staging")
+                                        tmpLog.info("no need to prestage, try to resume task from staging")
                                         # no dataset needs pre-staging; resume task from staging
                                         self.taskBufferIF.sendCommandTaskPanda(
                                             jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
