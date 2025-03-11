@@ -828,14 +828,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getAvgDiskIO_JEDI()
 
     # update input files stage-in done (according to message from iDDS, called by other methods, etc.)
-    def updateInputFilesStaged_JEDI(self, jeditaskid, scope, filenames_dict, by=None):
+    def updateInputFilesStaged_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500, by=None):
         with self.proxyPool.get() as proxy:
-            return proxy.updateInputFilesStaged_JEDI(jeditaskid, scope, filenames_dict, by)
+            return proxy.updateInputFilesStaged_JEDI(jeditaskid, scope, filenames_dict, chunk_size, by)
 
     # update input datasets stage-in done (according to message from iDDS, called by other methods, etc.)
-    def updateInputDatasetsStaged_JEDI(self, jeditaskid, scope, dsnames_dict, by=None):
+    def updateInputDatasetsStaged_JEDI(self, jeditaskid, scope, dsnames_dict, use_commit=True, by=None):
         with self.proxyPool.get() as proxy:
-            return proxy.updateInputDatasetsStaged_JEDI(jeditaskid, scope, dsnames_dict, by)
+            return proxy.updateInputDatasetsStaged_JEDI(jeditaskid, scope, dsnames_dict, use_commit, by)
 
     # get number of staging files
     def getNumStagingFiles_JEDI(self, jeditaskid):
