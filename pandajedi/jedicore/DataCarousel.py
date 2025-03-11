@@ -695,6 +695,7 @@ class DataCarouselInterface(object):
                 "pseudo_coll_list": [],
                 "unfound_coll_list": [],
                 "empty_coll_list": [],
+                "tape_coll_did_list": [],
                 "no_tape_coll_did_list": [],
                 "tape_ds_list": [],
                 "datadisk_ds_list": [],
@@ -746,8 +747,10 @@ class DataCarouselInterface(object):
                         tmp_log.debug(f"dataset={dataset} has no replica on any tape or datadisk ; skipped")
                         continue
                 # collection DID without datasets on tape
-                if not got_on_tape:
-                    collection_did = self.ddmIF.get_did_str(collection)
+                collection_did = self.ddmIF.get_did_str(collection)
+                if got_on_tape:
+                    ret_map["tape_coll_did_list"].append(collection_did)
+                else:
                     ret_map["no_tape_coll_did_list"].append(collection_did)
             # return
             tmp_log.debug(f"got {len(ret_prestaging_list)} input datasets to prestage")
