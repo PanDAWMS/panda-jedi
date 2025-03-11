@@ -371,6 +371,26 @@ class DataCarouselInterface(object):
         except Exception:
             tmp_log.error(f"got error ; {traceback.format_exc()}")
 
+    def _get_related_tasks(self, request_id: int) -> list[int] | None:
+        """
+        Get all related tasks to the give request
+
+        Args:
+            request_id (int): request_id of the request
+
+        Returns:
+            list[int]|None : list of jediTaskID of related tasks, or None if failed
+        """
+        # tmp_log = MsgWrapper(logger, f"_get_related_tasks request_id={request_id}")
+        sql = f"SELECT task_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations " f"WHERE request_id=:request_id " f"ORDER BY task_id "
+        var_map = {":request_id": request_id}
+        res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
+        if res is not None:
+            ret_list = [x[0] for x in res]
+            return ret_list
+        else:
+            return None
+
     def _get_input_ds_from_task_params(self, task_params_map: dict) -> dict:
         """
         Get input datasets from tasks parameters
@@ -1191,6 +1211,47 @@ class DataCarouselInterface(object):
             except Exception:
                 tmp_log.error(f"request_id={dc_req_spec.request_id} got error ; {traceback.format_exc()}")
 
+    def _update_staged_files(self, dc_req_spec: DataCarouselRequestSpec) -> bool | None:
+        """
+        Update status of files in DB Jedi_Dataset_Contents for a request done staging
+
+        Args:
+            dc_req_spec (DataCarouselRequestSpec): spec of the request
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        tmp_log = MsgWrapper(logger, f"_update_staged_files request_id={dc_req_spec.request_id}")
+        try:
+            # get scope of dataset
+            dataset = dc_req_spec.dataset
+            scope, dsname = self.ddmIF.extract_scope(dataset)
+            # get lfn of files in the dataset from DDM
+            lfn_set = self.ddmIF.getFilesInDataset(dataset, ignoreUnknown=True, lfn_only=True)
+            # make filenames_dict for updateInputFilesStaged_JEDI
+            filenames_dict = {}
+            dummy_value_tuple = (None, None)
+            for lfn in lfn_set:
+                filenames_dict[lfn] = dummy_value_tuple
+            # get all related tasks to update staged files
+            task_id_list = self._get_related_tasks(dc_req_spec.request_id)
+            if task_id_list:
+                # tmp_log.debug(f"related tasks: {task_id_list}")
+                n_done_tasks = 0
+                for task_id in task_id_list:
+                    ret = self.taskBufferIF.updateInputFilesStaged_JEDI(task_id, scope, filenames_dict, by="DataCarousel")
+                    if ret is None:
+                        tmp_log.warning(f"failed to update files for task_id={task_id} ; skipped")
+                    else:
+                        n_done_tasks += 1
+                tmp_log.debug(f"updated staged files for {n_done_tasks}/{len(task_id_list)} related tasks")
+            else:
+                tmp_log.warning(f"failed to get related tasks; skipped")
+            # return
+            return True
+        except Exception:
+            tmp_log.error(f"got error ; {traceback.format_exc()}")
+
     def check_staging_requests(self):
         """
         Check staging requests
@@ -1266,6 +1327,13 @@ class DataCarouselInterface(object):
                             f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files; updated DB about staging ; status={dc_req_spec.status}"
                         )
                         dc_req_spec = ret
+                        if dc_req_spec.status == DataCarouselRequestStatus.done:
+                            # update staged files in DB for done requests
+                            tmp_ret = self._update_staged_files(dc_req_spec)
+                            if tmp_ret:
+                                tmp_log.debug(f"request_id={dc_req_spec.request_id} done; updated staged files")
+                            else:
+                                tmp_log.warning(f"request_id={dc_req_spec.request_id} done; failed to update staged files ; skipped")
                     else:
                         tmp_log.error(f"request_id={dc_req_spec.request_id} failed to update DB for ddm_rule_id={ddm_rule_id} ; skipped")
                         continue
@@ -1483,26 +1551,6 @@ class DataCarouselInterface(object):
         tmp_log.debug(f"done submit; iDDS_requestID={ret}")
         # return
         return ret
-
-    def _get_related_tasks(self, request_id: int) -> list[int] | None:
-        """
-        Get all related tasks to the give request
-
-        Args:
-            request_id (int): request_id of the request
-
-        Returns:
-            list[int]|None : list of jediTaskID of related tasks, or None if failed
-        """
-        # tmp_log = MsgWrapper(logger, f"_get_related_tasks request_id={request_id}")
-        sql = f"SELECT task_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_relations " f"WHERE request_id=:request_id " f"ORDER BY task_id "
-        var_map = {":request_id": request_id}
-        res = self.taskBufferIF.querySQL(sql, var_map, arraySize=99999)
-        if res is not None:
-            ret_list = [x[0] for x in res]
-            return ret_list
-        else:
-            return None
 
     def resubmit_request(self, request_id: int, submit_idds_request=True) -> DataCarouselRequestSpec | None:
         """
