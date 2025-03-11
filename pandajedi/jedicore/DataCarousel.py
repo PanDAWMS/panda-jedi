@@ -1248,7 +1248,8 @@ class DataCarouselInterface(object):
                     dc_req_spec.staged_files = current_staged_files
                     dc_req_spec.staged_size = int(dc_req_spec.dataset_size * dc_req_spec.staged_files / dc_req_spec.total_files)
                     to_update = True
-                tmp_log.debug(f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files")
+                else:
+                    tmp_log.debug(f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files")
                 # check completion of staging
                 if dc_req_spec.staged_files == dc_req_spec.total_files:
                     # all files staged; process request to done
@@ -1261,7 +1262,9 @@ class DataCarouselInterface(object):
                 if to_update:
                     ret = self.taskBufferIF.update_data_carousel_request_JEDI(dc_req_spec)
                     if ret is not None:
-                        tmp_log.info(f"request_id={dc_req_spec.request_id} updated DB about staging ; status={dc_req_spec.status}")
+                        tmp_log.info(
+                            f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files; updated DB about staging ; status={dc_req_spec.status}"
+                        )
                         dc_req_spec = ret
                     else:
                         tmp_log.error(f"request_id={dc_req_spec.request_id} failed to update DB for ddm_rule_id={ddm_rule_id} ; skipped")
