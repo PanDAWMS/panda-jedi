@@ -263,8 +263,8 @@ class TaskRefinerThread(WorkerThread):
                                             # task has waitInput; to be checked again by TaskRefiner later
                                             tmpLog.debug(f"task has waitInput, waiting for input datasets to be created: {unfound_ds_list}; skipped")
                                         else:
-                                            # not to wait input; update no_staging_datasets with datasets unfound
-                                            tmpLog.warning(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
+                                            # not to wait input; update no_staging_datasets with datasets unfound on tape or datadisk (regardless of local/scratch disks)
+                                            tmpLog.debug(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
                                             no_staging_datasets.update(set(unfound_ds_list))
                                     if not unfound_coll_list or not taskParamMap.get("waitInput"):
                                         # all input collections do not need staging (found, or unfound but waiting)
