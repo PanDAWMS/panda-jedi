@@ -1434,18 +1434,19 @@ class DataCarouselInterface(object):
         # summary
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
-    def cancel_request(self, request_id: int, by: str = "manual") -> bool | None:
+    def cancel_request(self, request_id: int, by: str = "manual", reason: str | None = None) -> bool | None:
         """
         Cancel a request
 
         Args:
             request_id (int): reqeust_id of the request to cancel
             by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for cancelling
 
         Returns:
             bool|None : True for success, None otherwise
         """
-        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}")
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
         # cancel
         ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
         if ret:
@@ -1475,13 +1476,19 @@ class DataCarouselInterface(object):
             terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
                 status_filter_list=final_task_statuses
             )
-            active_tasks_requests_map, _ = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
+            active_tasks_requests_map, active_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+                status_exclusion_list=final_task_statuses
+            )
             now_time = naive_utcnow()
             # set of requests of terminated tasks
             request_ids_of_terminated_tasks = set()
             for request_id_list in terminated_tasks_relation_map.values():
                 request_ids_of_terminated_tasks |= set(request_id_list)
-            # loop over requests
+            # set of requests of active tasks
+            request_ids_of_active_tasks = set()
+            for request_id_list in active_tasks_relation_map.values():
+                request_ids_of_active_tasks |= set(request_id_list)
+            # loop over requests of terminated tasks
             for request_id in request_ids_of_terminated_tasks:
                 if request_id in active_tasks_requests_map:
                     # the request is also mapped to some active task, not to be cleaned up; skipped
@@ -1495,10 +1502,16 @@ class DataCarouselInterface(object):
                     done_requests_set.add(request_id)
                 elif dc_req_spec.status == DataCarouselRequestStatus.staging:
                     # requests staging while related tasks all terminated; to cancel (to clean up in next cycle)
-                    self.cancel_request(request_id, by=by)
+                    self.cancel_request(request_id, by=by, reason="staging_while_all_tasks_ended")
                 elif dc_req_spec.status == DataCarouselRequestStatus.cancelled:
                     # requests cancelled; to clean up
                     cancelled_requests_set.add(request_id)
+            # loop over requests of active tasks to cancel bad ones
+            for request_id in request_ids_of_active_tasks:
+                dc_req_spec = active_tasks_requests_map[request_id]
+                if dc_req_spec.status == DataCarouselRequestStatus.staging and dc_req_spec.get_parameter("rule_unfound"):
+                    # requests staging but DDM rule not found; to cancel
+                    self.cancel_request(request_id, by=by, reason="rule_unfound")
             # delete ddm rules of terminated requests of terminated tasks
             for request_id in done_requests_set | cancelled_requests_set:
                 dc_req_spec = terminated_tasks_requests_map[request_id]
@@ -1580,18 +1593,21 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def resubmit_request(self, request_id: int, submit_idds_request=True) -> DataCarouselRequestSpec | None:
+    def resubmit_request(self, request_id: int, submit_idds_request=True, by: str = "manual", reason: str | None = None) -> DataCarouselRequestSpec | None:
         """
         Resubmit a request
         The request must be in statging status
 
         Args:
             request_id (int): request_id of the request to resubmit from
+            submit_idds_request (bool): whether to submit corresponding iDDS request; default is True
+            by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for resubmitting
 
         Returns:
             DataCarouselRequestSpec|None : spec of the resubmitted reqeust spec if success, None otherwise
         """
-        tmp_log = MsgWrapper(logger, f"resubmit_request orig_request_id={request_id}")
+        tmp_log = MsgWrapper(logger, f"resubmit_request orig_request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
         # resubmit
         dc_req_spec_resubmitted = self.taskBufferIF.resubmit_data_carousel_request_JEDI(request_id)
         if dc_req_spec_resubmitted:
