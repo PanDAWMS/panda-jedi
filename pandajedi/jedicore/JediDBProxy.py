@@ -9627,6 +9627,11 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlUO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUO += "SET status=:status "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3) "
+            # limits for attempt
+            task_max_attempt = self.getConfigValue("retry_task", "TASK_MAX_ATTEMPT", "jedi")
+            job_max_attempt = self.getConfigValue("retry_task", "JOB_MAX_ATTEMPT", "jedi")
+            max_job_failure_rate = self.getConfigValue("retry_task", "MAX_JOB_FAILURE_RATE", "jedi")
+            max_failed_hep_score_hours = self.getConfigValue("retry_task", "MAX_FAILED_HEP_SCORE_HOURS", "jedi")
             # start transaction
             if useCommit:
                 self.conn.begin()
@@ -9634,7 +9639,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # check task status
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlTK = f"SELECT status,oldStatus FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
+            sqlTK = f"SELECT status,oldStatus,attemptNr FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
             self.cur.execute(sqlTK + comment, varMap)
             resTK = self.cur.fetchone()
             if resTK is None:
@@ -9643,7 +9648,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpLog.debug(msgStr)
             else:
                 # check task status
-                taskStatus, taskOldStatus = resTK
+                taskStatus, taskOldStatus, task_attempt_number = resTK
                 newTaskStatus = None
                 newErrorDialog = None
                 if taskOldStatus == "done" and commStr == "retry" and statusCheck:
@@ -9659,6 +9664,9 @@ class DBProxy(OraDBProxy.DBProxy):
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
                 else:
+                    # get failure metrics
+                    failure_metrics = self.get_task_failure_metrics(jediTaskID, False)
+                    var_map = {}
                     # check max attempts
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
@@ -9669,10 +9677,31 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap.update(INPUT_TYPES_var_map)
                     self.cur.execute(sqlMAX + comment, varMap)
                     resMAX = self.cur.fetchone()
-                    maxRetry = 1000
-                    if resMAX is not None and resMAX[0] is not None and resMAX[0] + maxAttempt >= maxRetry:
-                        # only tasks in a relevant final status
-                        msgStr = f"no {commStr} since too many attempts (~{maxRetry}) in the past"
+                    if task_max_attempt is not None and task_attempt_number >= task_max_attempt > 0:
+                        # too many attempts
+                        msg_str = f"exhausted since too many task attempts more than {task_max_attempt} are forbidden"
+                        tmpLog.debug(msg_str)
+                        newTaskStatus = "exhausted"
+                        newErrorDialog = msg_str
+                    elif (
+                        max_failed_hep_score_hours is not None
+                        and failure_metrics
+                        and failure_metrics["failed_hep_score_hour"] >= max_failed_hep_score_hours > 0
+                    ):
+                        # failed HEP score hours are too large
+                        msg_str = f"exhausted since HEP score hours used by failed jobs exceed {max_failed_hep_score_hours} hours"
+                        tmpLog.debug(msg_str)
+                        newTaskStatus = "exhausted"
+                        newErrorDialog = msg_str
+                    elif max_job_failure_rate is not None and failure_metrics and failure_metrics["single_failure_rate"] >= max_job_failure_rate > 0:
+                        # high failure rate
+                        msg_str = f"exhausted due to high single job failure rate (> {max_job_failure_rate}"
+                        tmpLog.debug(msg_str)
+                        newTaskStatus = "exhausted"
+                        newErrorDialog = msg_str
+                    elif job_max_attempt is not None and resMAX is not None and resMAX[0] is not None and resMAX[0] + maxAttempt >= job_max_attempt:
+                        # too many job attempts
+                        msgStr = f"{commStr} was rejected due to too many attempts (~{job_max_attempt}) for some jobs"
                         tmpLog.debug(msgStr)
                         newTaskStatus = taskOldStatus
                         newErrorDialog = msgStr
@@ -9940,7 +9969,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 varMap[":jediTaskID"] = jediTaskID
                 varMap[":status"] = newTaskStatus
                 varMap[":errorDialog"] = newErrorDialog
-                if newTaskStatus != taskOldStatus:
+                if newTaskStatus != taskOldStatus and newTaskStatus != "exhausted":
                     tmpLog.debug(f"set taskStatus={newTaskStatus} from {taskStatus} for command={commStr}")
                     # set old update time to trigger subsequent process
                     varMap[":updateTime"] = naive_utcnow() - datetime.timedelta(hours=6)
@@ -9962,8 +9991,12 @@ class DBProxy(OraDBProxy.DBProxy):
                     tmpLog.debug(f"back to taskStatus={newTaskStatus} for command={commStr}")
                     varMap[":updateTime"] = naive_utcnow()
                     self.cur.execute(sqlUTB + comment, varMap)
+                    if newTaskStatus == "exhausted":
+                        self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
+                        self.setSuperStatus_JEDI(jediTaskID, newTaskStatus)
+                        self.record_task_status_change(jediTaskID)
                 # update output/lib/log
-                if newTaskStatus != taskOldStatus and taskStatus != "exhausted":
+                if newTaskStatus != taskOldStatus and taskStatus != "exhausted" and newTaskStatus != "exhausted":
                     varMap = {}
                     varMap[":jediTaskID"] = jediTaskID
                     varMap[":type1"] = "output"
@@ -9972,7 +10005,7 @@ class DBProxy(OraDBProxy.DBProxy):
                     varMap[":status"] = "done"
                     self.cur.execute(sqlUO + comment, varMap)
                 # retry or reactivate child tasks
-                if retryChildTasks and newTaskStatus != taskOldStatus:
+                if retryChildTasks and newTaskStatus != taskOldStatus and taskStatus != "exhausted" and newTaskStatus != "exhausted":
                     _, tmp_retried_tasks = self.retryChildTasks_JEDI(jediTaskID, keep_share_priority=keep_share_priority, useCommit=False)
                     retried_tasks += tmp_retried_tasks
             if useCommit:
@@ -15449,6 +15482,62 @@ class DBProxy(OraDBProxy.DBProxy):
         except Exception:
             # roll back
             self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # calculate failure metrics, such as single failure rate and failed HEPScore, for a task
+    def get_task_failure_metrics(self, task_id, use_commit=True):
+        comment = " /* JediDBProxy.get_task_failure_metrics */"
+        method_name = self.getMethodName(comment)
+        method_name += f" < jediTaskID={task_id} >"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            if use_commit:
+                self.conn.begin()
+            # sql to get metrics
+            sql = (
+                f"SELECT SUM(is_finished),SUM(is_failed),SUM(HS06SEC*is_finished),SUM(HS06SEC*is_failed) "
+                f"FROM ("
+                f"SELECT PandaID, HS06SEC, CASE WHEN jobStatus='finished' THEN 1 ELSE 0 END is_finished, "
+                f"CASE WHEN jobStatus='failed' THEN 1 ELSE 0 END is_failed "
+                f"FROM {jedi_config.db.schemaPANDA}.jobsArchived4 "
+                f"WHERE jediTaskID=:jediTaskID AND prodSourceLabel IN (:prodSourceLabel1,:prodSourceLabel2) "
+                f"UNION "
+                f"SELECT PandaID, HS06SEC, CASE WHEN jobStatus='finished' THEN 1 ELSE 0 END is_finished, "
+                f"CASE WHEN jobStatus='failed' THEN 1 ELSE 0 END is_failed "
+                f"FROM {jedi_config.db.schemaPANDAARCH}.jobsArchived "
+                f"WHERE jediTaskID=:jediTaskID AND prodSourceLabel IN (:prodSourceLabel1,:prodSourceLabel2) "
+                f")"
+            )
+            var_map = {
+                ":jediTaskID": task_id,
+                ":prodSourceLabel1": "managed",
+                ":prodSourceLabel2": "user",
+            }
+            self.cur.execute(sql + comment, var_map)
+            num_finished, num_failed, good_hep_score_sec, bad_hep_score_sec = self.cur.fetchone()
+            ret_dict = {
+                "num_failed": num_failed,
+                "single_failure_rate": round(num_failed / (num_finished + num_failed), 3) if num_finished + num_failed else None,
+                "failed_hep_score_hour": int(bad_hep_score_sec / 60 / 60),
+                "failed_hep_score_ratio": round(bad_hep_score_sec / (good_hep_score_sec + bad_hep_score_sec), 3)
+                if good_hep_score_sec + bad_hep_score_sec
+                else None,
+            }
+            # commit
+            if use_commit:
+                if not self._commit():
+                    raise RuntimeError("Commit error")
+            # return
+            tmp_log.debug(f"got {ret_dict}")
+            return ret_dict
+        except Exception:
+            # roll back
+            if use_commit:
+                self._rollback()
             # error
             self.dumpErrorMessage(tmp_log)
             return None

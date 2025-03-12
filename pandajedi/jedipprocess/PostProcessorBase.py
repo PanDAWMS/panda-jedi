@@ -252,9 +252,9 @@ class PostProcessorBase(object):
         ):
             taskSpec.status = "exhausted"
             if self.getFinalTaskStatus(taskSpec, checkParent=False) == "done":
-                taskSpec.errorDialog = "exhausted since the parent task was incomplete"
+                taskSpec.errorDialog = "exhausted since the parent task was incomplete and didn't reach the goal"
             else:
-                taskSpec.errorDialog = "exhausted since the task was incomplete"
+                taskSpec.errorDialog = "exhausted since the task was incomplete and didn't reach the goal"
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
             # update task
