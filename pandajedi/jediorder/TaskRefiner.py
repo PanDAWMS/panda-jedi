@@ -230,7 +230,13 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
-                                prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                try:
+                                    # check input datasets to prestage
+                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                except Exception as e:
+                                    # got error (e.g. due to DDM error); skip and retry in next cycle
+                                    tmpLog.error(f"failed to check input datasets to prestage ; got {e} ; skip and retry next time")
+                                    continue
                                 if not prestaging_list:
                                     # found no datasets only on tape to prestage
                                     if pseudo_coll_list := ds_list_dict["pseudo_coll_list"]:
@@ -287,7 +293,9 @@ class TaskRefinerThread(WorkerThread):
                                         taskParamMap["toStaging"] = True
                                         tmpLog.info("submitted data carousel requests; set toStaging")
                                     else:
-                                        tmpLog.error("failed to submit data carousel requests")
+                                        # failed to submit data carousel requests; skip and retry in next cycle
+                                        tmpLog.error("failed to submit data carousel requests; skip and retry next time")
+                                        continue
                             except Exception:
                                 errtype, errvalue = sys.exc_info()[:2]
                                 errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
