@@ -101,6 +101,12 @@ class DataCarouselRequestSpec(SpecBase):
     def parameter_map(self) -> dict:
         """
         Get the dictionary parsed by the parameters attribute in JSON
+        Possible parameters:
+            "resub_from" (int): resubmitted from this oringal request ID
+            "prev_src" (str): previous source RSE
+            "prev_dst" (str): previous destination RSE
+            "excluded_dst_list" (list[str]): list of excluded destination RSEs
+            "rule_unfound" (bool): DDM rule not found
 
         Returns:
             dict : dict of parameters if it is JSON or empty dict if null
@@ -119,6 +125,19 @@ class DataCarouselRequestSpec(SpecBase):
             value_map (dict): dict to set the parameter map
         """
         self.parameters = json.dumps(value_map)
+
+    def get_parameter(self, param: str) -> Any:
+        """
+        Get the value of one parameter. None as default
+
+        Args:
+            param (str): parameter name
+
+        Returns:
+            Any : value of the parameter; None if parameter not set
+        """
+        tmp_dict = self.parameter_map
+        return tmp_dict.get(param)
 
     def set_parameter(self, param: str, value):
         """
@@ -244,11 +263,11 @@ def get_resubmit_request_spec(dc_req_spec: DataCarouselRequestSpec) -> DataCarou
         # orig_excluded_dst_set = set(orig_parameter_map.get("excluded_dst_list", []))
         # TODO: mechanism to exclude problematic source or destination RSE (need approach to store historical datasets/RSEs)
         dc_req_spec_to_resubmit.parameter_map = {
-            "resub_from": dc_req_spec.request_id,  # resubmitted from this oringal request ID
-            "prev_src": dc_req_spec.source_rse,  # previous source RSE
-            "prev_dst": dc_req_spec.destination_rse,  # previous destination RSE
-            # "excluded_dst_list": list(orig_excluded_dst_set.add(dc_req_spec.destination_rse)),  # list of excluded destination RSEs;
-            "excluded_dst_list": [dc_req_spec.destination_rse],  # list of excluded destination RSEs; default to be previous destination
+            "resub_from": dc_req_spec.request_id,
+            "prev_src": dc_req_spec.source_rse,
+            "prev_dst": dc_req_spec.destination_rse,
+            # "excluded_dst_list": list(orig_excluded_dst_set.add(dc_req_spec.destination_rse)),
+            "excluded_dst_list": [dc_req_spec.destination_rse],  # default to be previous destination
         }
         # return
         tmp_log.debug(f"got resubmit request spec for request_id={dc_req_spec.request_id}")
@@ -1095,7 +1114,7 @@ class DataCarouselInterface(object):
             # destination_expression
             expression = source_tape_config.destination_expression
         # adjust destination_expression according to excluded_dst_list
-        if (the_parameter_map := dc_req_spec.parameter_map) and (excluded_dst_list := the_parameter_map.get("excluded_dst_list")):
+        if excluded_dst_list := dc_req_spec.get_parameter("excluded_dst_list"):
             for excluded_dst_rse in excluded_dst_list:
                 expression += f"\\{excluded_dst_rse}"
         # submit ddm staging rule
@@ -1415,18 +1434,19 @@ class DataCarouselInterface(object):
         # summary
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
-    def cancel_request(self, request_id: int, by: str = "manual") -> bool | None:
+    def cancel_request(self, request_id: int, by: str = "manual", reason: str | None = None) -> bool | None:
         """
         Cancel a request
 
         Args:
             request_id (int): reqeust_id of the request to cancel
             by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for cancelling
 
         Returns:
             bool|None : True for success, None otherwise
         """
-        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}")
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
         # cancel
         ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
         if ret:
@@ -1456,13 +1476,19 @@ class DataCarouselInterface(object):
             terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
                 status_filter_list=final_task_statuses
             )
-            active_tasks_requests_map, _ = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
+            active_tasks_requests_map, active_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
+                status_exclusion_list=final_task_statuses
+            )
             now_time = naive_utcnow()
             # set of requests of terminated tasks
             request_ids_of_terminated_tasks = set()
             for request_id_list in terminated_tasks_relation_map.values():
                 request_ids_of_terminated_tasks |= set(request_id_list)
-            # loop over requests
+            # set of requests of active tasks
+            request_ids_of_active_tasks = set()
+            for request_id_list in active_tasks_relation_map.values():
+                request_ids_of_active_tasks |= set(request_id_list)
+            # loop over requests of terminated tasks
             for request_id in request_ids_of_terminated_tasks:
                 if request_id in active_tasks_requests_map:
                     # the request is also mapped to some active task, not to be cleaned up; skipped
@@ -1470,15 +1496,22 @@ class DataCarouselInterface(object):
                 dc_req_spec = terminated_tasks_requests_map[request_id]
                 if dc_req_spec.status == DataCarouselRequestStatus.done and (
                     (dc_req_spec.end_time and dc_req_spec.end_time < now_time - timedelta(days=done_age_limit_days))
+                    or dc_req_spec.get_parameter("rule_unfound")
                 ):
-                    # requests done and old enough; to clean up
+                    # requests done and old enough or done but DDM rule not found; to clean up
                     done_requests_set.add(request_id)
                 elif dc_req_spec.status == DataCarouselRequestStatus.staging:
-                    # requests staging while related tasks all terminated or DDM rule not found; to cancel (not to clean up immediately)
-                    self.cancel_request(request_id, by=by)
+                    # requests staging while related tasks all terminated; to cancel (to clean up in next cycle)
+                    self.cancel_request(request_id, by=by, reason="staging_while_all_tasks_ended")
                 elif dc_req_spec.status == DataCarouselRequestStatus.cancelled:
                     # requests cancelled; to clean up
                     cancelled_requests_set.add(request_id)
+            # loop over requests of active tasks to cancel bad ones
+            for request_id in request_ids_of_active_tasks:
+                dc_req_spec = active_tasks_requests_map[request_id]
+                if dc_req_spec.status == DataCarouselRequestStatus.staging and dc_req_spec.get_parameter("rule_unfound"):
+                    # requests staging but DDM rule not found; to cancel
+                    self.cancel_request(request_id, by=by, reason="rule_unfound")
             # delete ddm rules of terminated requests of terminated tasks
             for request_id in done_requests_set | cancelled_requests_set:
                 dc_req_spec = terminated_tasks_requests_map[request_id]
@@ -1500,7 +1533,7 @@ class DataCarouselInterface(object):
                     if ret is None:
                         tmp_log.warning(f"failed to delete done requests; skipped")
                     else:
-                        tmp_log.debug(f"deleted {ret} done requests older than {done_age_limit_days} days")
+                        tmp_log.debug(f"deleted {ret} done requests older than {done_age_limit_days} days or rule not found")
                 if cancelled_requests_set:
                     # cancelled requests
                     ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(cancelled_requests_set))
@@ -1560,18 +1593,21 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def resubmit_request(self, request_id: int, submit_idds_request=True) -> DataCarouselRequestSpec | None:
+    def resubmit_request(self, request_id: int, submit_idds_request=True, by: str = "manual", reason: str | None = None) -> DataCarouselRequestSpec | None:
         """
         Resubmit a request
         The request must be in statging status
 
         Args:
             request_id (int): request_id of the request to resubmit from
+            submit_idds_request (bool): whether to submit corresponding iDDS request; default is True
+            by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for resubmitting
 
         Returns:
             DataCarouselRequestSpec|None : spec of the resubmitted reqeust spec if success, None otherwise
         """
-        tmp_log = MsgWrapper(logger, f"resubmit_request orig_request_id={request_id}")
+        tmp_log = MsgWrapper(logger, f"resubmit_request orig_request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
         # resubmit
         dc_req_spec_resubmitted = self.taskBufferIF.resubmit_data_carousel_request_JEDI(request_id)
         if dc_req_spec_resubmitted:
