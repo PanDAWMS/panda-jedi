@@ -9695,7 +9695,7 @@ class DBProxy(OraDBProxy.DBProxy):
                         newErrorDialog = msg_str
                     elif max_job_failure_rate is not None and failure_metrics and failure_metrics["single_failure_rate"] >= max_job_failure_rate > 0:
                         # high failure rate
-                        msg_str = f"exhausted due to high single job failure rate (> {max_job_failure_rate}"
+                        msg_str = f"exhausted since single job failure rate is higher than {max_job_failure_rate}"
                         tmpLog.debug(msg_str)
                         newTaskStatus = "exhausted"
                         newErrorDialog = msg_str

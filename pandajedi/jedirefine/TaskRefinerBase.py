@@ -500,6 +500,7 @@ class TaskRefinerBase(object):
             itemList.append(tmpItem)
         # loop over all items
         allDsList = []
+        checked_endpoints = set()
         for tmpItem in itemList:
             # look for datasets
             if tmpItem["type"] == "template" and "dataset" in tmpItem:
@@ -673,6 +674,23 @@ class TaskRefinerBase(object):
                     nIn += 1
                     continue
                 if datasetSpec.type in ["output", "log"]:
+                    # check endpoint
+                    if (
+                        datasetSpec.destination is not None
+                        and re.search("^[a-zA-Z0-9_-]+$", datasetSpec.destination)
+                        and datasetSpec.destination not in checked_endpoints
+                    ):
+                        checked_endpoints.add(datasetSpec.destination)
+                        tmp_if = self.ddmIF.getInterface(self.taskSpec.vo, self.taskSpec.cloud)
+                        if tmp_if:
+                            tmp_status, tmp_output = tmp_if.check_endpoint(datasetSpec.destination)
+                            if tmp_status is None:
+                                # unknown error
+                                raise JediException.ExternalTempError(tmp_output)
+                            elif tmp_status is False:
+                                # bad endpoint
+                                raise RuntimeError(tmp_output)
+                    # collect output types
                     if datasetSpec.type not in nOutMap:
                         nOutMap[datasetSpec.type] = 0
                     # make stream name

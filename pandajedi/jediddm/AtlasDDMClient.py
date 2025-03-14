@@ -25,6 +25,7 @@ from rucio.common.exception import (
     DuplicateContent,
     DuplicateRule,
     InvalidObject,
+    RSENotFound,
     RuleNotFound,
     UnsupportedOperation,
 )
@@ -1671,3 +1672,28 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, f"{methodName} : {errMsg}"
         tmpLog.debug(f"deleted, return {ret}")
         return self.SC_SUCCEEDED, ret
+
+    # check endpoint
+    def check_endpoint(self, rse):
+        method_name = "check_endpoint"
+        method_name = f"{method_name} rse={rse}"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get rules
+            ret = client.get_rse(rse)
+            # check availability for write
+            if ret.get("availability_write") is False:
+                result = False, f"{rse} unavailable for write"
+            else:
+                result = True, None
+        except RSENotFound:
+            # unknown endpoint
+            result = False, f"unknown endpoint: {rse}"
+        except Exception as e:
+            # unknown error
+            result = None, f"failed with {str(e)}"
+        tmp_log.debug(f"done with {result}")
+        return self.SC_SUCCEEDED, result
