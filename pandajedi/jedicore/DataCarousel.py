@@ -1242,12 +1242,12 @@ class DataCarouselInterface(object):
             rule_lifetime < timedelta(days=to_refresh_max_lifetime_days) and rule_lifetime > timedelta(hours=to_refresh_min_lifetime_hours)
         ):
             ret = self._refresh_ddm_rule(ddm_rule_id, 86400 * lifetime_days)
-            tmp_log.debug(f"status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} refreshed lifetime to be {lifetime_days} days long")
+            # tmp_log.debug(f"status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} refreshed lifetime to be {lifetime_days} days long")
         else:
-            rule_lifetime_days = rule_lifetime.total_seconds() / 86400
-            tmp_log.debug(
-                f"ddm_rule_id={ddm_rule_id} not to refresh as lifetime {rule_lifetime_days:.2f}d not within range {to_refresh_max_lifetime_days}d to {to_refresh_min_lifetime_hours}h"
-            )
+            # rule_lifetime_days = rule_lifetime.total_seconds() / 86400
+            # tmp_log.debug(
+            #     f"ddm_rule_id={ddm_rule_id} not to refresh as lifetime {rule_lifetime_days:.2f}d not within range {to_refresh_max_lifetime_days}d to {to_refresh_min_lifetime_hours}h"
+            # )
             pass
         # return
         return ret
@@ -1279,9 +1279,10 @@ class DataCarouselInterface(object):
                         f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {days} days long"
                     )
                 else:
-                    tmp_log.debug(
-                        f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} not to renew ; skipped"
-                    )
+                    # tmp_log.debug(
+                    #     f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} not to renew ; skipped"
+                    # )
+                    pass
             except Exception:
                 tmp_log.error(f"request_id={dc_req_spec.request_id} got error ; {traceback.format_exc()}")
 
