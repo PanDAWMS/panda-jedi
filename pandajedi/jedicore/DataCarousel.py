@@ -102,6 +102,7 @@ class DataCarouselRequestSpec(SpecBase):
         """
         Get the dictionary parsed by the parameters attribute in JSON
         Possible parameters:
+            "reuse_rule" (boot): reuse DDM rule instead of submitting new one
             "resub_from" (int): resubmitted from this oringal request ID
             "prev_src" (str): previous source RSE
             "prev_dst" (str): previous destination RSE
