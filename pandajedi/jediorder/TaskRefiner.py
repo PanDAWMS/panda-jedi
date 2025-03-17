@@ -439,6 +439,7 @@ class TaskRefinerThread(WorkerThread):
                             self.taskBufferIF.updateTask_JEDI(
                                 impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False
                             )
+                            tmpLog.info("update task status to staging")
                             continue
                     # adjust specs after refining
                     if tmpStat == Interaction.SC_SUCCEEDED:
