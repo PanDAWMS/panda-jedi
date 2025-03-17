@@ -1562,7 +1562,8 @@ class JobGeneratorThread(WorkerThread):
                                 jobSpec.maxWalltime += taskSpec.baseWalltime
 
                         if jobSpec.minRamCount in [None, "NULL"]:
-                            jobSpec.minRamCount = 0
+                            # set 2GB RAM for merge jobs by default
+                            jobSpec.minRamCount = 2000
 
                     # set retry RAM count
                     if self.time_profile_level >= TIME_PROFILE_ON:

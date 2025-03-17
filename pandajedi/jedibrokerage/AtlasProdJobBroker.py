@@ -748,7 +748,10 @@ class AtlasProdJobBroker(JobBrokerBase):
             if inputChunk.isMerging:
                 strMinRamCount = f"{origMinRamCount}(MB)"
             else:
-                strMinRamCount = f"{origMinRamCount}({taskSpec.ramUnit})"
+                str_ram_unit = taskSpec.ramUnit
+                if str_ram_unit:
+                    str_ram_unit = str_ram_unit.replace("PerCore", " ").strip()
+                strMinRamCount = f"{origMinRamCount}({str_ram_unit})"
             if not inputChunk.isMerging and taskSpec.baseRamCount not in [0, None]:
                 strMinRamCount += f"+{taskSpec.baseRamCount}"
             newScanSiteList = []
