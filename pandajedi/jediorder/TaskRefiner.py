@@ -337,9 +337,23 @@ class TaskRefinerThread(WorkerThread):
                         if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
                             tmpLog.info("checking about data carousel")
                             try:
+                                # get the list of dataset names (and DIDs) required to check; currently only master input datasets
+                                dsname_list = []
+                                for dataset_spec in impl.inMasterDatasetSpec:
+                                    dataset_name = dataset_spec.datasetName
+                                    dataset_did = None
+                                    try:
+                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                    except Exception:
+                                        pass
+                                    dsname_list.append(dataset_name)
+                                    if dataset_did is not None:
+                                        dsname_list.append(dataset_did)
+                                # check input datasets to prestage
                                 try:
-                                    # check input datasets to prestage
-                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(
+                                        jediTaskID, taskParamMap, dsname_list=dsname_list
+                                    )
                                 except Exception as e:
                                     # got error (e.g. due to DDM error); skip and retry in next cycle
                                     tmpLog.error(f"failed to check input datasets to prestage ; got {e} ; skip and retry next time")
@@ -366,6 +380,10 @@ class TaskRefinerThread(WorkerThread):
                                     if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
                                         # update no_staging_datasets for all collections without constituent datasets on tape source
                                         no_staging_datasets.update(set(no_tape_coll_did_list))
+                                    if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
+                                        # update no_staging_datasets with datasets already on datadisks
+                                        tmpLog.debug(f"datasets not required to check (non-master input): {to_skip_ds_list}")
+                                        no_staging_datasets.update(set(to_skip_ds_list))
                                     if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
                                         tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
@@ -434,11 +452,17 @@ class TaskRefinerThread(WorkerThread):
                                 if tmp_ds_set:
                                     tmpLog.debug(f"set no_staging for secondary datasets: {list(tmp_ds_set)}")
                             if no_staging_datasets:
+                                # discard None if any
+                                no_staging_datasets.discard(None)
                                 # set no_staging attribute for datasets not requiring staging
                                 tmp_ds_set = set()
                                 for dataset_spec in impl.inMasterDatasetSpec:
                                     dataset_name = dataset_spec.datasetName
-                                    dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                    dataset_did = None
+                                    try:
+                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                    except Exception:
+                                        pass
                                     if (
                                         dataset_name in no_staging_datasets
                                         or dataset_did in no_staging_datasets

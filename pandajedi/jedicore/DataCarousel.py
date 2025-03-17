@@ -695,13 +695,14 @@ class DataCarouselInterface(object):
             raise e
 
     @refresh
-    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict) -> tuple[list | dict]:
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict, dsname_list: list | None = None) -> tuple[list | dict]:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
         Args:
             task_id (int): JEDI task ID of the task params
             task_params_map (dict): task params of the JEDI task
+            dsname_list (list|None): if not None, filter only datasets in this list of dataset names to stage
 
         Returns:
             list[tuple[str, str|None, str|None]]: list of tuples in the form of (dataset, source_rse, ddm_rule_id)
@@ -717,6 +718,7 @@ class DataCarouselInterface(object):
                 "empty_coll_list": [],
                 "tape_coll_did_list": [],
                 "no_tape_coll_did_list": [],
+                "to_skip_ds_list": [],
                 "tape_ds_list": [],
                 "datadisk_ds_list": [],
                 "unfound_ds_list": [],
@@ -744,6 +746,12 @@ class DataCarouselInterface(object):
                 # check source of each dataset
                 got_on_tape = False
                 for dataset in dataset_list:
+                    # check if dataset in the required dsname_list
+                    if dsname_list is not None and dataset not in dsname_list:
+                        # not in dsname_list; skip
+                        ret_map["to_skip_ds_list"].append(dataset)
+                        tmp_log.debug(f"dataset={dataset} not in dsname_list ; skipped")
+                        continue
                     # get source type and RSEs
                     source_type, rse_set, staging_rule = self._get_source_type_of_dataset(dataset, active_source_rses_set)
                     if source_type == "datadisk":
