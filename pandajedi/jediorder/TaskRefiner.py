@@ -221,100 +221,6 @@ class TaskRefinerThread(WorkerThread):
                         if not impl.taskSpec.checkAttrLength():
                             tmpLog.error(impl.taskSpec.errorDialog)
                             tmpStat = Interaction.SC_FAILED
-                    # data carousel (input pre-staging) ; currently only for analysis tasks
-                    if tmpStat == Interaction.SC_SUCCEEDED:
-                        # set of datasets requiring and not requiring staging
-                        to_staging_datasets = set()
-                        no_staging_datasets = set()
-                        # check datasets to pre-stage
-                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
-                            tmpLog.info("checking about data carousel")
-                            try:
-                                try:
-                                    # check input datasets to prestage
-                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
-                                except Exception as e:
-                                    # got error (e.g. due to DDM error); skip and retry in next cycle
-                                    tmpLog.error(f"failed to check input datasets to prestage ; got {e} ; skip and retry next time")
-                                    continue
-                                if not prestaging_list:
-                                    # found no datasets only on tape to prestage
-                                    if pseudo_coll_list := ds_list_dict["pseudo_coll_list"]:
-                                        # update no_staging_datasets with pseudo inputs
-                                        tmpLog.debug(f"pseudo inputs: {pseudo_coll_list}")
-                                        no_staging_datasets.update(set(pseudo_coll_list))
-                                    if empty_coll_list := ds_list_dict["empty_coll_list"]:
-                                        # update no_staging_datasets with empty input collections
-                                        tmpLog.debug(f"empty input collections: {empty_coll_list}")
-                                        no_staging_datasets.update(set(empty_coll_list))
-                                    if unfound_coll_list := ds_list_dict["unfound_coll_list"]:
-                                        # some input collections unfound
-                                        if taskParamMap.get("waitInput"):
-                                            # task has waitInput; to be checked again by TaskRefiner later
-                                            tmpLog.debug(f"task has waitInput, waiting for input collections to be created: {unfound_coll_list}; skipped")
-                                        else:
-                                            # not to wait input; update no_staging_datasets with unfound input collections
-                                            tmpLog.debug(f"some input collections not found: {unfound_coll_list}")
-                                            no_staging_datasets.update(set(unfound_coll_list))
-                                    if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
-                                        # update no_staging_datasets for all collections without constituent datasets on tape source
-                                        no_staging_datasets.update(set(no_tape_coll_did_list))
-                                    if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
-                                        # update no_staging_datasets with datasets already on datadisks
-                                        tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
-                                        no_staging_datasets.update(set(datadisk_ds_list))
-                                    if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
-                                        # some datasets unfound
-                                        if taskParamMap.get("waitInput"):
-                                            # task has waitInput; to be checked again by TaskRefiner later
-                                            tmpLog.debug(f"task has waitInput, waiting for input datasets to be created: {unfound_ds_list}; skipped")
-                                        else:
-                                            # not to wait input; update no_staging_datasets with datasets unfound on tape or datadisk (regardless of local/scratch disks)
-                                            tmpLog.debug(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
-                                            no_staging_datasets.update(set(unfound_ds_list))
-                                    if not unfound_coll_list or not taskParamMap.get("waitInput"):
-                                        # all input collections do not need staging (found, or unfound but waiting)
-                                        tmpLog.info("no need to prestage, try to resume task from staging")
-                                        # no dataset needs pre-staging; resume task from staging
-                                        self.taskBufferIF.sendCommandTaskPanda(
-                                            jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
-                                        )
-                                else:
-                                    if tape_coll_did_list := ds_list_dict["tape_coll_did_list"]:
-                                        # update to_staging_datasets with collections with datasets only on tapes
-                                        to_staging_datasets.update(set(tape_coll_did_list))
-                                    if tape_ds_list := ds_list_dict["tape_ds_list"]:
-                                        # update to_staging_datasets with datasets only on tapes
-                                        to_staging_datasets.update(set(tape_ds_list))
-                                    # submit data carousel requests for dataset to pre-stage
-                                    tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
-                                    if tmp_ret:
-                                        taskParamMap["toStaging"] = True
-                                        tmpLog.info("submitted data carousel requests; set toStaging")
-                                    else:
-                                        # failed to submit data carousel requests; skip and retry in next cycle
-                                        tmpLog.error("failed to submit data carousel requests; skip and retry next time")
-                                        continue
-                            except Exception:
-                                errtype, errvalue = sys.exc_info()[:2]
-                                errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
-                                tmpLog.error(errStr)
-                                tmpStat = Interaction.SC_FAILED
-                    # staging
-                    if tmpStat == Interaction.SC_SUCCEEDED:
-                        if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:
-                            errStr = "wait until staging is done"
-                            impl.taskSpec.status = "staging"
-                            impl.taskSpec.oldStatus = taskStatus
-                            impl.taskSpec.setErrDiag(errStr)
-                            # not to update some task attributes
-                            impl.taskSpec.resetRefinedAttrs()
-                            tmpLog.info(errStr)
-                            self.taskBufferIF.updateTask_JEDI(
-                                impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False
-                            )
-                            continue
                     # check parent
                     noWaitParent = False
                     parentState = None
@@ -422,6 +328,100 @@ class TaskRefinerThread(WorkerThread):
                                 errStr = f"failed to refine task with {errtype.__name__}:{errvalue}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
+                    # data carousel (input pre-staging) ; currently only for analysis tasks
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        # set of datasets requiring and not requiring staging
+                        to_staging_datasets = set()
+                        no_staging_datasets = set()
+                        # check datasets to pre-stage
+                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
+                            tmpLog.info("checking about data carousel")
+                            try:
+                                try:
+                                    # check input datasets to prestage
+                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(jediTaskID, taskParamMap)
+                                except Exception as e:
+                                    # got error (e.g. due to DDM error); skip and retry in next cycle
+                                    tmpLog.error(f"failed to check input datasets to prestage ; got {e} ; skip and retry next time")
+                                    continue
+                                if not prestaging_list:
+                                    # found no datasets only on tape to prestage
+                                    if pseudo_coll_list := ds_list_dict["pseudo_coll_list"]:
+                                        # update no_staging_datasets with pseudo inputs
+                                        tmpLog.debug(f"pseudo inputs: {pseudo_coll_list}")
+                                        no_staging_datasets.update(set(pseudo_coll_list))
+                                    if empty_coll_list := ds_list_dict["empty_coll_list"]:
+                                        # update no_staging_datasets with empty input collections
+                                        tmpLog.debug(f"empty input collections: {empty_coll_list}")
+                                        no_staging_datasets.update(set(empty_coll_list))
+                                    if unfound_coll_list := ds_list_dict["unfound_coll_list"]:
+                                        # some input collections unfound
+                                        if taskParamMap.get("waitInput"):
+                                            # task has waitInput; to be checked again by TaskRefiner later
+                                            tmpLog.debug(f"task has waitInput, waiting for input collections to be created: {unfound_coll_list}; skipped")
+                                        else:
+                                            # not to wait input; update no_staging_datasets with unfound input collections
+                                            tmpLog.debug(f"some input collections not found: {unfound_coll_list}")
+                                            no_staging_datasets.update(set(unfound_coll_list))
+                                    if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
+                                        # update no_staging_datasets for all collections without constituent datasets on tape source
+                                        no_staging_datasets.update(set(no_tape_coll_did_list))
+                                    if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
+                                        # update no_staging_datasets with datasets already on datadisks
+                                        tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
+                                        no_staging_datasets.update(set(datadisk_ds_list))
+                                    if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
+                                        # some datasets unfound
+                                        if taskParamMap.get("waitInput"):
+                                            # task has waitInput; to be checked again by TaskRefiner later
+                                            tmpLog.debug(f"task has waitInput, waiting for input datasets to be created: {unfound_ds_list}; skipped")
+                                        else:
+                                            # not to wait input; update no_staging_datasets with datasets unfound on tape or datadisk (regardless of local/scratch disks)
+                                            tmpLog.debug(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
+                                            no_staging_datasets.update(set(unfound_ds_list))
+                                    if not unfound_coll_list or not taskParamMap.get("waitInput"):
+                                        # all input collections do not need staging (found, or unfound but waiting)
+                                        tmpLog.info("no need to prestage, try to resume task from staging")
+                                        # no dataset needs pre-staging; resume task from staging
+                                        self.taskBufferIF.sendCommandTaskPanda(
+                                            jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
+                                        )
+                                else:
+                                    if tape_coll_did_list := ds_list_dict["tape_coll_did_list"]:
+                                        # update to_staging_datasets with collections with datasets only on tapes
+                                        to_staging_datasets.update(set(tape_coll_did_list))
+                                    if tape_ds_list := ds_list_dict["tape_ds_list"]:
+                                        # update to_staging_datasets with datasets only on tapes
+                                        to_staging_datasets.update(set(tape_ds_list))
+                                    # submit data carousel requests for dataset to pre-stage
+                                    tmpLog.info("to prestage, submitting data carousel requests")
+                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
+                                    if tmp_ret:
+                                        taskParamMap["toStaging"] = True
+                                        tmpLog.info("submitted data carousel requests; set toStaging")
+                                    else:
+                                        # failed to submit data carousel requests; skip and retry in next cycle
+                                        tmpLog.error("failed to submit data carousel requests; skip and retry next time")
+                                        continue
+                            except Exception:
+                                errtype, errvalue = sys.exc_info()[:2]
+                                errStr = f"failed to check about data carousel with {errtype.__name__}:{errvalue}"
+                                tmpLog.error(errStr)
+                                tmpStat = Interaction.SC_FAILED
+                    # staging
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:
+                            errStr = "wait until staging is done"
+                            impl.taskSpec.status = "staging"
+                            impl.taskSpec.oldStatus = taskStatus
+                            impl.taskSpec.setErrDiag(errStr)
+                            # not to update some task attributes
+                            impl.taskSpec.resetRefinedAttrs()
+                            tmpLog.info(errStr)
+                            self.taskBufferIF.updateTask_JEDI(
+                                impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False
+                            )
+                            continue
                     # adjust specs after refining
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         try:
