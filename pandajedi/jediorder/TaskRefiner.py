@@ -382,7 +382,7 @@ class TaskRefinerThread(WorkerThread):
                                         no_staging_datasets.update(set(no_tape_coll_did_list))
                                     if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
-                                        tmpLog.debug(f"datasets not required to check (non-master input): {to_skip_ds_list}")
+                                        tmpLog.debug(f"datasets not required to check about data carousel (non-master input): {to_skip_ds_list}")
                                         no_staging_datasets.update(set(to_skip_ds_list))
                                     if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
