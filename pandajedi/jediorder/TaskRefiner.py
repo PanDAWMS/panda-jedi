@@ -472,7 +472,7 @@ class TaskRefinerThread(WorkerThread):
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_name)
                                 if tmp_ds_set:
-                                    tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
+                                    tmpLog.debug(f"set no_staging for master datasets not to stage: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust spec after refining {errtype.__name__}:{errvalue}"

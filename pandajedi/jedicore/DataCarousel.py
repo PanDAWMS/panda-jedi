@@ -443,7 +443,7 @@ class DataCarouselInterface(object):
         Returns:
             dict : map in form of datasets: jobParameters
         """
-        tmp_log = MsgWrapper(logger, f"_get_full_replicas_per_type dataset={dataset}")
+        # tmp_log = MsgWrapper(logger, f"_get_full_replicas_per_type dataset={dataset}")
         ds_repli_dict = self.ddmIF.convertOutListDatasetReplicas(dataset, skip_incomplete_element=True)
         tape_replicas = []
         datadisk_replicas = []
@@ -454,7 +454,7 @@ class DataCarouselInterface(object):
                 datadisk_replicas.append(rse)
         # return
         ret = {"tape": tape_replicas, "datadisk": datadisk_replicas}
-        tmp_log.debug(f"{ret}")
+        # tmp_log.debug(f"{ret}")
         return ret
 
     def _get_filtered_replicas(self, dataset: str) -> tuple[dict | (str | None) | bool]:
