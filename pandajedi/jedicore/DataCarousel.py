@@ -1408,7 +1408,11 @@ class DataCarouselInterface(object):
                         # more for done requests
                         if dc_req_spec.status == DataCarouselRequestStatus.done:
                             # force to keep alive the rule
-                            self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True)
+                            tmp_ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True)
+                            if tmp_ret:
+                                tmp_log.debug(
+                                    f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {done_lifetime_days} days long"
+                                )
                             # update staged files in DB for done requests
                             tmp_ret = self._update_staged_files(dc_req_spec)
                             if tmp_ret:
