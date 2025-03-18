@@ -382,7 +382,7 @@ class TaskRefinerThread(WorkerThread):
                                         no_staging_datasets.update(set(no_tape_coll_did_list))
                                     if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
-                                        tmpLog.debug(f"datasets not required to check (non-master input): {to_skip_ds_list}")
+                                        tmpLog.debug(f"datasets not required to check about data carousel (non-master input): {to_skip_ds_list}")
                                         no_staging_datasets.update(set(to_skip_ds_list))
                                     if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
                                         # update no_staging_datasets with datasets already on datadisks
@@ -472,7 +472,7 @@ class TaskRefinerThread(WorkerThread):
                                         dataset_spec.set_no_staging(True)
                                         tmp_ds_set.add(dataset_name)
                                 if tmp_ds_set:
-                                    tmpLog.debug(f"set no_staging for datasets not on tapes: {list(tmp_ds_set)}")
+                                    tmpLog.debug(f"set no_staging for master datasets not to stage: {list(tmp_ds_set)}")
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to adjust spec after refining {errtype.__name__}:{errvalue}"
