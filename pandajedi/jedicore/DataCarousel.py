@@ -1198,13 +1198,14 @@ class DataCarouselInterface(object):
         ret = self.ddmIF.update_rule_by_id(rule_id, set_map)
         return ret
 
-    def _refresh_ddm_rule_of_request(self, dc_req_spec: DataCarouselRequestSpec, lifetime_days: int) -> bool:
+    def _refresh_ddm_rule_of_request(self, dc_req_spec: DataCarouselRequestSpec, lifetime_days: int, force_refresh: bool = False) -> bool:
         """
         Refresh lifetime of the DDM rule of one request
 
         Args:
             dc_req_spec (DataCarouselRequestSpec): spec of the request
             lifetime_days (int): lifetime in days to set
+            force_refresh (bool): force to refresh regardless of to_refresh max/min lifetime
 
         Returns:
             bool : True for success, False otherwise
@@ -1213,7 +1214,7 @@ class DataCarouselInterface(object):
         # initialize
         ret = False
         # hard time limits
-        to_refresh_max_lifetime_days = 5
+        to_refresh_max_lifetime_days = 7
         to_refresh_min_lifetime_hours = 2
         # get DDM rule
         ddm_rule_id = dc_req_spec.ddm_rule_id
@@ -1237,9 +1238,11 @@ class DataCarouselInterface(object):
         if the_rule["expires_at"]:
             now_time = naive_utcnow()
             rule_lifetime = the_rule["expires_at"] - now_time
-        # trigger renewal when lifetime within the range
-        if rule_lifetime is None or (
-            rule_lifetime < timedelta(days=to_refresh_max_lifetime_days) and rule_lifetime > timedelta(hours=to_refresh_min_lifetime_hours)
+        # trigger renewal if force_refresh or when lifetime within the range
+        if (
+            rule_lifetime is None
+            or force_refresh
+            or (rule_lifetime < timedelta(days=to_refresh_max_lifetime_days) and rule_lifetime > timedelta(hours=to_refresh_min_lifetime_hours))
         ):
             ret = self._refresh_ddm_rule(ddm_rule_id, 86400 * lifetime_days)
             # tmp_log.debug(f"status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} refreshed lifetime to be {lifetime_days} days long")
@@ -1402,9 +1405,14 @@ class DataCarouselInterface(object):
                             f"request_id={dc_req_spec.request_id} got {new_staged_files} new staged files; updated DB about staging ; status={dc_req_spec.status}"
                         )
                         dc_req_spec = ret
+                        # more for done requests
                         if dc_req_spec.status == DataCarouselRequestStatus.done:
-                            # keep alive the rule
-                            self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days)
+                            # force to keep alive the rule
+                            tmp_ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True)
+                            if tmp_ret:
+                                tmp_log.debug(
+                                    f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {done_lifetime_days} days long"
+                                )
                             # update staged files in DB for done requests
                             tmp_ret = self._update_staged_files(dc_req_spec)
                             if tmp_ret:
