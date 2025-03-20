@@ -9631,6 +9631,7 @@ class DBProxy(OraDBProxy.DBProxy):
             task_max_attempt = self.getConfigValue("retry_task", "TASK_MAX_ATTEMPT", "jedi")
             job_max_attempt = self.getConfigValue("retry_task", "JOB_MAX_ATTEMPT", "jedi")
             max_job_failure_rate = self.getConfigValue("retry_task", "MAX_JOB_FAILURE_RATE", "jedi")
+            max_failed_hep_score_rate = self.getConfigValue("retry_task", "MAX_FAILED_HEP_SCORE_RATE", "jedi")
             max_failed_hep_score_hours = self.getConfigValue("retry_task", "MAX_FAILED_HEP_SCORE_HOURS", "jedi")
             # start transaction
             if useCommit:
@@ -9689,13 +9690,32 @@ class DBProxy(OraDBProxy.DBProxy):
                         and failure_metrics["failed_hep_score_hour"] >= max_failed_hep_score_hours > 0
                     ):
                         # failed HEP score hours are too large
-                        msg_str = f"exhausted since HEP score hours used by failed jobs exceed {max_failed_hep_score_hours} hours"
+                        msg_val = str(failure_metrics["failed_hep_score_hour"])
+                        msg_str = f"exhausted since HEP score hours used by failed jobs ({msg_val} hours) exceed {max_failed_hep_score_hours} hours"
                         tmpLog.debug(msg_str)
                         newTaskStatus = "exhausted"
                         newErrorDialog = msg_str
-                    elif max_job_failure_rate is not None and failure_metrics and failure_metrics["single_failure_rate"] >= max_job_failure_rate > 0:
+                    elif (
+                        max_failed_hep_score_rate is not None
+                        and failure_metrics
+                        and failure_metrics["failed_hep_score_ratio"] is not None
+                        and failure_metrics["failed_hep_score_ratio"] >= max_failed_hep_score_rate > 0
+                    ):
+                        # failed HEP score hours are too large
+                        msg_val = str(failure_metrics["failed_hep_score_ratio"])
+                        msg_str = f"exhausted since failed/total HEP score rate ({msg_val}) exceeds {max_failed_hep_score_rate}"
+                        tmpLog.debug(msg_str)
+                        newTaskStatus = "exhausted"
+                        newErrorDialog = msg_str
+                    elif (
+                        max_job_failure_rate is not None
+                        and failure_metrics
+                        and failure_metrics["single_failure_rate"] is not None
+                        and failure_metrics["single_failure_rate"] >= max_job_failure_rate > 0
+                    ):
                         # high failure rate
-                        msg_str = f"exhausted since single job failure rate is higher than {max_job_failure_rate}"
+                        msg_val = str(failure_metrics["single_failure_rate"])
+                        msg_str = f"exhausted since single job failure rate ({msg_val}) is higher than {max_job_failure_rate}"
                         tmpLog.debug(msg_str)
                         newTaskStatus = "exhausted"
                         newErrorDialog = msg_str
