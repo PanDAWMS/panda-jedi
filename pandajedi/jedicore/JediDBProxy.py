@@ -15012,8 +15012,15 @@ class DBProxy(OraDBProxy.DBProxy):
             n_rel_reused = 0
             for dc_req_spec in dc_req_specs:
                 # sql to query request of the dataset
-                sql_query = f"SELECT request_id " f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests " f"WHERE dataset=:dataset AND status<>:antistatus "
-                var_map = {":dataset": dc_req_spec.dataset, ":antistatus": DataCarouselRequestStatus.cancelled}
+                status_var_names_str, status_var_map = get_sql_IN_bind_variables(DataCarouselRequestStatus.reusable_statuses, prefix=":status")
+                sql_query = (
+                    f"SELECT request_id "
+                    f"FROM {jedi_config.db.schemaJEDI}.data_carousel_requests "
+                    f"WHERE dataset=:dataset "
+                    f"AND status IN ({status_var_names_str}) "
+                )
+                var_map = {":dataset": dc_req_spec.dataset}
+                var_map.update(status_var_map)
                 self.cur.execute(sql_query + comment, var_map)
                 res = self.cur.fetchall()
                 # check if already existing request for the dataset
@@ -15499,6 +15506,48 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             return dc_req_spec_resubmitted
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # retire a data carousel request
+    def retire_data_carousel_request_JEDI(self, request_id):
+        comment = " /* JediDBProxy.retire_data_carousel_request_JEDI */"
+        method_name = self.getMethodName(comment)
+        method_name += f" <request_id={request_id}>"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # sql to update request status to retired
+            now_time = naive_utcnow()
+            sql_update = (
+                f"UPDATE {jedi_config.db.schemaJEDI}.data_carousel_requests "
+                f"SET status=:new_status, end_time=:now_time, modification_time=:now_time "
+                f"WHERE request_id=:request_id "
+                f"AND status=:old_status "
+            )
+            var_map = {
+                ":request_id": request_id,
+                ":old_status": DataCarouselRequestStatus.done,
+                ":new_status": DataCarouselRequestStatus.retired,
+                ":now_time": now_time,
+            }
+            self.cur.execute(sql_update + comment, var_map)
+            ret_req = self.cur.rowcount
+            if not ret_req:
+                tmp_log.warning(f"not done; cannot be retired ; skipped")
+            else:
+                tmp_log.debug(f"retired request")
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            return ret_req
         except Exception:
             # roll back
             self._rollback()

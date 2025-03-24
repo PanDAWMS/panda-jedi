@@ -1001,3 +1001,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def resubmit_data_carousel_request_JEDI(self, request_id):
         with self.proxyPool.get() as proxy:
             return proxy.resubmit_data_carousel_request_JEDI(request_id)
+
+    # retire a data carousel request
+    def retire_data_carousel_request_JEDI(self, request_id):
+        with self.proxyPool.get() as proxy:
+            return proxy.retire_data_carousel_request_JEDI(request_id)

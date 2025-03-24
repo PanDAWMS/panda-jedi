@@ -61,10 +61,12 @@ class DataCarouselRequestStatus(object):
     staging = "staging"
     done = "done"
     cancelled = "cancelled"
+    retired = "retired"
 
     active_statuses = [queued, staging]
-    final_statuses = [done, cancelled]
+    final_statuses = [done, cancelled, retired]
     unfinished_statuses = [staging, cancelled]
+    reusable_statuses = [queued, staging, done]
 
 
 class DataCarouselRequestSpec(SpecBase):
@@ -1183,6 +1185,54 @@ class DataCarouselInterface(object):
         # return
         return is_ok
 
+    def cancel_request(self, request_id: int, by: str = "manual", reason: str | None = None) -> bool | None:
+        """
+        Cancel a request
+
+        Args:
+            request_id (int): reqeust_id of the request to cancel
+            by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for cancelling
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
+        # cancel
+        ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
+        if ret:
+            tmp_log.debug(f"cancelled")
+        elif ret == 0:
+            tmp_log.debug(f"already terminated; skipped")
+        else:
+            tmp_log.error(f"failed to cancel")
+        # return
+        return ret
+
+    def retire_request(self, request_id: int, by: str = "manual", reason: str | None = None) -> bool | None:
+        """
+        Retire a done request so that it will not be reused
+
+        Args:
+            request_id (int): reqeust_id of the request to retire
+            by (str): annotation of the caller of this method; default is "manual"
+            reason (str|None): annotation of the reason for retiring
+
+        Returns:
+            bool|None : True for success, None otherwise
+        """
+        tmp_log = MsgWrapper(logger, f"retire_request request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
+        # cancel
+        ret = self.taskBufferIF.retire_data_carousel_request_JEDI(request_id)
+        if ret:
+            tmp_log.debug(f"retired")
+        elif ret == 0:
+            tmp_log.debug(f"cannot retire; skipped")
+        else:
+            tmp_log.error(f"failed to retire")
+        # return
+        return ret
+
     def _refresh_ddm_rule(self, rule_id: str, lifetime: int) -> bool:
         """
         Refresh lifetime of the DDM rule
@@ -1198,7 +1248,7 @@ class DataCarouselInterface(object):
         ret = self.ddmIF.update_rule_by_id(rule_id, set_map)
         return ret
 
-    def _refresh_ddm_rule_of_request(self, dc_req_spec: DataCarouselRequestSpec, lifetime_days: int, force_refresh: bool = False) -> bool:
+    def refresh_ddm_rule_of_request(self, dc_req_spec: DataCarouselRequestSpec, lifetime_days: int, force_refresh: bool = False, by: str = "unknown") -> bool:
         """
         Refresh lifetime of the DDM rule of one request
 
@@ -1206,11 +1256,12 @@ class DataCarouselInterface(object):
             dc_req_spec (DataCarouselRequestSpec): spec of the request
             lifetime_days (int): lifetime in days to set
             force_refresh (bool): force to refresh regardless of to_refresh max/min lifetime
+            by (str): annotation of the caller of this method; default is "watchdog"
 
         Returns:
             bool : True for success, False otherwise
         """
-        tmp_log = MsgWrapper(logger, f"_refresh_ddm_rule_of_request request_id={dc_req_spec.request_id}")
+        tmp_log = MsgWrapper(logger, f"refresh_ddm_rule_of_request request_id={dc_req_spec.request_id}")
         # initialize
         ret = False
         # hard time limits
@@ -1228,6 +1279,13 @@ class DataCarouselInterface(object):
                 tmp_log.debug(f"updated DB about rule not found")
             else:
                 tmp_log.error(f"failed to update DB ; skipped")
+            # try to cancel or retire request
+            if dc_req_spec.status == DataCarouselRequestStatus.staging:
+                # requests staging but DDM rule not found; to cancel
+                self.cancel_request(dc_req_spec.request_id, by=by, reason="rule_unfound")
+            elif dc_req_spec.status == DataCarouselRequestStatus.done:
+                # requests done but DDM rule not found; to retire
+                self.retire_request(dc_req_spec.request_id, by=by, reason="rule_unfound")
             return ret
         elif the_rule is None:
             # got error when getting the rule
@@ -1255,9 +1313,12 @@ class DataCarouselInterface(object):
         # return
         return ret
 
-    def keep_alive_ddm_rules(self):
+    def keep_alive_ddm_rules(self, by: str = "watchdog"):
         """
         Keep alive DDM rules of requests of active tasks
+
+        Args:
+            by (str): annotation of the caller of this method; default is "watchdog"
         """
         tmp_log = MsgWrapper(logger, "keep_alive_ddm_rules")
         # get requests and relations of active tasks
@@ -1277,7 +1338,7 @@ class DataCarouselInterface(object):
                     days = done_lifetime_days
                 # trigger renewal
                 if days is not None:
-                    ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=days)
+                    ret = self.refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=days, by=by)
                     if ret:
                         tmp_log.debug(
                             f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {days} days long"
@@ -1356,6 +1417,13 @@ class DataCarouselInterface(object):
                         tmp_log.debug(f"request_id={dc_req_spec.request_id} updated DB about rule not found")
                     else:
                         tmp_log.error(f"request_id={dc_req_spec.request_id} failed to update DB ; skipped")
+                    # try to cancel or retire request
+                    if dc_req_spec.status == DataCarouselRequestStatus.staging:
+                        # requests staging but DDM rule not found; to cancel
+                        self.cancel_request(dc_req_spec.request_id, by="watchdog", reason="rule_unfound")
+                    elif dc_req_spec.status == DataCarouselRequestStatus.done:
+                        # requests done but DDM rule not found; to retire
+                        self.retire_request(dc_req_spec.request_id, by="watchdog", reason="rule_unfound")
                     continue
                 elif the_rule is None:
                     # got error when getting the rule
@@ -1409,7 +1477,7 @@ class DataCarouselInterface(object):
                         # more for done requests
                         if dc_req_spec.status == DataCarouselRequestStatus.done:
                             # force to keep alive the rule
-                            tmp_ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True)
+                            tmp_ret = self.refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True, by="watchdog")
                             if tmp_ret:
                                 tmp_log.debug(
                                     f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {done_lifetime_days} days long"
@@ -1493,30 +1561,6 @@ class DataCarouselInterface(object):
         # summary
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
-    def cancel_request(self, request_id: int, by: str = "manual", reason: str | None = None) -> bool | None:
-        """
-        Cancel a request
-
-        Args:
-            request_id (int): reqeust_id of the request to cancel
-            by (str): annotation of the caller of this method; default is "manual"
-            reason (str|None): annotation of the reason for cancelling
-
-        Returns:
-            bool|None : True for success, None otherwise
-        """
-        tmp_log = MsgWrapper(logger, f"cancel_request request_id={request_id} by={by}" + (f" reason={reason}" if reason else " "))
-        # cancel
-        ret = self.taskBufferIF.cancel_data_carousel_request_JEDI(request_id)
-        if ret:
-            tmp_log.debug(f"cancelled")
-        elif ret == 0:
-            tmp_log.debug(f"already terminated; skipped")
-        else:
-            tmp_log.error(f"failed to cancel")
-        # return
-        return ret
-
     def clean_up_requests(
         self, done_age_limit_days: int | float = done_lifetime_days, outdated_age_limit_days: int | float = done_lifetime_days, by: str = "watchdog"
     ):
@@ -1533,6 +1577,7 @@ class DataCarouselInterface(object):
             # initialize
             done_requests_set = set()
             cancelled_requests_set = set()
+            retired_requests_set = set()
             # get requests of terminated and active tasks
             terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
                 status_filter_list=final_task_statuses
@@ -1567,6 +1612,9 @@ class DataCarouselInterface(object):
                 elif dc_req_spec.status == DataCarouselRequestStatus.cancelled:
                     # requests cancelled; to clean up
                     cancelled_requests_set.add(request_id)
+                elif dc_req_spec.status == DataCarouselRequestStatus.retired:
+                    # requests retired; to clean up
+                    retired_requests_set.add(request_id)
             # loop over requests of active tasks to cancel bad ones
             for request_id in request_ids_of_active_tasks:
                 dc_req_spec = active_tasks_requests_map[request_id]
@@ -1574,7 +1622,7 @@ class DataCarouselInterface(object):
                     # requests staging but DDM rule not found; to cancel
                     self.cancel_request(request_id, by=by, reason="rule_unfound")
             # delete ddm rules of terminated requests of terminated tasks
-            for request_id in done_requests_set | cancelled_requests_set:
+            for request_id in done_requests_set | cancelled_requests_set | retired_requests_set:
                 dc_req_spec = terminated_tasks_requests_map[request_id]
                 ddm_rule_id = dc_req_spec.ddm_rule_id
                 if ddm_rule_id:
@@ -1587,7 +1635,7 @@ class DataCarouselInterface(object):
                     except Exception:
                         tmp_log.error(f"request_id={request_id} ddm_rule_id={ddm_rule_id} failed to delete DDM rule; {traceback.format_exc()}")
             # delete terminated requests of terminated tasks
-            if done_requests_set or cancelled_requests_set:
+            if done_requests_set or cancelled_requests_set or retired_requests_set:
                 if done_requests_set:
                     # done requests
                     ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(done_requests_set))
@@ -1602,6 +1650,13 @@ class DataCarouselInterface(object):
                         tmp_log.warning(f"failed to delete cancelled requests; skipped")
                     else:
                         tmp_log.debug(f"deleted {ret} cancelled requests")
+                if retired_requests_set:
+                    # retired requests
+                    ret = self.taskBufferIF.delete_data_carousel_requests_JEDI(list(retired_requests_set))
+                    if ret is None:
+                        tmp_log.warning(f"failed to delete retired requests; skipped")
+                    else:
+                        tmp_log.debug(f"deleted {ret} retired requests")
             else:
                 tmp_log.debug(f"no terminated requests to delete; skipped")
             # clean up outdated requests
