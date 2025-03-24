@@ -1276,16 +1276,17 @@ class DataCarouselInterface(object):
                     # for requests done
                     days = done_lifetime_days
                 # trigger renewal
-                ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=days)
-                if ret:
-                    tmp_log.debug(
-                        f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {days} days long"
-                    )
-                else:
-                    # tmp_log.debug(
-                    #     f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} not to renew ; skipped"
-                    # )
-                    pass
+                if days is not None:
+                    ret = self._refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=days)
+                    if ret:
+                        tmp_log.debug(
+                            f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {days} days long"
+                        )
+                    else:
+                        # tmp_log.debug(
+                        #     f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} not to renew ; skipped"
+                        # )
+                        pass
             except Exception:
                 tmp_log.error(f"request_id={dc_req_spec.request_id} got error ; {traceback.format_exc()}")
 
