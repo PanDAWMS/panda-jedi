@@ -152,7 +152,10 @@ class AtlasProdTaskBrokerThread(WorkerThread):
         # cutoff for disk in TB
         diskThreshold = self.taskBufferIF.getConfigValue(self.msgType, f"DISK_THRESHOLD_{self.workQueue.queue_name}", "jedi", "atlas")
         if diskThreshold is None:
-            diskThreshold = 100 * 1024
+            diskThreshold = self.taskBufferIF.getConfigValue(self.msgType, "DISK_THRESHOLD", "jedi", "atlas")
+            if diskThreshold is None:
+                diskThreshold = 100
+        diskThreshold *= 1024
         # dataset type to ignore file availability check
         datasetTypeToSkipCheck = ["log"]
         # thresholds for data availability check
