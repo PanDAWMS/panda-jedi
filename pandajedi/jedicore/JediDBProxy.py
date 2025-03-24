@@ -9627,12 +9627,6 @@ class DBProxy(OraDBProxy.DBProxy):
             sqlUO = f"UPDATE {jedi_config.db.schemaJEDI}.JEDI_Datasets "
             sqlUO += "SET status=:status "
             sqlUO += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3) "
-            # limits for attempt
-            task_max_attempt = self.getConfigValue("retry_task", "TASK_MAX_ATTEMPT", "jedi")
-            job_max_attempt = self.getConfigValue("retry_task", "JOB_MAX_ATTEMPT", "jedi")
-            max_job_failure_rate = self.getConfigValue("retry_task", "MAX_JOB_FAILURE_RATE", "jedi")
-            max_failed_hep_score_rate = self.getConfigValue("retry_task", "MAX_FAILED_HEP_SCORE_RATE", "jedi")
-            max_failed_hep_score_hours = self.getConfigValue("retry_task", "MAX_FAILED_HEP_SCORE_HOURS", "jedi")
             # start transaction
             if useCommit:
                 self.conn.begin()
@@ -9640,7 +9634,7 @@ class DBProxy(OraDBProxy.DBProxy):
             # check task status
             varMap = {}
             varMap[":jediTaskID"] = jediTaskID
-            sqlTK = f"SELECT status,oldStatus,attemptNr FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
+            sqlTK = f"SELECT status,oldStatus,attemptNr,prodSourceLabel FROM {jedi_config.db.schemaJEDI}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
             self.cur.execute(sqlTK + comment, varMap)
             resTK = self.cur.fetchone()
             if resTK is None:
@@ -9649,7 +9643,13 @@ class DBProxy(OraDBProxy.DBProxy):
                 tmpLog.debug(msgStr)
             else:
                 # check task status
-                taskStatus, taskOldStatus, task_attempt_number = resTK
+                taskStatus, taskOldStatus, task_attempt_number, prod_source_label = resTK
+                # limits for attempt
+                task_max_attempt = self.getConfigValue("retry_task", f"TASK_MAX_ATTEMPT_{prod_source_label}", "jedi")
+                job_max_attempt = self.getConfigValue("retry_task", f"JOB_MAX_ATTEMPT_{prod_source_label}", "jedi")
+                max_job_failure_rate = self.getConfigValue("retry_task", f"MAX_JOB_FAILURE_RATE_{prod_source_label}", "jedi")
+                max_failed_hep_score_rate = self.getConfigValue("retry_task", f"MAX_FAILED_HEP_SCORE_RATE_{prod_source_label}", "jedi")
+                max_failed_hep_score_hours = self.getConfigValue("retry_task", f"MAX_FAILED_HEP_SCORE_HOURS_{prod_source_label}", "jedi")
                 newTaskStatus = None
                 newErrorDialog = None
                 if taskOldStatus == "done" and commStr == "retry" and statusCheck:
@@ -9719,9 +9719,9 @@ class DBProxy(OraDBProxy.DBProxy):
                         tmpLog.debug(msg_str)
                         newTaskStatus = "exhausted"
                         newErrorDialog = msg_str
-                    elif job_max_attempt is not None and resMAX is not None and resMAX[0] is not None and resMAX[0] + maxAttempt >= job_max_attempt:
+                    elif job_max_attempt is not None and resMAX is not None and resMAX[0] is not None and resMAX[0] >= job_max_attempt:
                         # too many job attempts
-                        msgStr = f"{commStr} was rejected due to too many attempts (~{job_max_attempt}) for some jobs"
+                        msgStr = f"{commStr} was rejected due to too many attempts ({resMAX[0]} >= {job_max_attempt}) for some jobs"
                         tmpLog.debug(msgStr)
                         newTaskStatus = taskOldStatus
                         newErrorDialog = msgStr
