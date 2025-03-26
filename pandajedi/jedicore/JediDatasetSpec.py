@@ -6,6 +6,8 @@ dataset specification for JEDI
 import math
 import re
 
+from pandacommon.pandautils.PandaUtils import get_sql_IN_bind_variables
+
 from pandajedi.jediconfig import jedi_config
 
 
@@ -578,3 +580,9 @@ class JediDatasetSpec(object):
                     value = bool(num_repr)
                     return value
         return False
+
+
+# often-used bind variables
+INPUT_TYPES_var_str, INPUT_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getInputTypes(), prefix=":type_", value_as_suffix=True)
+PROCESS_TYPES_var_str, PROCESS_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getProcessTypes(), prefix=":type_", value_as_suffix=True)
+MERGE_TYPES_var_str, MERGE_TYPES_var_map = get_sql_IN_bind_variables(JediDatasetSpec.getMergeProcessTypes(), prefix=":type_", value_as_suffix=True)
