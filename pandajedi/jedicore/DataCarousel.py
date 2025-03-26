@@ -36,6 +36,8 @@ AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
 # template strings
 # source replica expression prefix
 SRC_REPLI_EXPR_PREFIX = "rse_type=DISK"
+# destination replica expression for datasets to pin (with replica on disk but without rule to stay on datadisk)
+TO_PIN_DST_REPLI_EXPR = "type=DATADISK"
 
 # DDM rule lifetime in day to keep
 STAGING_LIFETIME_DAYS = 15
@@ -118,6 +120,7 @@ class DataCarouselRequestSpec(SpecBase):
             "prev_dst" (str): previous destination RSE
             "excluded_dst_list" (list[str]): list of excluded destination RSEs
             "rule_unfound" (bool): DDM rule not found
+            "to_pin" (bool): whether to pin the dataset
 
         Returns:
             dict : dict of parameters if it is JSON or empty dict if null
@@ -302,6 +305,7 @@ class DataCarouselInterface(object):
         self.ddmIF = ddmIF
         self.tape_rses = []
         self.datadisk_rses = []
+        self.disk_rses = []
         self.dc_config_map = None
         self._last_update_ts_dict = {}
         # refresh
@@ -331,7 +335,7 @@ class DataCarouselInterface(object):
         """
         Update RSEs per TAPE and DATADISK cached in this object
         Run if cache outdated; else do nothing
-        Check DATADISK only since data on other DISK sources like SCRATCHDISK or LOCALDISK are transient
+        Check both DATADISK and DISK (including other DISK sources like SCRATCHDISK or LOCALDISK which are transient)
 
         Args:
             time_limit_minutes (int|float): time limit of the cache in minutes
@@ -351,8 +355,11 @@ class DataCarouselInterface(object):
                 datadisk_rses = self.ddmIF.list_rses("type=DATADISK")
                 if datadisk_rses is not None:
                     self.datadisk_rses = list(datadisk_rses)
-                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses}")
-                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks")
+                disk_rses = self.ddmIF.list_rses("rse_type=DISK")
+                if disk_rses is not None:
+                    self.disk_rses = list(disk_rses)
+                # tmp_log.debug(f"TAPE: {self.tape_rses} ; DATADISK: {self.datadisk_rses} ; DISK: {self.disk_rses}")
+                # tmp_log.debug(f"got {len(self.tape_rses)} tapes , {len(self.datadisk_rses)} datadisks , {len(self.disk_rses)} disks")
                 # update last update timestamp
                 self._last_update_ts_dict[nickname] = naive_utcnow()
         except Exception:
@@ -457,17 +464,20 @@ class DataCarouselInterface(object):
         ds_repli_dict = self.ddmIF.convertOutListDatasetReplicas(dataset, skip_incomplete_element=True)
         tape_replicas = []
         datadisk_replicas = []
+        disk_replicas = []
         for rse in ds_repli_dict:
             if rse in self.tape_rses:
                 tape_replicas.append(rse)
             if rse in self.datadisk_rses:
                 datadisk_replicas.append(rse)
+            if rse in self.disk_rses:
+                disk_replicas.append(rse)
         # return
-        ret = {"tape": tape_replicas, "datadisk": datadisk_replicas}
+        ret = {"tape": tape_replicas, "datadisk": datadisk_replicas, "disk": disk_replicas}
         # tmp_log.debug(f"{ret}")
         return ret
 
-    def _get_filtered_replicas(self, dataset: str) -> tuple[dict | (str | None) | bool]:
+    def _get_filtered_replicas(self, dataset: str) -> tuple[dict, (str | None), bool]:
         """
         Get filtered replicas of a dataset and the staging rule and whether all replicas are without rules
 
@@ -491,6 +501,7 @@ class DataCarouselInterface(object):
                 rse_expression_list.append(rule["rse_expression"])
         filtered_replicas_map = {"tape": [], "datadisk": []}
         has_datadisk_replica = len(replicas_map["datadisk"]) > 0
+        has_disk_replica = len(replicas_map["disk"]) > 0
         for replica in replicas_map["tape"]:
             if replica in rse_expression_list:
                 filtered_replicas_map["tape"].append(replica)
@@ -499,8 +510,8 @@ class DataCarouselInterface(object):
         for replica in replicas_map["datadisk"]:
             if staging_rule is not None or replica in rse_expression_list:
                 filtered_replicas_map["datadisk"].append(replica)
-        all_datadisk_replicas_without_rules = has_datadisk_replica and len(filtered_replicas_map["datadisk"]) == 0
-        return filtered_replicas_map, staging_rule, all_datadisk_replicas_without_rules
+        all_disk_repli_ruleless = has_disk_replica and len(filtered_replicas_map["datadisk"]) == 0
+        return filtered_replicas_map, staging_rule, all_disk_repli_ruleless
 
     def _get_datasets_from_collection(self, collection: str) -> list[str] | None:
         """
@@ -589,7 +600,7 @@ class DataCarouselInterface(object):
         else:
             return active_source_rses_set
 
-    def _get_source_type_of_dataset(self, dataset: str, active_source_rses_set: set | None = None) -> tuple[(str | None) | (set | None) | (str | None)]:
+    def _get_source_type_of_dataset(self, dataset: str, active_source_rses_set: set | None = None) -> tuple[(str | None), (set | None), (str | None), bool]:
         """
         Get source type and permanent (tape or datadisk) RSEs of a dataset
 
@@ -601,25 +612,27 @@ class DataCarouselInterface(object):
             str | None : source type of the dataset, "datadisk" if replica on any datadisk, "tape" if replica only on tapes, None if not found
             set | None : set of permanent RSEs, otherwise None
             str | None : staging rule if existing, otherwise None
+            bool : whether to pin the dataset
         """
         tmp_log = MsgWrapper(logger, f"_get_source_type_of_dataset dataset={dataset}")
         try:
             # initialize
             source_type = None
             rse_set = None
+            to_pin = False
             # get active source rses
             if active_source_rses_set is None:
                 active_source_rses_set = self._get_active_source_rses()
             # get filtered replicas and staging rule of the dataset
-            filtered_replicas_map, staging_rule, _ = self._get_filtered_replicas(dataset)
+            filtered_replicas_map, staging_rule, all_disk_repli_ruleless = self._get_filtered_replicas(dataset)
             # algorithm
             if filtered_replicas_map["datadisk"]:
-                # replicas already on datadisk
+                # replicas already on datadisk and with rule
                 source_type = "datadisk"
                 # source datadisk RSEs from DDM
                 rse_set = {replica for replica in filtered_replicas_map["datadisk"]}
             elif filtered_replicas_map["tape"]:
-                # replicas only on tape, not on datadisk
+                # replicas on tape and without rule to pin it on datadisk
                 source_type = "tape"
                 # source tape RSEs from DDM
                 rse_set = {replica for replica in filtered_replicas_map["tape"]}
@@ -630,16 +643,20 @@ class DataCarouselInterface(object):
                 if not rse_set:
                     source_type = None
                     tmp_log.warning(f"all its source tapes are inactive")
+                # dataset pinning
+                if all_disk_repli_ruleless:
+                    # replica on disks but without rule to pin on datadisk; to pin the dataset to datadisk
+                    to_pin = True
             else:
                 # no replica found on tape nor on datadisk (can be on transient disk); skip
                 pass
             # return
-            return (source_type, rse_set, staging_rule)
+            return (source_type, rse_set, staging_rule, to_pin)
         except Exception as e:
             # other unexpected errors
             raise e
 
-    def _choose_tape_source_rse(self, dataset: str, rse_set: set, staging_rule) -> tuple[str | (str | None) | (str | None)]:
+    def _choose_tape_source_rse(self, dataset: str, rse_set: set, staging_rule) -> tuple[str, (str | None), (str | None)]:
         """
         Choose a TAPE source RSE
         If with exsiting staging rule, then get source RSE from it
@@ -705,7 +722,7 @@ class DataCarouselInterface(object):
             raise e
 
     @refresh
-    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict, dsname_list: list | None = None) -> tuple[list | dict]:
+    def get_input_datasets_to_prestage(self, task_id: int, task_params_map: dict, dsname_list: list | None = None) -> tuple[list, dict]:
         """
         Get the input datasets, their source RSEs (tape) of the task which need pre-staging from tapes, and DDM rule ID of existing DDM rule
 
@@ -763,7 +780,7 @@ class DataCarouselInterface(object):
                         tmp_log.debug(f"dataset={dataset} not in dsname_list ; skipped")
                         continue
                     # get source type and RSEs
-                    source_type, rse_set, staging_rule = self._get_source_type_of_dataset(dataset, active_source_rses_set)
+                    source_type, rse_set, staging_rule, to_pin = self._get_source_type_of_dataset(dataset, active_source_rses_set)
                     if source_type == "datadisk":
                         # replicas already on datadisk; skip
                         ret_map["datadisk_ds_list"].append(dataset)
@@ -775,7 +792,8 @@ class DataCarouselInterface(object):
                         ret_map["tape_ds_list"].append(dataset)
                         tmp_log.debug(f"dataset={dataset} on tapes {list(rse_set)} ; choosing one")
                         # choose source RSE
-                        prestaging_tuple = self._choose_tape_source_rse(dataset, rse_set, staging_rule)
+                        _, source_rse, ddm_rule_id = self._choose_tape_source_rse(dataset, rse_set, staging_rule)
+                        prestaging_tuple = (dataset, source_rse, ddm_rule_id, to_pin)
                         tmp_log.debug(f"got prestaging: {prestaging_tuple}")
                         # add to prestage
                         ret_prestaging_list.append(prestaging_tuple)
@@ -803,7 +821,7 @@ class DataCarouselInterface(object):
 
         Args:
             task_id (int): JEDI task ID
-            prestaging_list (list[tuple[str, str|None, str|None]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
+            prestaging_list (list[tuple[str, str|None, str|None, bool]]): list of tuples in the form of (dataset, source_rse, ddm_rule_id)
 
         Returns:
             bool | None : True if submission successful, or None if failed
@@ -814,7 +832,7 @@ class DataCarouselInterface(object):
         # fill dc request spec for each input dataset
         dc_req_spec_list = []
         now_time = naive_utcnow()
-        for dataset, source_rse, ddm_rule_id in prestaging_list:
+        for dataset, source_rse, ddm_rule_id, to_pin in prestaging_list:
             dc_req_spec = DataCarouselRequestSpec()
             dc_req_spec.dataset = dataset
             dataset_meta = self.ddmIF.getDatasetMetaData(dataset)
@@ -832,6 +850,9 @@ class DataCarouselInterface(object):
                 source_tape = dc_req_spec.source_rse
             finally:
                 dc_req_spec.source_tape = source_tape
+            if to_pin:
+                # to pin the dataset; set to_pin in parameter
+                dc_req_spec.set_parameter("to_pin", True)
             dc_req_spec.status = DataCarouselRequestStatus.queued
             dc_req_spec.creation_time = now_time
             if dc_req_spec.ddm_rule_id:
@@ -839,6 +860,7 @@ class DataCarouselInterface(object):
                 dc_req_spec.status = DataCarouselRequestStatus.staging
                 dc_req_spec.start_time = now_time
                 dc_req_spec.set_parameter("reuse_rule", True)
+            # append to list
             dc_req_spec_list.append(dc_req_spec)
         # insert dc requests for the task
         n_req_inserted = self.taskBufferIF.insert_data_carousel_requests_JEDI(task_id, dc_req_spec_list)
@@ -985,6 +1007,7 @@ class DataCarouselInterface(object):
                     "dataset": dc_req_spec.dataset,
                     "source_rse": dc_req_spec.source_rse,
                     "source_tape": dc_req_spec.source_tape,
+                    "to_pin": dc_req_spec.get_parameter("to_pin"),
                     "total_files": dc_req_spec.total_files,
                     "dataset_size": dc_req_spec.dataset_size,
                     "jediTaskID": task_spec.jediTaskID,
@@ -1001,6 +1024,7 @@ class DataCarouselInterface(object):
                 "dataset": str,
                 "source_rse": str,
                 "source_tape": str,
+                "to_pin": bool,
                 "total_files": int,
                 "dataset_size": int,
                 "jediTaskID": int,
@@ -1011,7 +1035,11 @@ class DataCarouselInterface(object):
             },
         )
         # fill null
-        df.with_columns(pl.col("total_files").fill_null(strategy="zero"), pl.col("dataset_size").fill_null(strategy="zero"))
+        df.with_columns(
+            pl.col("to_pin").fill_null(value=False),
+            pl.col("total_files").fill_null(strategy="zero"),
+            pl.col("dataset_size").fill_null(strategy="zero"),
+        )
         # join to add phycial tape
         # df = df.join(source_rses_config_df.select("source_rse", "tape"), on="source_rse", how="left")
         # return final dataframe
@@ -1041,9 +1069,9 @@ class DataCarouselInterface(object):
         request_id_spec_map = {dc_req_spec.request_id: dc_req_spec for dc_req_spec, _ in queued_requests}
         # get dataframe of queued requests and tasks
         queued_requests_tasks_df = self._queued_requests_tasks_to_dataframe(queued_requests)
-        # sort queued requests : by gshare_rank, task_priority, jediTaskID, request_id
+        # sort queued requests : by to_pin, gshare_rank, task_priority, jediTaskID, request_id
         df = queued_requests_tasks_df.sort(
-            ["gshare_rank", "task_priority", "jediTaskID", "request_id"], descending=[False, True, False, False], nulls_last=True
+            ["to_pin", "gshare_rank", "task_priority", "jediTaskID", "request_id"], descending=[True, False, True, False, False], nulls_last=True
         )
         # get unique requests with the sorted order
         df = df.unique(subset=["request_id"], keep="first", maintain_order=True)
@@ -1054,12 +1082,19 @@ class DataCarouselInterface(object):
             quota_size = source_tape_stats_dict["quota_size"]
             # dataframe of the phycial tape
             tmp_df = queued_requests_df.filter(pl.col("source_tape") == source_tape)
+            # split with to_pin and not to_pin
+            to_pin_df = tmp_df.filter(pl.col("to_pin"))
+            tmp_queued_df = tmp_df.filter(pl.col("to_pin").not_())
+            # fill dummy cumulative sum (0) for reqeusts to pin
+            to_pin_df = to_pin_df.with_columns(cum_total_files=pl.lit(0), cum_dataset_size=pl.lit(0))
             # get cumulative sum of queued files per physical tape
-            tmp_df = tmp_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
+            tmp_queued_df = tmp_queued_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
             # number of queued requests at the physical tape
-            n_queued = len(tmp_df)
+            n_queued = len(tmp_queued_df)
+            n_to_pin = len(to_pin_df)
+            n_total = n_queued + n_to_pin
             # print dataframe in log
-            if n_queued:
+            if n_total:
                 tmp_to_print_df = tmp_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare", "gshare_rank", "task_priority", "total_files", "cum_total_files"]
                 )
@@ -1069,18 +1104,25 @@ class DataCarouselInterface(object):
                 )
                 tmp_log.debug(f"  source_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
             # filter requests to respect the tape quota size; at most one request can reach or exceed quota size
-            to_stage_df = pl.concat([tmp_df.filter(pl.col("cum_total_files") < quota_size), tmp_df.filter(pl.col("cum_total_files") >= quota_size).head(1)])
+            to_stage_df = pl.concat(
+                [tmp_queued_df.filter(pl.col("cum_total_files") < quota_size), tmp_queued_df.filter(pl.col("cum_total_files") >= quota_size).head(1)]
+            )
             # append the requests to ret_list
-            request_id_list = to_stage_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
-            sub_count = 0
-            for request_id in request_id_list:
+            to_pin_request_id_list = to_pin_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            to_stage_request_id_list = to_stage_df.select(["request_id"]).to_dict(as_series=False)["request_id"]
+            for request_id in to_pin_request_id_list:
                 dc_req_spec = request_id_spec_map.get(request_id)
                 if dc_req_spec:
                     ret_list.append(dc_req_spec)
-                    sub_count += 1
-            if n_queued:
-                tmp_log.debug(f"source_tape={source_tape} got {sub_count}/{n_queued} requests to stage")
-        tmp_log.debug(f"totally got {len(ret_list)} requests to stage")
+            to_stage_count = 0
+            for request_id in to_stage_request_id_list:
+                dc_req_spec = request_id_spec_map.get(request_id)
+                if dc_req_spec:
+                    ret_list.append(dc_req_spec)
+                    to_stage_count += 1
+            if n_total:
+                tmp_log.debug(f"source_tape={source_tape} got {to_stage_count}/{n_queued} requests to stage, {n_to_pin} requests to pin")
+        tmp_log.debug(f"totally got {len(ret_list)} requests to stage or to pin")
         # return
         return ret_list
 
@@ -1118,7 +1160,7 @@ class DataCarouselInterface(object):
             # other unexpected errors
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             return
-        # fill parameters about this tape source from DC config
+        # parameters about this tape source from DC config
         try:
             source_tape_config = self.dc_config_map.source_tapes_config[source_tape]
         except (KeyError, AttributeError):
@@ -1129,8 +1171,13 @@ class DataCarouselInterface(object):
             # other unexpected errors
             tmp_log.error(f"got error ; {traceback.format_exc()}")
             return
+        # destination expression
+        if dc_req_spec.get_parameter("to_pin"):
+            # to pin; use the simple to pin destination
+            tmp_log.debug(f"has to_pin")
+            expression = TO_PIN_DST_REPLI_EXPR
         else:
-            # destination_expression
+            # destination_expression from DC config
             expression = source_tape_config.destination_expression
         # adjust destination_expression according to excluded_dst_list
         if excluded_dst_list := dc_req_spec.get_parameter("excluded_dst_list"):
