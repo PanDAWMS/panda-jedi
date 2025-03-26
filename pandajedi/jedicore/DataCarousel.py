@@ -28,18 +28,22 @@ logger = PandaLogger().getLogger(__name__.split(".")[-1])
 DC_CONFIG_SCHEMA_VERSION = 1
 
 # final task statuses
-final_task_statuses = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
+FINAL_TASK_STATUSES = ["done", "finished", "failed", "exhausted", "aborted", "toabort", "aborting", "broken", "tobroken"]
 
 # named tuple for attribute with type
 AttributeWithType = namedtuple("AttributeWithType", ["attribute", "type"])
 
 # template strings
 # source replica expression prefix
-src_repli_expr_prefix = "rse_type=DISK"
+SRC_REPLI_EXPR_PREFIX = "rse_type=DISK"
 
 # DDM rule lifetime in day to keep
-staging_lifetime_days = 15
-done_lifetime_days = 30
+STAGING_LIFETIME_DAYS = 15
+DONE_LIFETIME_DAYS = 30
+
+# DDM rule refresh hard lifetime limits (refresh only if lifetime within the range)
+TO_REFRESH_MAX_LIFETIME_DAYS = 7
+TO_REFRESH_MIN_LIFETIME_HOURS = 2
 
 # polars config
 pl.Config.set_ascii_tables(True)
@@ -669,7 +673,7 @@ class DataCarouselInterface(object):
                         break
                 if source_rse is None:
                     # direct regex search from source_replica_expression; reluctant as source_replica_expression can be messy
-                    tmp_match = re.search(rf"{src_repli_expr_prefix}\|([A-Za-z0-9-_]+)", source_replica_expression)
+                    tmp_match = re.search(rf"{SRC_REPLI_EXPR_PREFIX}\|([A-Za-z0-9-_]+)", source_replica_expression)
                     if tmp_match is not None:
                         source_rse = tmp_match.group(1)
                 if source_rse is None:
@@ -678,9 +682,9 @@ class DataCarouselInterface(object):
                 else:
                     tmp_log.debug(f"already staging with ddm_rule_id={ddm_rule_id} source_rse={source_rse}")
                 # keep alive the rule
-                if (rule_expiration_time := staging_rule["expires_at"]) and (rule_expiration_time - naive_utcnow()) < timedelta(days=done_lifetime_days):
-                    self._refresh_ddm_rule(ddm_rule_id, 86400 * done_lifetime_days)
-                    tmp_log.debug(f"ddm_rule_id={ddm_rule_id} refreshed rule to be {done_lifetime_days} days long")
+                if (rule_expiration_time := staging_rule["expires_at"]) and (rule_expiration_time - naive_utcnow()) < timedelta(days=DONE_LIFETIME_DAYS):
+                    self._refresh_ddm_rule(ddm_rule_id, 86400 * DONE_LIFETIME_DAYS)
+                    tmp_log.debug(f"ddm_rule_id={ddm_rule_id} refreshed rule to be {DONE_LIFETIME_DAYS} days long")
             else:
                 # no existing staging rule ; prepare info for new submission
                 rse_list = list(rse_set)
@@ -1098,7 +1102,7 @@ class DataCarouselInterface(object):
         source_replica_expression = None
         # source replica expression
         if dc_req_spec.source_rse:
-            source_replica_expression = f"{src_repli_expr_prefix}|{dc_req_spec.source_rse}"
+            source_replica_expression = f"{SRC_REPLI_EXPR_PREFIX}|{dc_req_spec.source_rse}"
         else:
             # no source_rse; unexpected
             tmp_log.warning(f"source_rse is None ; skipped")
@@ -1264,9 +1268,6 @@ class DataCarouselInterface(object):
         tmp_log = MsgWrapper(logger, f"refresh_ddm_rule_of_request request_id={dc_req_spec.request_id}")
         # initialize
         ret = False
-        # hard time limits
-        to_refresh_max_lifetime_days = 7
-        to_refresh_min_lifetime_hours = 2
         # get DDM rule
         ddm_rule_id = dc_req_spec.ddm_rule_id
         the_rule = self.ddmIF.get_rule_by_id(ddm_rule_id)
@@ -1300,14 +1301,14 @@ class DataCarouselInterface(object):
         if (
             rule_lifetime is None
             or force_refresh
-            or (rule_lifetime < timedelta(days=to_refresh_max_lifetime_days) and rule_lifetime > timedelta(hours=to_refresh_min_lifetime_hours))
+            or (rule_lifetime < timedelta(days=TO_REFRESH_MAX_LIFETIME_DAYS) and rule_lifetime > timedelta(hours=TO_REFRESH_MIN_LIFETIME_HOURS))
         ):
             ret = self._refresh_ddm_rule(ddm_rule_id, 86400 * lifetime_days)
             # tmp_log.debug(f"status={dc_req_spec.status} ddm_rule_id={ddm_rule_id} refreshed lifetime to be {lifetime_days} days long")
         else:
             # rule_lifetime_days = rule_lifetime.total_seconds() / 86400
             # tmp_log.debug(
-            #     f"ddm_rule_id={ddm_rule_id} not to refresh as lifetime {rule_lifetime_days:.2f}d not within range {to_refresh_max_lifetime_days}d to {to_refresh_min_lifetime_hours}h"
+            #     f"ddm_rule_id={ddm_rule_id} not to refresh as lifetime {rule_lifetime_days:.2f}d not within range {TO_REFRESH_MAX_LIFETIME_DAYS}d to {TO_REFRESH_MIN_LIFETIME_HOURS}h"
             # )
             pass
         # return
@@ -1322,7 +1323,7 @@ class DataCarouselInterface(object):
         """
         tmp_log = MsgWrapper(logger, "keep_alive_ddm_rules")
         # get requests and relations of active tasks
-        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
+        ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=FINAL_TASK_STATUSES)
         for dc_req_spec in ret_requests_map.values():
             try:
                 if dc_req_spec.status not in [DataCarouselRequestStatus.staging, DataCarouselRequestStatus.done]:
@@ -1332,10 +1333,10 @@ class DataCarouselInterface(object):
                 days = None
                 if dc_req_spec.status == DataCarouselRequestStatus.staging:
                     # for requests staging
-                    days = staging_lifetime_days
+                    days = STAGING_LIFETIME_DAYS
                 elif dc_req_spec.status == DataCarouselRequestStatus.done:
                     # for requests done
-                    days = done_lifetime_days
+                    days = DONE_LIFETIME_DAYS
                 # trigger renewal
                 if days is not None:
                     ret = self.refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=days, by=by)
@@ -1477,10 +1478,10 @@ class DataCarouselInterface(object):
                         # more for done requests
                         if dc_req_spec.status == DataCarouselRequestStatus.done:
                             # force to keep alive the rule
-                            tmp_ret = self.refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=done_lifetime_days, force_refresh=True, by="watchdog")
+                            tmp_ret = self.refresh_ddm_rule_of_request(dc_req_spec, lifetime_days=DONE_LIFETIME_DAYS, force_refresh=True, by="watchdog")
                             if tmp_ret:
                                 tmp_log.debug(
-                                    f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {done_lifetime_days} days long"
+                                    f"request_id={dc_req_spec.request_id} status={dc_req_spec.status} ddm_rule_id={dc_req_spec.ddm_rule_id} refreshed lifetime to be {DONE_LIFETIME_DAYS} days long"
                                 )
                             # update staged files in DB for done requests
                             tmp_ret = self._update_staged_files(dc_req_spec)
@@ -1562,7 +1563,7 @@ class DataCarouselInterface(object):
         tmp_log.debug(f"resumed {n_resumed_tasks} tasks")
 
     def clean_up_requests(
-        self, done_age_limit_days: int | float = done_lifetime_days, outdated_age_limit_days: int | float = done_lifetime_days, by: str = "watchdog"
+        self, done_age_limit_days: int | float = DONE_LIFETIME_DAYS, outdated_age_limit_days: int | float = DONE_LIFETIME_DAYS, by: str = "watchdog"
     ):
         """
         Clean up terminated and outdated requests
@@ -1580,10 +1581,10 @@ class DataCarouselInterface(object):
             retired_requests_set = set()
             # get requests of terminated and active tasks
             terminated_tasks_requests_map, terminated_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
-                status_filter_list=final_task_statuses
+                status_filter_list=FINAL_TASK_STATUSES
             )
             active_tasks_requests_map, active_tasks_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(
-                status_exclusion_list=final_task_statuses
+                status_exclusion_list=FINAL_TASK_STATUSES
             )
             now_time = naive_utcnow()
             # set of requests of terminated tasks
