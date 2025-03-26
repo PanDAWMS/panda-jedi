@@ -15204,51 +15204,7 @@ class DBProxy(OraDBProxy.DBProxy):
     # retire a data carousel request
     def retire_data_carousel_request_JEDI(self, request_id):
         comment = " /* JediDBProxy.retire_data_carousel_request_JEDI */"
-        method_name = self.getMethodName(comment)
-        method_name += f" <request_id={request_id}>"
-        tmp_log = MsgWrapper(logger, method_name)
-        tmp_log.debug("start")
-        try:
-            # start transaction
-            self.conn.begin()
-            # sql to update request status to retired
-            now_time = naive_utcnow()
-            sql_update = (
-                f"UPDATE {jedi_config.db.schemaJEDI}.data_carousel_requests "
-                f"SET status=:new_status, end_time=:now_time, modification_time=:now_time "
-                f"WHERE request_id=:request_id "
-                f"AND status=:old_status "
-            )
-            var_map = {
-                ":request_id": request_id,
-                ":old_status": DataCarouselRequestStatus.done,
-                ":new_status": DataCarouselRequestStatus.retired,
-                ":now_time": now_time,
-            }
-            self.cur.execute(sql_update + comment, var_map)
-            ret_req = self.cur.rowcount
-            if not ret_req:
-                tmp_log.warning(f"not done; cannot be retired ; skipped")
-            else:
-                tmp_log.debug(f"retired request")
-            # commit
-            if not self._commit():
-                raise RuntimeError("Commit error")
-            # return
-            return ret_req
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dump_error_message(tmp_log)
-            return None
-
-    # retire a data carousel request
-    def retire_data_carousel_request_JEDI(self, request_id):
-        comment = " /* JediDBProxy.retire_data_carousel_request_JEDI */"
-        method_name = self.getMethodName(comment)
-        method_name += f" <request_id={request_id}>"
-        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log = self.create_tagged_logger(comment, f"request_id={request_id}")
         tmp_log.debug("start")
         try:
             # start transaction
