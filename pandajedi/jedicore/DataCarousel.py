@@ -1325,8 +1325,8 @@ class DataCarouselInterface(object):
         ret_requests_map, ret_relation_map = self.taskBufferIF.get_data_carousel_requests_by_task_status_JEDI(status_exclusion_list=final_task_statuses)
         for dc_req_spec in ret_requests_map.values():
             try:
-                if dc_req_spec.status == DataCarouselRequestStatus.queued:
-                    # skip requests queued
+                if dc_req_spec.status not in [DataCarouselRequestStatus.staging, DataCarouselRequestStatus.done]:
+                    # skip requests without need to keep rules alive
                     continue
                 # decide lifetime in days
                 days = None
