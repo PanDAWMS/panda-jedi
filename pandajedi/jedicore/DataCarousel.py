@@ -1020,22 +1020,22 @@ class DataCarouselInterface(object):
         df = pl.DataFrame(
             tmp_list,
             schema={
-                "request_id": int,
-                "dataset": str,
-                "source_rse": str,
-                "source_tape": str,
-                "to_pin": bool,
-                "total_files": int,
-                "dataset_size": int,
-                "jediTaskID": int,
-                "userName": str,
-                "gshare": str,
-                "gshare_rank": int,
-                "task_priority": int,
+                "request_id": pl.datatypes.Int64,
+                "dataset": pl.datatypes.String,
+                "source_rse": pl.datatypes.String,
+                "source_tape": pl.datatypes.String,
+                "to_pin": pl.datatypes.Boolean,
+                "total_files": pl.datatypes.Int64,
+                "dataset_size": pl.datatypes.Int64,
+                "jediTaskID": pl.datatypes.Int64,
+                "userName": pl.datatypes.String,
+                "gshare": pl.datatypes.String,
+                "gshare_rank": pl.datatypes.Int64,
+                "task_priority": pl.datatypes.Int64,
             },
         )
         # fill null
-        df.with_columns(
+        df = df.with_columns(
             pl.col("to_pin").fill_null(value=False),
             pl.col("total_files").fill_null(strategy="zero"),
             pl.col("dataset_size").fill_null(strategy="zero"),
@@ -1086,7 +1086,7 @@ class DataCarouselInterface(object):
             to_pin_df = tmp_df.filter(pl.col("to_pin"))
             tmp_queued_df = tmp_df.filter(pl.col("to_pin").not_())
             # fill dummy cumulative sum (0) for reqeusts to pin
-            to_pin_df = to_pin_df.with_columns(cum_total_files=pl.lit(0), cum_dataset_size=pl.lit(0))
+            to_pin_df = to_pin_df.with_columns(cum_total_files=pl.lit(0, dtype=pl.datatypes.Int64), cum_dataset_size=pl.lit(0, dtype=pl.datatypes.Int64))
             # get cumulative sum of queued files per physical tape
             tmp_queued_df = tmp_queued_df.with_columns(cum_total_files=pl.col("total_files").cum_sum(), cum_dataset_size=pl.col("dataset_size").cum_sum())
             # number of queued requests at the physical tape
@@ -1095,7 +1095,8 @@ class DataCarouselInterface(object):
             n_total = n_queued + n_to_pin
             # print dataframe in log
             if n_total:
-                tmp_to_print_df = tmp_df.select(
+                tmp_to_print_df = pl.concat([to_pin_df, tmp_queued_df])
+                tmp_to_print_df = tmp_to_print_df.select(
                     ["request_id", "source_rse", "jediTaskID", "gshare", "gshare_rank", "task_priority", "total_files", "cum_total_files"]
                 )
                 tmp_to_print_df = tmp_to_print_df.with_columns(gshare_and_rank=pl.concat_str([pl.col("gshare"), pl.col("gshare_rank")], separator=" : "))
