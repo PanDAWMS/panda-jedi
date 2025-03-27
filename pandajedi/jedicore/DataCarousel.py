@@ -73,6 +73,7 @@ class DataCarouselRequestStatus(object):
     final_statuses = [done, cancelled, retired]
     unfinished_statuses = [staging, cancelled]
     reusable_statuses = [queued, staging, done]
+    resubmittable_statuses = [staging, cancelled, done, retired]
 
 
 class DataCarouselRequestSpec(SpecBase):
@@ -1760,8 +1761,10 @@ class DataCarouselInterface(object):
 
     def resubmit_request(self, request_id: int, submit_idds_request=True, by: str = "manual", reason: str | None = None) -> DataCarouselRequestSpec | None:
         """
-        Resubmit a request
-        The request must be in statging status
+        Resubmit a request by ending the old request and submitting a new request
+        The request status must be in staging, done, cancelled, retired
+        A staging request will be cancelled, a done request will be retired. Cancelled and retired requests are intact
+        Return the spec of newly resubmitted request
 
         Args:
             request_id (int): request_id of the request to resubmit from
@@ -1790,7 +1793,7 @@ class DataCarouselInterface(object):
                 else:
                     tmp_log.warning(f"failed to get related tasks; skipped to submit iDDS requests")
         elif dc_req_spec_resubmitted is False:
-            tmp_log.warning(f"request not found or not in staging; skipped")
+            tmp_log.warning(f"request not found or not resubmittable; skipped")
         else:
             tmp_log.error(f"failed to resubmit")
         # return

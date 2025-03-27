@@ -15108,99 +15108,6 @@ class DBProxy(OraDBProxy.DBProxy):
             self.dump_error_message(tmp_log)
             return None
 
-    # resubmit a data carousel request
-    def resubmit_data_carousel_request_JEDI(self, request_id):
-        comment = " /* JediDBProxy.resubmit_data_carousel_request_JEDI */"
-        to_resubmit = False
-        tmp_log = self.create_tagged_logger(comment, f"request_id={request_id}")
-        tmp_log.debug("start")
-        try:
-            # start transaction
-            self.conn.begin()
-            # get request spec
-            dc_req_spec = None
-            sql_query_req = (
-                f"SELECT {DataCarouselRequestSpec.columnNames()} "
-                f"FROM {self.jedi_config.db.schemaJEDI}.data_carousel_requests "
-                f"WHERE request_id=:request_id "
-                f"AND status=:status "
-            )
-            var_map = {":request_id": request_id, ":status": DataCarouselRequestStatus.staging}
-            self.cur.execute(sql_query_req + comment, var_map)
-            res_list = self.cur.fetchall()
-            for res in res_list:
-                # make request spec
-                dc_req_spec = DataCarouselRequestSpec()
-                dc_req_spec.pack(res)
-                break
-            # prepare new request spec to resubmit
-            if dc_req_spec:
-                dc_req_spec_to_resubmit = get_resubmit_request_spec(dc_req_spec)
-            else:
-                # roll back
-                self._rollback()
-                return False
-            # sql to update request status to cancelled
-            now_time = naive_utcnow()
-            status_var_names_str, status_var_map = get_sql_IN_bind_variables(DataCarouselRequestStatus.active_statuses, prefix=":old_status")
-            sql_update = (
-                f"UPDATE {self.jedi_config.db.schemaJEDI}.data_carousel_requests "
-                f"SET status=:new_status, end_time=:now_time, modification_time=:now_time "
-                f"WHERE request_id=:request_id "
-                f"AND status IN ({status_var_names_str}) "
-            )
-            var_map = {
-                ":request_id": request_id,
-                ":new_status": DataCarouselRequestStatus.cancelled,
-                ":now_time": now_time,
-            }
-            var_map.update(status_var_map)
-            self.cur.execute(sql_update + comment, var_map)
-            ret_req = self.cur.rowcount
-            if not ret_req:
-                tmp_log.warning(f"already terminated; cannot be cancelled ; skipped")
-                # roll back
-                self._rollback()
-                return False
-            else:
-                tmp_log.debug(f"cancelled request")
-            # resubmit new request
-            # sql to insert request
-            sql_insert_request = (
-                f"INSERT INTO {self.jedi_config.db.schemaJEDI}.data_carousel_requests ({dc_req_spec_to_resubmit.columnNames()}) "
-                f"{dc_req_spec_to_resubmit.bindValuesExpression()} "
-                f"RETURNING request_id INTO :new_request_id "
-            )
-            var_map = dc_req_spec_to_resubmit.valuesMap(useSeq=True)
-            var_map[":new_request_id"] = self.cur.var(varNUMBER)
-            self.cur.execute(sql_insert_request + comment, var_map)
-            new_request_id = int(self.getvalue_corrector(self.cur.getvalue(var_map[":new_request_id"])))
-            if new_request_id is None:
-                raise RuntimeError("new_request_id is None")
-            tmp_log.debug(f"resubmitted request with new_request_id={new_request_id}")
-            # sql to update relations according to the relations of the old request
-            sql_update_relations = (
-                f"UPDATE {self.jedi_config.db.schemaJEDI}.data_carousel_relations " f"SET request_id=:new_request_id " f"WHERE request_id=:old_request_id "
-            )
-            var_map = {":new_request_id": new_request_id, ":old_request_id": request_id}
-            self.cur.execute(sql_update_relations + comment, var_map)
-            ret_rel = self.cur.rowcount
-            tmp_log.debug(f"updated {ret_rel} relations about new_request_id={new_request_id}")
-            # fill new request_id
-            dc_req_spec_resubmitted = dc_req_spec_to_resubmit
-            dc_req_spec_resubmitted.request_id = new_request_id
-            # commit
-            if not self._commit():
-                raise RuntimeError("Commit error")
-            # return
-            return dc_req_spec_resubmitted
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dump_error_message(tmp_log)
-            return None
-
     # retire a data carousel request
     def retire_data_carousel_request_JEDI(self, request_id):
         comment = " /* JediDBProxy.retire_data_carousel_request_JEDI */"
@@ -15234,6 +15141,123 @@ class DBProxy(OraDBProxy.DBProxy):
                 raise RuntimeError("Commit error")
             # return
             return ret_req
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dump_error_message(tmp_log)
+            return None
+
+    # resubmit a data carousel request
+    def resubmit_data_carousel_request_JEDI(self, request_id):
+        comment = " /* JediDBProxy.resubmit_data_carousel_request_JEDI */"
+        to_resubmit = False
+        tmp_log = self.create_tagged_logger(comment, f"request_id={request_id}")
+        tmp_log.debug("start")
+        try:
+            # start transaction
+            self.conn.begin()
+            # get request spec
+            dc_req_spec = None
+            status_var_names_str, status_var_map = get_sql_IN_bind_variables(DataCarouselRequestStatus.resubmittable_statuses, prefix=":status")
+            sql_query_req = (
+                f"SELECT {DataCarouselRequestSpec.columnNames()} "
+                f"FROM {self.jedi_config.db.schemaJEDI}.data_carousel_requests "
+                f"WHERE request_id=:request_id "
+                f"AND status IN ({status_var_names_str}) "
+            )
+            var_map = {":request_id": request_id, ":status": DataCarouselRequestStatus.staging}
+            var_map.update(status_var_map)
+            self.cur.execute(sql_query_req + comment, var_map)
+            res_list = self.cur.fetchall()
+            for res in res_list:
+                # make request spec
+                dc_req_spec = DataCarouselRequestSpec()
+                dc_req_spec.pack(res)
+                break
+            # prepare new request spec to resubmit
+            if dc_req_spec:
+                dc_req_spec_to_resubmit = get_resubmit_request_spec(dc_req_spec)
+            else:
+                # roll back
+                self._rollback()
+                return False
+            # sql to update old request status (staging to cancelled, done to retired, others intact)
+            now_time = naive_utcnow()
+            if dc_req_spec.status == DataCarouselRequestStatus.staging:
+                new_status = DataCarouselRequestStatus.cancelled
+                sql_update = (
+                    f"UPDATE {self.jedi_config.db.schemaJEDI}.data_carousel_requests "
+                    f"SET status=:new_status, end_time=:now_time, modification_time=:now_time "
+                    f"WHERE request_id=:request_id "
+                )
+                var_map = {
+                    ":request_id": request_id,
+                    ":new_status": new_status,
+                    ":now_time": now_time,
+                }
+                self.cur.execute(sql_update + comment, var_map)
+                ret_req = self.cur.rowcount
+                if not ret_req:
+                    tmp_log.warning(f"cannot be cancelled ; skipped")
+                    # roll back
+                    self._rollback()
+                    return False
+                else:
+                    tmp_log.debug(f"cancelled request")
+            elif dc_req_spec.status == DataCarouselRequestStatus.done:
+                new_status = DataCarouselRequestStatus.retired
+                sql_update = (
+                    f"UPDATE {self.jedi_config.db.schemaJEDI}.data_carousel_requests "
+                    f"SET status=:new_status, modification_time=:now_time "
+                    f"WHERE request_id=:request_id "
+                )
+                var_map = {
+                    ":request_id": request_id,
+                    ":new_status": new_status,
+                    ":now_time": now_time,
+                }
+                self.cur.execute(sql_update + comment, var_map)
+                ret_req = self.cur.rowcount
+                if not ret_req:
+                    tmp_log.warning(f"cannot be retired ; skipped")
+                    # roll back
+                    self._rollback()
+                    return False
+                else:
+                    tmp_log.debug(f"retired request")
+            else:
+                (f"already {dc_req_spec.status} ; skipped")
+            # resubmit new request
+            # sql to insert request
+            sql_insert_request = (
+                f"INSERT INTO {self.jedi_config.db.schemaJEDI}.data_carousel_requests ({dc_req_spec_to_resubmit.columnNames()}) "
+                f"{dc_req_spec_to_resubmit.bindValuesExpression()} "
+                f"RETURNING request_id INTO :new_request_id "
+            )
+            var_map = dc_req_spec_to_resubmit.valuesMap(useSeq=True)
+            var_map[":new_request_id"] = self.cur.var(varNUMBER)
+            self.cur.execute(sql_insert_request + comment, var_map)
+            new_request_id = int(self.getvalue_corrector(self.cur.getvalue(var_map[":new_request_id"])))
+            if new_request_id is None:
+                raise RuntimeError("new_request_id is None")
+            tmp_log.debug(f"resubmitted request with new_request_id={new_request_id}")
+            # sql to update relations according to the relations of the old request
+            sql_update_relations = (
+                f"UPDATE {self.jedi_config.db.schemaJEDI}.data_carousel_relations " f"SET request_id=:new_request_id " f"WHERE request_id=:old_request_id "
+            )
+            var_map = {":new_request_id": new_request_id, ":old_request_id": request_id}
+            self.cur.execute(sql_update_relations + comment, var_map)
+            ret_rel = self.cur.rowcount
+            tmp_log.debug(f"updated {ret_rel} relations about new_request_id={new_request_id}")
+            # fill new request_id
+            dc_req_spec_resubmitted = dc_req_spec_to_resubmit
+            dc_req_spec_resubmitted.request_id = new_request_id
+            # commit
+            if not self._commit():
+                raise RuntimeError("Commit error")
+            # return
+            return dc_req_spec_resubmitted
         except Exception:
             # roll back
             self._rollback()
