@@ -6,11 +6,11 @@ import uuid
 
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.taskbuffer import EventServiceUtils, task_split_rules
+from pandaserver.taskbuffer.JediDatasetSpec import JediDatasetSpec
+from pandaserver.taskbuffer.JediFileSpec import JediFileSpec
+from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
 from pandajedi.jedicore import Interaction, JediException
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
-from pandajedi.jedicore.JediFileSpec import JediFileSpec
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 from . import RefinerUtils
 

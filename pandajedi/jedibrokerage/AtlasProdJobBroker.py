@@ -6,9 +6,10 @@ from dataservice.DataServiceUtils import select_scope
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.srvcore import CoreUtils
 from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 
-from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 
@@ -819,7 +820,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 continue
             # check scratch size
             if tmpSiteSpec.maxwdir != 0:
-                if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
+                if CoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                     # size for remote access
                     minDiskCount = minDiskCountD
                 else:

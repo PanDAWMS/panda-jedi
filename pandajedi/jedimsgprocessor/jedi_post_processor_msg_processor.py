@@ -1,10 +1,10 @@
 import json
 
 from pandacommon.pandalogger import logger_utils
+from pandaserver.srvcore.CoreUtils import convert_config_params, parse_init_params
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from pandajedi.jedicore.JediCoreUtils import convert_config_params, parse_init_params
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jediorder.PostProcessor import PostProcessorThread

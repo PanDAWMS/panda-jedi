@@ -3,7 +3,7 @@ import socket
 import sys
 import traceback
 
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
 
 # watchdog to take actions for jumbo jobs

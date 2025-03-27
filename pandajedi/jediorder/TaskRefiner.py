@@ -6,12 +6,12 @@ import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
+from pandaserver.taskbuffer.DataCarousel import DataCarouselInterface
+from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction, JediException
-from pandajedi.jedicore.DataCarousel import DataCarouselInterface
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 from pandajedi.jedirefine import RefinerUtils

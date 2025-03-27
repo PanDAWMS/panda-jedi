@@ -14,14 +14,15 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+from pandaserver.srvcore import CoreUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils, ParseJobXML
 from pandaserver.taskbuffer.FileSpec import FileSpec
+from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.userinterface import Client as PandaClient
 
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import Interaction, JediCoreUtils, ParseJobXML
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import (
     ListWithLock,
@@ -345,7 +346,7 @@ class JobGenerator(JediKnight):
             # memory check
             try:
                 memLimit = 1.5 * 1024
-                memNow = JediCoreUtils.getMemoryUsage()
+                memNow = CoreUtils.getMemoryUsage()
                 tmpLog.debug(f"memUsage now {memNow} MB pid={os.getpid()}")
                 if memNow > memLimit:
                     tmpLog.warning(f"memory limit exceeds {memNow} > {memLimit} MB pid={os.getpid()}")
@@ -549,7 +550,7 @@ class JobGeneratorThread(WorkerThread):
                         taskSpec.errorDialog = None
                         # reset map of buildSpec
                         self.buildSpecMap = {}
-                        main_stop_watch = JediCoreUtils.StopWatch("main")
+                        main_stop_watch = CoreUtils.StopWatch("main")
                         loopStart = naive_utcnow()
                         # make logger
                         tmpLog = MsgWrapper(
@@ -1093,7 +1094,7 @@ class JobGeneratorThread(WorkerThread):
                 # make normal jobs
                 tmpJobSpecList = []
                 tmpMasterEventsList = []
-                stop_watch = JediCoreUtils.StopWatch("gen_cycle")
+                stop_watch = CoreUtils.StopWatch("gen_cycle")
                 i_cycle = 0
                 for inSubChunk in inSubChunks:
                     if self.time_profile_level >= TIME_PROFILE_ON:
@@ -1177,7 +1178,7 @@ class JobGeneratorThread(WorkerThread):
                             jobSpec.coreCount = taskSpec.coreCount
                         else:
                             jobSpec.coreCount = siteSpec.coreCount
-                    jobSpec.minRamCount, jobSpec.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, jobSpec.coreCount)
+                    jobSpec.minRamCount, jobSpec.minRamUnit = JobUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, jobSpec.coreCount)
                     # calculate the hs06 occupied by the job
                     if siteSpec.corepower:
                         jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower  # default 0 and None corecount to 1
@@ -1334,7 +1335,7 @@ class JobGeneratorThread(WorkerThread):
                                     )
                             # calculate total master size
                             if tmpDatasetSpec.isMaster():
-                                totalMasterSize += JediCoreUtils.getEffectiveFileSize(
+                                totalMasterSize += CoreUtils.getEffectiveFileSize(
                                     tmpFileSpec.fsize, tmpFileSpec.startEvent, tmpFileSpec.endEvent, tmpFileSpec.nEvents
                                 )
                                 totalMasterEvents += tmpFileSpec.getEffectiveNumEvents()
@@ -1522,7 +1523,7 @@ class JobGeneratorThread(WorkerThread):
                         pass
                     # maxWalltime
                     tmpMasterEventsList.append(totalMasterEvents)
-                    JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec)
+                    CoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec)
                     # multiply maxDiskCount by total master size or # of events
                     try:
                         if inputChunk.isMerging:
@@ -1542,7 +1543,7 @@ class JobGeneratorThread(WorkerThread):
                     except Exception:
                         pass
                     # add input size
-                    if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
+                    if not CoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                         jobSpec.maxDiskCount += totalFileSize
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= 1024 * 1024
@@ -2103,7 +2104,7 @@ class JobGeneratorThread(WorkerThread):
         random_seed_dataset,
         tmp_log,
     ):
-        stop_watch = JediCoreUtils.StopWatch("make_params")
+        stop_watch = CoreUtils.StopWatch("make_params")
         if self.time_profile_level >= TIME_PROFILE_DEEP:
             tmp_log.debug(stop_watch.get_elapsed_time("init"))
         if not isMerging:
@@ -2518,10 +2519,10 @@ class JobGeneratorThread(WorkerThread):
         else:
             newPandaJob.coreCount = siteSpec.coreCount
         if taskSpec is not None and inputChunk is not None:
-            newPandaJob.minRamCount, newPandaJob.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, newPandaJob.coreCount)
+            newPandaJob.minRamCount, newPandaJob.minRamUnit = JobUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, newPandaJob.coreCount)
             newPandaJob.hs06 = (newPandaJob.coreCount or 1) * siteSpec.corepower
             if totalMasterEvents is not None:
-                JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, newPandaJob, siteSpec)
+                CoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, newPandaJob, siteSpec)
         try:
             newPandaJob.resource_type = JobUtils.get_resource_type_job(self.resource_types, newPandaJob)
         except Exception:

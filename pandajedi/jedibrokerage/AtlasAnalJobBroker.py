@@ -12,7 +12,7 @@ from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.srvcore import CoreUtils
 from pandaserver.taskbuffer import JobUtils
 
-from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 
@@ -960,7 +960,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxwdir:
-                    if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
+                    if CoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                         minDiskCount = minDiskCountR
                         if maxSizePerJob is not None and not taskSpec.useLocalIO():
                             tmpMinDiskCountR = tmpOutDiskSize * maxSizePerJob + tmpWorkDiskSize
