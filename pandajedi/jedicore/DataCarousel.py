@@ -1102,7 +1102,7 @@ class DataCarouselInterface(object):
                 )
                 tmp_to_print_df = tmp_to_print_df.with_columns(gshare_and_rank=pl.concat_str([pl.col("gshare"), pl.col("gshare_rank")], separator=" : "))
                 tmp_to_print_df = tmp_to_print_df.select(
-                    ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files"]
+                    ["request_id", "source_rse", "jediTaskID", "gshare_and_rank", "task_priority", "total_files", "cum_total_files", "to_pin"]
                 )
                 tmp_log.debug(f"  source_tape={source_tape} , quota_size={quota_size} : \n{tmp_to_print_df}")
             # filter requests to respect the tape quota size; at most one request can reach or exceed quota size
