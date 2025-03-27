@@ -1788,7 +1788,7 @@ class DataCarouselInterface(object):
                 if task_id_list:
                     tmp_log.debug(f"related tasks: {task_id_list}")
                     for task_id in task_id_list:
-                        self._submit_idds_stagein_request(task_id, new_request_id)
+                        self._submit_idds_stagein_request(task_id, dc_req_spec_resubmitted)
                     tmp_log.debug(f"submitted corresponding iDDS requests for related tasks")
                 else:
                     tmp_log.warning(f"failed to get related tasks; skipped to submit iDDS requests")

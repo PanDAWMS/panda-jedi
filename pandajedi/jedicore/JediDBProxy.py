@@ -15166,7 +15166,7 @@ class DBProxy(OraDBProxy.DBProxy):
                 f"WHERE request_id=:request_id "
                 f"AND status IN ({status_var_names_str}) "
             )
-            var_map = {":request_id": request_id, ":status": DataCarouselRequestStatus.staging}
+            var_map = {":request_id": request_id}
             var_map.update(status_var_map)
             self.cur.execute(sql_query_req + comment, var_map)
             res_list = self.cur.fetchall()
