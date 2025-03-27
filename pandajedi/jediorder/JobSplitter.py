@@ -1,9 +1,10 @@
 import copy
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.srvcore import CoreUtils
+from pandaserver.taskbuffer.InputChunk import InputChunk
 
-from pandajedi.jedicore import Interaction, JediCoreUtils
-from pandajedi.jedicore.InputChunk import InputChunk
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
@@ -170,7 +171,7 @@ class JobSplitter:
                 else:
                     strict_chunkSize = True
                 # directIO
-                if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
+                if not CoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                     useDirectIO = False
                 else:
                     useDirectIO = True

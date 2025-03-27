@@ -8,12 +8,12 @@ import traceback
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
-
-from pandajedi.jedicore.DataCarousel import (
+from pandaserver.taskbuffer.DataCarousel import (
     DataCarouselInterface,
     DataCarouselRequestSpec,
     DataCarouselRequestStatus,
 )
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 

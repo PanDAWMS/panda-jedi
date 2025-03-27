@@ -1,10 +1,11 @@
 import sys
 
-from pandajedi.jedicore.DataCarousel import (
+from pandaserver.taskbuffer.DataCarousel import (
     DataCarouselInterface,
     DataCarouselRequestSpec,
     DataCarouselRequestStatus,
 )
+
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jediddm.DDMInterface import DDMInterface
 

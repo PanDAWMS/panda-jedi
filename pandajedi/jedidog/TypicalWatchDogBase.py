@@ -1,8 +1,10 @@
 import os
 import socket
 
+from pandaserver.srvcore import CoreUtils
+
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore import Interaction
 
 from .WatchDogBase import WatchDogBase
 
@@ -24,7 +26,7 @@ class TypicalWatchDogBase(WatchDogBase):
         timeoutForPending = self.taskBufferIF.getConfigValue("watchdog", f"PENDING_TIMEOUT_{prodSourceLabel}", "jedi", vo)
         if timeoutForPending is None:
             if hasattr(jedi_config.watchdog, "timeoutForPendingVoLabel"):
-                timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel, vo, prodSourceLabel)
+                timeoutForPending = CoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel, vo, prodSourceLabel)
             if timeoutForPending is None:
                 timeoutForPending = jedi_config.watchdog.timeoutForPending
             timeoutForPending = int(timeoutForPending) * 24

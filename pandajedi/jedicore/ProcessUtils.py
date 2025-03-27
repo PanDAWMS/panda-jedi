@@ -3,8 +3,7 @@ import multiprocessing
 import sys
 
 from pandacommon.pandautils.PandaUtils import naive_utcnow
-
-from . import JediCoreUtils
+from pandaserver.srvcore import CoreUtils
 
 
 # wrapper for multiprocessing.Process
@@ -24,7 +23,7 @@ class ProcessWrapper(multiprocessing.Process):
             while True:
                 try:
                     proc.join(20)
-                    if not JediCoreUtils.checkProcess(pid):
+                    if not CoreUtils.checkProcess(pid):
                         timeNow = naive_utcnow()
                         print(f"{str(timeNow)} {self.__class__.__name__}: INFO    pid={pid} not exist")
                         break

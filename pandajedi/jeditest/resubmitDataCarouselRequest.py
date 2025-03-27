@@ -1,7 +1,7 @@
 import sys
 
-from pandajedi.jedicore.DataCarousel import DataCarouselInterface
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandaserver.taskbuffer.DataCarousel import DataCarouselInterface
+
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedirefine import RefinerUtils

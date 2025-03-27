@@ -2,8 +2,9 @@ import random
 import re
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver.srvcore import CoreUtils
 
-from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedirefine import RefinerUtils
@@ -99,7 +100,7 @@ class GenJobBroker(JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             if tmpSiteSpec.maxwdir:
-                if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
+                if CoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                     minDiskCount = minDiskCountR
                 else:
                     minDiskCount = minDiskCountS
