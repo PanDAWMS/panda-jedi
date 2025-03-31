@@ -5,11 +5,11 @@ import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.srvcore import CoreUtils
 from pandaserver.taskbuffer import JobUtils
 
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .JumboWatchDog import JumboWatchDog
@@ -250,7 +250,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
         timeoutForPending = None
         # try to get the timeout from the config files
         if hasattr(jedi_config.watchdog, "timeoutForPendingVoLabel"):
-            timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel, self.vo, self.prodSourceLabel)
+            timeoutForPending = CoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel, self.vo, self.prodSourceLabel)
         if timeoutForPending is None:
             timeoutForPending = jedi_config.watchdog.timeoutForPending
         timeoutForPending = int(timeoutForPending) * 24

@@ -8,7 +8,7 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 
 from pandajedi.jediconfig import jedi_config
-from pandajedi.jedicore import Interaction, JediCoreUtils
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 

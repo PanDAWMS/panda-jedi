@@ -6,8 +6,7 @@ import traceback
 from pandaserver.config import panda_config
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils
-
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
 from .TaskRefinerBase import TaskRefinerBase
 
