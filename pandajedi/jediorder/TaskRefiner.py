@@ -411,12 +411,20 @@ class TaskRefinerThread(WorkerThread):
                                     if tape_ds_list := ds_list_dict["tape_ds_list"]:
                                         # update to_staging_datasets with datasets only on tapes
                                         to_staging_datasets.update(set(tape_ds_list))
+                                    if to_pin_ds_list := ds_list_dict["to_pin_ds_list"]:
+                                        # update no_staging_datasets with datasets to pin on datadisks (already on disk but without rule)
+                                        tmpLog.debug(f"datasets to pin to datadisks: {to_pin_ds_list}")
+                                        no_staging_datasets.update(set(to_pin_ds_list))
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
                                     tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
                                     if tmp_ret:
-                                        taskParamMap["toStaging"] = True
-                                        tmpLog.info("submitted data carousel requests; set toStaging")
+                                        tmpLog.info("submitted data carousel requests")
+                                        if to_staging_datasets <= no_staging_datasets:
+                                            tmpLog.info("all datasets are to pin; skip staging")
+                                        else:
+                                            taskParamMap["toStaging"] = True
+                                            tmpLog.info("set toStaging")
                                     else:
                                         # failed to submit data carousel requests; skip and retry in next cycle
                                         tmpLog.error("failed to submit data carousel requests; skip and retry next time")
