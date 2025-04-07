@@ -1,4 +1,3 @@
-import datetime
 import os
 import re
 import socket
@@ -218,7 +217,13 @@ class TaskCommandoThread(WorkerThread):
                                 # remove old sandbox file specified in the previous reattempt
                                 taskParamMap.pop("fixedSandbox", None)
                                 # convert new params
-                                newParamMap = RefinerUtils.decodeJSON(commentStr)
+                                decoded = RefinerUtils.decodeJSON(commentStr)
+                                if len(decoded) == 2:
+                                    # new style
+                                    newParamMap, command_qualifiers = decoded
+                                else:
+                                    newParamMap = decoded
+                                    command_qualifiers = []
                                 # change params
                                 for newKey, newVal in newParamMap.items():
                                     if newVal is None:
@@ -251,26 +256,20 @@ class TaskCommandoThread(WorkerThread):
                             except Exception as e:
                                 tmpLog.error(f"failed to change task params with {str(e)} {traceback.format_exc()}")
                                 continue
+                        else:
+                            # command qualifiers for retry
+                            command_qualifiers = commentStr.split()
                         # retry child tasks
-                        if "sole " in commentStr:
-                            retryChildTasks = False
-                        else:
-                            retryChildTasks = True
+                        retryChildTasks = "sole" not in command_qualifiers
                         # discard events
-                        if "discard " in commentStr:
-                            discardEvents = True
-                        else:
-                            discardEvents = False
+                        discardEvents = "discard" in command_qualifiers
                         # release un-staged files
-                        if "staged " in commentStr:
-                            releaseUnstaged = True
-                        else:
-                            releaseUnstaged = False
+                        releaseUnstaged = "staged" in command_qualifiers
                         # keep gshare and priority
-                        if "keep " in commentStr:
-                            keep_share_priority = True
-                        else:
-                            keep_share_priority = False
+                        keep_share_priority = "keep" in command_qualifiers
+                        # ignore limit for hard-exhausted
+                        ignore_hard_exhausted = "transcend" in command_qualifiers
+                        # retry the task
                         tmpRet, newTaskStatus, retried_tasks = self.taskBufferIF.retryTask_JEDI(
                             jediTaskID,
                             commandStr,
@@ -278,6 +277,7 @@ class TaskCommandoThread(WorkerThread):
                             discardEvents=discardEvents,
                             release_unstaged=releaseUnstaged,
                             keep_share_priority=keep_share_priority,
+                            ignore_hard_exhausted=ignore_hard_exhausted,
                         )
                         if tmpRet is True:
                             tmpMsg = f"set task_status={newTaskStatus}"
