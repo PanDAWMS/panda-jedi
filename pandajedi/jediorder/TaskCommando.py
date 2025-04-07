@@ -218,12 +218,13 @@ class TaskCommandoThread(WorkerThread):
                                 taskParamMap.pop("fixedSandbox", None)
                                 # convert new params
                                 decoded = RefinerUtils.decodeJSON(commentStr)
-                                if len(decoded) == 2:
-                                    # new style
-                                    newParamMap, command_qualifiers = decoded
-                                else:
+                                if isinstance(decoded, dict):
+                                    # old style
                                     newParamMap = decoded
                                     command_qualifiers = []
+                                else:
+                                    # new style
+                                    newParamMap, command_qualifiers = decoded
                                 # change params
                                 for newKey, newVal in newParamMap.items():
                                     if newVal is None:
