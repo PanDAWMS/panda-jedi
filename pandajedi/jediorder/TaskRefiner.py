@@ -60,10 +60,16 @@ class TaskRefiner(JediKnight, FactoryBase):
                             threadPool = ThreadPool()
                             # get work queue mapper
                             workQueueMapper = self.taskBufferIF.getWorkQueueMap()
+                            # get data carousel interface
+                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
+                            if data_carousel_interface is None:
+                                # data carousel interface is undefined
+                                tmpLog.error(f"data carousel interface is undefined for vo={vo}; skipped")
+                                continue
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for _ in range(nWorker):
-                                thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper)
+                                thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper, data_carousel_interface)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -84,7 +90,7 @@ class TaskRefiner(JediKnight, FactoryBase):
 # thread for real worker
 class TaskRefinerThread(WorkerThread):
     # constructor
-    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper):
+    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper, data_carousel_interface=None):
         # initialize worker with no semaphore
         WorkerThread.__init__(self, None, threadPool, logger)
         # attributes
@@ -93,6 +99,7 @@ class TaskRefinerThread(WorkerThread):
         self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
+        self.data_carousel_interface = data_carousel_interface
         self.msgType = "taskrefiner"
 
     # main
@@ -139,13 +146,6 @@ class TaskRefinerThread(WorkerThread):
                             if impl is None:
                                 # task refiner is undefined
                                 errStr = f"task refiner is undefined for vo={vo} sourceLabel={prodSourceLabel}"
-                                tmpLog.error(errStr)
-                                tmpStat = Interaction.SC_FAILED
-                            # get data carousel interface
-                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
-                            if data_carousel_interface is None:
-                                # data carousel interface is undefined
-                                errStr = f"data carousel interface is undefined for vo={vo}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                             # get data carousel config map
