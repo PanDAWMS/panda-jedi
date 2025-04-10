@@ -6,6 +6,7 @@ import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
+from pandaserver.dataservice.ddm import rucioAPI
 from pandaserver.taskbuffer.DataCarousel import DataCarouselInterface
 from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
@@ -141,7 +142,7 @@ class TaskRefinerThread(WorkerThread):
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                             # get data carousel interface
-                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF, self.ddmIF.getInterface(vo))
+                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
                             if data_carousel_interface is None:
                                 # data carousel interface is undefined
                                 errStr = f"data carousel interface is undefined for vo={vo}"
@@ -343,7 +344,7 @@ class TaskRefinerThread(WorkerThread):
                                     dataset_name = dataset_spec.datasetName
                                     dataset_did = None
                                     try:
-                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                        dataset_did = rucioAPI.get_did_str(dataset_name)
                                     except Exception:
                                         pass
                                     dsname_list.append(dataset_name)
@@ -469,7 +470,7 @@ class TaskRefinerThread(WorkerThread):
                                     dataset_name = dataset_spec.datasetName
                                     dataset_did = None
                                     try:
-                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                        dataset_did = rucioAPI.get_did_str(dataset_name)
                                     except Exception:
                                         pass
                                     if (
