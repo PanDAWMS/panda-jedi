@@ -149,7 +149,7 @@ class TaskRefinerThread(WorkerThread):
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                             # get data carousel config map
-                            dc_config_map = data_carousel_interface.dc_config_map
+                            dc_config_map = self.data_carousel_interface.dc_config_map
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to get task refiner with {errtype.__name__}:{errvalue}"
@@ -352,7 +352,7 @@ class TaskRefinerThread(WorkerThread):
                                         dsname_list.append(dataset_did)
                                 # check input datasets to prestage
                                 try:
-                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(
+                                    prestaging_list, ds_list_dict = self.data_carousel_interface.get_input_datasets_to_prestage(
                                         jediTaskID, taskParamMap, dsname_list=dsname_list
                                     )
                                 except Exception as e:
@@ -418,7 +418,7 @@ class TaskRefinerThread(WorkerThread):
                                         no_staging_datasets.update(set(to_pin_ds_list))
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
+                                    tmp_ret = self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
                                     if tmp_ret:
                                         tmpLog.info("submitted data carousel requests")
                                         if to_staging_datasets <= no_staging_datasets:
