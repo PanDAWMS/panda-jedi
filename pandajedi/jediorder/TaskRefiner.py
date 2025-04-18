@@ -36,6 +36,12 @@ class TaskRefiner(JediKnight, FactoryBase):
         # start base classes
         JediKnight.start(self)
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
+        # get data carousel interface
+        data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
+        if data_carousel_interface is None:
+            # data carousel interface is undefined
+            logger.error(f"data carousel interface is undefined; skipped")
+            return
         # go into main loop
         while True:
             startTime = naive_utcnow()
@@ -60,12 +66,6 @@ class TaskRefiner(JediKnight, FactoryBase):
                             threadPool = ThreadPool()
                             # get work queue mapper
                             workQueueMapper = self.taskBufferIF.getWorkQueueMap()
-                            # get data carousel interface
-                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
-                            if data_carousel_interface is None:
-                                # data carousel interface is undefined
-                                tmpLog.error(f"data carousel interface is undefined for vo={vo}; skipped")
-                                continue
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for _ in range(nWorker):
