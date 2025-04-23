@@ -839,9 +839,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getAvgDiskIO_JEDI()
 
     # update input files stage-in done (according to message from iDDS, called by other methods, etc.)
-    def updateInputFilesStaged_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500, by=None):
+    def updateInputFilesStaged_JEDI(self, jeditaskid, scope, filenames_dict, chunk_size=500, by=None, check_scope=True):
         with self.proxyPool.get() as proxy:
-            return proxy.updateInputFilesStaged_JEDI(jeditaskid, scope, filenames_dict, chunk_size, by)
+            return proxy.updateInputFilesStaged_JEDI(jeditaskid, scope, filenames_dict, chunk_size, by, check_scope)
 
     # update input datasets stage-in done (according to message from iDDS, called by other methods, etc.)
     def updateInputDatasetsStaged_JEDI(self, jeditaskid, scope, dsnames_dict, use_commit=True, by=None):
@@ -1014,6 +1014,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.retire_data_carousel_request_JEDI(request_id)
 
     # resubmit a data carousel request
-    def resubmit_data_carousel_request_JEDI(self, request_id):
+    def resubmit_data_carousel_request_JEDI(self, request_id, exclude_prev_dst=False):
         with self.proxyPool.get() as proxy:
-            return proxy.resubmit_data_carousel_request_JEDI(request_id)
+            return proxy.resubmit_data_carousel_request_JEDI(request_id, exclude_prev_dst)

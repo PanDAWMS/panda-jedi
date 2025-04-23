@@ -41,18 +41,24 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog = MsgWrapper(logger, " #ATM #KV doStageDCRequests")
         tmpLog.debug("start")
         try:
-            # lock
+            # watchdog lock
             got_lock = self.get_process_lock("AtlasDataCarousDog.doStageDCReq", timeLimit=5)
             if not got_lock:
-                tmpLog.debug("locked by another process. Skipped")
+                tmpLog.debug("locked by another watchdog process. Skipped")
                 return
-            tmpLog.debug("got lock")
-            # get DC requests to stage
-            dc_req_specs = self.data_carousel_interface.get_requests_to_stage()
-            # stage the requests
-            for dc_req_spec in dc_req_specs:
-                self.data_carousel_interface.stage_request(dc_req_spec)
-                tmpLog.debug(f"stage request_id={dc_req_spec.request_id} dataset={dc_req_spec.dataset}")
+            tmpLog.debug("got watchdog lock")
+            # get DC lock
+            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
+                if full_pid is None:
+                    # timeout
+                    tmpLog.warning("timed out without getting DC lock. Skipped")
+                    return
+                # get DC requests to stage
+                dc_req_specs = self.data_carousel_interface.get_requests_to_stage()
+                # stage the requests
+                for dc_req_spec in dc_req_specs:
+                    self.data_carousel_interface.stage_request(dc_req_spec)
+                    tmpLog.debug(f"stage request_id={dc_req_spec.request_id} dataset={dc_req_spec.dataset}")
             # done
             tmpLog.debug("done")
         except Exception:
@@ -66,14 +72,22 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog = MsgWrapper(logger, " #ATM #KV doCheckDCRequests")
         tmpLog.debug("start")
         try:
-            # lock
+            # watchdog lock
             got_lock = self.get_process_lock("AtlasDataCarousDog.doCheckDCRequests", timeLimit=5)
             if not got_lock:
-                tmpLog.debug("locked by another process. Skipped")
+                tmpLog.debug("locked by another watchdog process. Skipped")
                 return
-            tmpLog.debug("got lock")
-            self.data_carousel_interface.check_staging_requests()
-            self.data_carousel_interface.resume_tasks_from_staging()
+            tmpLog.debug("got watchdog lock")
+            # get DC lock
+            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
+                if full_pid is None:
+                    # timeout
+                    tmpLog.warning("timed out without getting DC lock. Skipped")
+                    return
+                # check for staging
+                self.data_carousel_interface.check_staging_requests()
+                self.data_carousel_interface.resume_tasks_from_staging()
+            # done
             tmpLog.debug(f"done")
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
@@ -86,14 +100,20 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog = MsgWrapper(logger, " #ATM #KV doKeepRulesAlive")
         tmpLog.debug("start")
         try:
-            # lock
+            # watchdog lock
             got_lock = self.get_process_lock("AtlasDataCarousDog.doKeepRulesAlive", timeLimit=60)
             if not got_lock:
-                tmpLog.debug("locked by another process. Skipped")
+                tmpLog.debug("locked by another watchdog process. Skipped")
                 return
-            tmpLog.debug("got lock")
-            # get requests of active tasks
-            self.data_carousel_interface.keep_alive_ddm_rules()
+            tmpLog.debug("got watchdog lock")
+            # get DC lock
+            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
+                if full_pid is None:
+                    # timeout
+                    tmpLog.warning("timed out without getting DC lock. Skipped")
+                    return
+                # get requests of active tasks
+                self.data_carousel_interface.keep_alive_ddm_rules()
             # done
             tmpLog.debug(f"done")
         except Exception:
@@ -107,14 +127,20 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
         tmpLog = MsgWrapper(logger, " #ATM #KV doCleanDCRequests")
         tmpLog.debug("start")
         try:
-            # lock
+            # watchdog lock
             got_lock = self.get_process_lock("AtlasDataCarousDog.doCleanDCReq", timeLimit=1440)
             if not got_lock:
-                tmpLog.debug("locked by another process. Skipped")
+                tmpLog.debug("locked by another watchdog process. Skipped")
                 return
-            tmpLog.debug("got lock")
-            # clean up
-            self.data_carousel_interface.clean_up_requests()
+            tmpLog.debug("got watchdog lock")
+            # get DC lock
+            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
+                if full_pid is None:
+                    # timeout
+                    tmpLog.warning("timed out without getting DC lock. Skipped")
+                    return
+                # clean up
+                self.data_carousel_interface.clean_up_requests()
             # done
             tmpLog.debug("done")
         except Exception:

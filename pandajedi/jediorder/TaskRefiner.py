@@ -6,6 +6,7 @@ import traceback
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
+from pandaserver.dataservice.ddm import rucioAPI
 from pandaserver.taskbuffer.DataCarousel import DataCarouselInterface
 from pandaserver.taskbuffer.JediTaskSpec import JediTaskSpec
 
@@ -35,6 +36,12 @@ class TaskRefiner(JediKnight, FactoryBase):
         # start base classes
         JediKnight.start(self)
         FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
+        # get data carousel interface
+        data_carousel_interface = DataCarouselInterface(self.taskBufferIF)
+        if data_carousel_interface is None:
+            # data carousel interface is undefined
+            logger.error(f"data carousel interface is undefined; skipped")
+            return
         # go into main loop
         while True:
             startTime = naive_utcnow()
@@ -62,7 +69,7 @@ class TaskRefiner(JediKnight, FactoryBase):
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for _ in range(nWorker):
-                                thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper)
+                                thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper, data_carousel_interface)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -83,7 +90,7 @@ class TaskRefiner(JediKnight, FactoryBase):
 # thread for real worker
 class TaskRefinerThread(WorkerThread):
     # constructor
-    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper):
+    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper, data_carousel_interface=None):
         # initialize worker with no semaphore
         WorkerThread.__init__(self, None, threadPool, logger)
         # attributes
@@ -92,6 +99,7 @@ class TaskRefinerThread(WorkerThread):
         self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
+        self.data_carousel_interface = data_carousel_interface
         self.msgType = "taskrefiner"
 
     # main
@@ -140,15 +148,8 @@ class TaskRefinerThread(WorkerThread):
                                 errStr = f"task refiner is undefined for vo={vo} sourceLabel={prodSourceLabel}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
-                            # get data carousel interface
-                            data_carousel_interface = DataCarouselInterface(self.taskBufferIF, self.ddmIF.getInterface(vo))
-                            if data_carousel_interface is None:
-                                # data carousel interface is undefined
-                                errStr = f"data carousel interface is undefined for vo={vo}"
-                                tmpLog.error(errStr)
-                                tmpStat = Interaction.SC_FAILED
                             # get data carousel config map
-                            dc_config_map = data_carousel_interface.dc_config_map
+                            dc_config_map = self.data_carousel_interface.dc_config_map
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             errStr = f"failed to get task refiner with {errtype.__name__}:{errvalue}"
@@ -343,7 +344,7 @@ class TaskRefinerThread(WorkerThread):
                                     dataset_name = dataset_spec.datasetName
                                     dataset_did = None
                                     try:
-                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                        dataset_did = rucioAPI.get_did_str(dataset_name)
                                     except Exception:
                                         pass
                                     dsname_list.append(dataset_name)
@@ -351,7 +352,7 @@ class TaskRefinerThread(WorkerThread):
                                         dsname_list.append(dataset_did)
                                 # check input datasets to prestage
                                 try:
-                                    prestaging_list, ds_list_dict = data_carousel_interface.get_input_datasets_to_prestage(
+                                    prestaging_list, ds_list_dict = self.data_carousel_interface.get_input_datasets_to_prestage(
                                         jediTaskID, taskParamMap, dsname_list=dsname_list
                                     )
                                 except Exception as e:
@@ -417,7 +418,7 @@ class TaskRefinerThread(WorkerThread):
                                         no_staging_datasets.update(set(to_pin_ds_list))
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
+                                    tmp_ret = self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
                                     if tmp_ret:
                                         tmpLog.info("submitted data carousel requests")
                                         if to_staging_datasets <= no_staging_datasets:
@@ -469,7 +470,7 @@ class TaskRefinerThread(WorkerThread):
                                     dataset_name = dataset_spec.datasetName
                                     dataset_did = None
                                     try:
-                                        dataset_did = self.ddmIF.getInterface(vo).get_did_str(dataset_name)
+                                        dataset_did = rucioAPI.get_did_str(dataset_name)
                                     except Exception:
                                         pass
                                     if (
