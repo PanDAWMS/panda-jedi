@@ -359,53 +359,51 @@ class TaskRefinerThread(WorkerThread):
                                     # got error (e.g. due to DDM error); skip and retry in next cycle
                                     tmpLog.error(f"failed to check input datasets to prestage ; got {e} ; skip and retry next time")
                                     continue
-                                if not prestaging_list:
-                                    # found no datasets only on tape to prestage
-                                    if pseudo_coll_list := ds_list_dict["pseudo_coll_list"]:
-                                        # update no_staging_datasets with pseudo inputs
-                                        tmpLog.debug(f"pseudo inputs: {pseudo_coll_list}")
-                                        no_staging_datasets.update(set(pseudo_coll_list))
-                                    if empty_coll_list := ds_list_dict["empty_coll_list"]:
-                                        # update no_staging_datasets with empty input collections
-                                        tmpLog.debug(f"empty input collections: {empty_coll_list}")
-                                        no_staging_datasets.update(set(empty_coll_list))
-                                    if unfound_coll_list := ds_list_dict["unfound_coll_list"]:
-                                        # some input collections unfound
-                                        if taskParamMap.get("waitInput"):
-                                            # task has waitInput; to be checked again by TaskRefiner later
-                                            tmpLog.debug(f"task has waitInput, waiting for input collections to be created: {unfound_coll_list}; skipped")
-                                        else:
-                                            # not to wait input; update no_staging_datasets with unfound input collections
-                                            tmpLog.debug(f"some input collections not found: {unfound_coll_list}")
-                                            no_staging_datasets.update(set(unfound_coll_list))
-                                    if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
-                                        # update no_staging_datasets for all collections without constituent datasets on tape source
-                                        no_staging_datasets.update(set(no_tape_coll_did_list))
-                                    if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
-                                        # update no_staging_datasets with datasets already on datadisks
-                                        tmpLog.debug(f"datasets not required to check about data carousel (non-master input): {to_skip_ds_list}")
-                                        no_staging_datasets.update(set(to_skip_ds_list))
-                                    if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
-                                        # update no_staging_datasets with datasets already on datadisks
-                                        tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
-                                        no_staging_datasets.update(set(datadisk_ds_list))
-                                    if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
-                                        # some datasets unfound
-                                        if taskParamMap.get("waitInput"):
-                                            # task has waitInput; to be checked again by TaskRefiner later
-                                            tmpLog.debug(f"task has waitInput, waiting for input datasets to be created: {unfound_ds_list}; skipped")
-                                        else:
-                                            # not to wait input; update no_staging_datasets with datasets unfound on tape or datadisk (regardless of local/scratch disks)
-                                            tmpLog.debug(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
-                                            no_staging_datasets.update(set(unfound_ds_list))
-                                    if not unfound_coll_list or not taskParamMap.get("waitInput"):
-                                        # all input collections do not need staging (found, or unfound but waiting)
-                                        tmpLog.info("no need to prestage, try to resume task from staging")
-                                        # no dataset needs pre-staging; resume task from staging
-                                        self.taskBufferIF.sendCommandTaskPanda(
-                                            jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume"
-                                        )
-                                else:
+                                # found no datasets only on tape to prestage
+                                if pseudo_coll_list := ds_list_dict["pseudo_coll_list"]:
+                                    # update no_staging_datasets with pseudo inputs
+                                    tmpLog.debug(f"pseudo inputs: {pseudo_coll_list}")
+                                    no_staging_datasets.update(set(pseudo_coll_list))
+                                if empty_coll_list := ds_list_dict["empty_coll_list"]:
+                                    # update no_staging_datasets with empty input collections
+                                    tmpLog.debug(f"empty input collections: {empty_coll_list}")
+                                    no_staging_datasets.update(set(empty_coll_list))
+                                if unfound_coll_list := ds_list_dict["unfound_coll_list"]:
+                                    # some input collections unfound
+                                    if taskParamMap.get("waitInput"):
+                                        # task has waitInput; to be checked again by TaskRefiner later
+                                        tmpLog.debug(f"task has waitInput, waiting for input collections to be created: {unfound_coll_list}; skipped")
+                                    else:
+                                        # not to wait input; update no_staging_datasets with unfound input collections
+                                        tmpLog.debug(f"some input collections not found: {unfound_coll_list}")
+                                        no_staging_datasets.update(set(unfound_coll_list))
+                                if no_tape_coll_did_list := ds_list_dict["no_tape_coll_did_list"]:
+                                    # update no_staging_datasets for all collections without constituent datasets on tape source
+                                    no_staging_datasets.update(set(no_tape_coll_did_list))
+                                if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
+                                    # update no_staging_datasets with datasets already on datadisks
+                                    tmpLog.debug(f"datasets not required to check about data carousel (non-master input): {to_skip_ds_list}")
+                                    no_staging_datasets.update(set(to_skip_ds_list))
+                                if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
+                                    # update no_staging_datasets with datasets already on datadisks
+                                    tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
+                                    no_staging_datasets.update(set(datadisk_ds_list))
+                                if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
+                                    # some datasets unfound
+                                    if taskParamMap.get("waitInput"):
+                                        # task has waitInput; to be checked again by TaskRefiner later
+                                        tmpLog.debug(f"task has waitInput, waiting for input datasets to be created: {unfound_ds_list}; skipped")
+                                    else:
+                                        # not to wait input; update no_staging_datasets with datasets unfound on tape or datadisk (regardless of local/scratch disks)
+                                        tmpLog.debug(f"some input datasets not found on tape or datadisk: {unfound_ds_list}")
+                                        no_staging_datasets.update(set(unfound_ds_list))
+                                if not prestaging_list and (not unfound_coll_list or not taskParamMap.get("waitInput")):
+                                    # all input collections do not need staging (found, or unfound but waiting)
+                                    tmpLog.info("no need to prestage, try to resume task from staging")
+                                    # no dataset needs pre-staging; resume task from staging
+                                    self.taskBufferIF.sendCommandTaskPanda(jediTaskID, "TaskRefiner. No need to prestage. Resumed from staging", True, "resume")
+                                if prestaging_list:
+                                    # something to prestage
                                     if tape_coll_did_list := ds_list_dict["tape_coll_did_list"]:
                                         # update to_staging_datasets with collections with datasets only on tapes
                                         to_staging_datasets.update(set(tape_coll_did_list))
