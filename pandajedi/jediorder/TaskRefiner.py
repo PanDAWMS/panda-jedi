@@ -159,8 +159,8 @@ class TaskRefinerThread(WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info("adjusting task parameters")
                         try:
-                            # Data Carousel; only for analysis for now
-                            if taskType == "anal" and prodSourceLabel == "user" and dc_config_map:
+                            # Data Carousel; for all analysis tasks, and production tasks with "panda_data_carousel"
+                            if dc_config_map and ((taskType == "anal" and prodSourceLabel == "user") or taskParamMap.get("panda_data_carousel")):
                                 if taskParamMap.get("noInput"):
                                     # noInput task, skipped
                                     pass
@@ -329,13 +329,16 @@ class TaskRefinerThread(WorkerThread):
                                 errStr = f"failed to refine task with {errtype.__name__}:{errvalue}"
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
-                    # data carousel (input pre-staging) ; currently only for analysis tasks
+                    # data carousel (input pre-staging) ; currently for all analysis tasks, and production tasks with "panda_data_carousel"
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         # set of datasets requiring and not requiring staging
                         to_staging_datasets = set()
                         no_staging_datasets = set()
                         # check datasets to pre-stage
-                        if taskParamMap.get("inputPreStaging") and taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user":
+                        if taskParamMap.get("inputPreStaging") and (
+                            (taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user")
+                            or taskParamMap.get("panda_data_carousel")
+                        ):
                             tmpLog.info("checking about data carousel")
                             try:
                                 # get the list of dataset names (and DIDs) required to check; currently only master input datasets
