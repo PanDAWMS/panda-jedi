@@ -219,6 +219,7 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         # get destination for WORLD cloud
         nucleusSpec = None
+        nucleus_blacklist = []
         if not hintForTB:
             # get nucleus
             nucleusSpec = self.siteMapper.getNucleus(taskSpec.nucleus)
@@ -227,6 +228,11 @@ class AtlasProdJobBroker(JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
             t1Sites = nucleusSpec.allPandaSites
+            # get black list
+            for tmp_name, tmp_nucleus_dict in self.siteMapper.nuclei.items():
+                if tmp_nucleus_dict.get_default_endpoint_out().get("blacklisted_write") == "Y":
+                    nucleus_blacklist.append(tmp_name)
+
         else:
             # use all sites in nuclei for WORLD task brokerage
             t1Sites = []
@@ -358,7 +364,8 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         #####################################################
         # filtering out blacklisted or links with long queues
-        if nucleus and not sitePreAssigned and not siteListPreAssigned:
+        if nucleus:
+            # get the number of files being transferred to the nucleus
             if queued_tag in networkMap["total"]:
                 totalQueued = networkMap["total"][queued_tag]
             else:
@@ -379,6 +386,12 @@ class AtlasProdJobBroker(JobBrokerBase):
                     if nucleus == tmpAtlasSiteName:
                         # nucleus
                         pass
+                    elif nucleus in nucleus_blacklist:
+                        # destination blacklisted
+                        reason = nucleusSpec.get_default_endpoint_out()["ddm_endpoint_name"] + f" at nucleus={nucleus} blacklisted"
+                        criteria = "-dest_blacklisted"
+                        from_str = ""
+                        tempFlag = True
                     elif totalQueued >= self.total_queue_threshold:
                         # total exceed
                         reason = f"too many output files being transferred to the nucleus {totalQueued}(>{self.total_queue_threshold} total limit)"
@@ -399,7 +412,10 @@ class AtlasProdJobBroker(JobBrokerBase):
                         tempFlag = True
 
                     # add
-                    tmpStr = f"  skip site={tmpPandaSiteName} due to {reason}, {from_str} to nucleus={nucleus}: criteria={criteria}"
+                    tmpStr = f"  skip site={tmpPandaSiteName} due to {reason}"
+                    if from_str:
+                        tmpStr += f", {from_str} to nucleus={nucleus}"
+                    tmpStr += f": criteria={criteria}"
                     if skipFlag:
                         tmpLog.info(tmpStr)
                     else:
