@@ -417,9 +417,14 @@ class TaskRefinerThread(WorkerThread):
                                         # update no_staging_datasets with datasets to pin on datadisks (already on disk but without rule)
                                         tmpLog.debug(f"datasets to pin to datadisks: {to_pin_ds_list}")
                                         no_staging_datasets.update(set(to_pin_ds_list))
+                                    # submit options
+                                    dc_submit_options = {}
+                                    if taskParamMap.get("remove_rule_when_done"):
+                                        # remove rule when done
+                                        dc_submit_options["remove_when_done"] = True
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
-                                    tmp_ret = self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list)
+                                    tmp_ret = self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list, options=dc_submit_options)
                                     if tmp_ret:
                                         tmpLog.info("submitted data carousel requests")
                                         if to_staging_datasets <= no_staging_datasets:
