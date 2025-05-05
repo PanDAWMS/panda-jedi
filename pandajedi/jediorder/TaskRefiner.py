@@ -164,8 +164,8 @@ class TaskRefinerThread(WorkerThread):
                                 if taskParamMap.get("noInput"):
                                     # noInput task, skipped
                                     pass
-                                elif taskParamMap.get("nFiles") or taskParamMap.get("nEvents"):
-                                    # with nFiles or nEvents, task does not need all files from inputs, not to stage, skipped
+                                elif taskType == "anal" and (taskParamMap.get("nFiles") or taskParamMap.get("nEvents")):
+                                    # for analysis tasks with nFiles or nEvents, task does not need all files from inputs, not to stage, skipped
                                     pass
                                 elif "inputPreStaging" not in taskParamMap:
                                     if dc_config_map.early_access_users and dc_config_map.early_access_users[0] == "ALL":
