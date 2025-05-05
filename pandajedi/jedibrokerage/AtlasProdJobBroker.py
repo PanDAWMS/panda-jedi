@@ -217,6 +217,12 @@ class AtlasProdJobBroker(JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
 
+        tmp_st, transferring_job_map = self.taskBufferIF.get_num_jobs_with_status_by_nucleus(taskSpec.vo, "transferring")
+        if not tmp_st:
+            tmpLog.error("failed to get transferring job statistics")
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+
         # get destination for WORLD cloud
         nucleusSpec = None
         nucleus_blacklist = []
@@ -1192,8 +1198,14 @@ class AtlasProdJobBroker(JobBrokerBase):
                         maxTransferring = def_maxTransferring
                     else:
                         maxTransferring = tmpSiteSpec.transferringlimit
+                    # transferring jobs with nuclei in downtime
+                    n_jobs_bad_transfer = 0
+                    if tmpSiteName in transferring_job_map:
+                        for tmp_nucleus in transferring_job_map[tmpSiteName]:
+                            if tmp_nucleus in nucleus_blacklist:
+                                n_jobs_bad_transfer += transferring_job_map[tmpSiteName][tmp_nucleus]
                     # check at the site
-                    nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, "transferring")
+                    nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, "transferring") - n_jobs_bad_transfer
                     nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, "running")
                     if max(maxTransferring, 2 * nRunJobs) < nTraJobs:
                         tmpStr = "  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring" % (
