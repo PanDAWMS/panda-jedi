@@ -738,7 +738,7 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
-            dsList = []
+            ds_size_map = {}
             # get real names
             tmpS, tmpRealNameList = self.listDatasets(containerName)
             if tmpS != self.SC_SUCCEEDED:
@@ -756,13 +756,29 @@ class AtlasDDMClient(DDMClientBase):
                 else:
                     tmpO = [tmpRealName]
                 # collect dataset names
-                for tmpStr in tmpO:
-                    if tmpStr not in dsList:
-                        dsList.append(tmpStr)
-            dsList.sort()
+                non_empty_datasets = 0
+                for dataset_name in tmpO:
+                    if dataset_name in ds_size_map:
+                        continue
+                    if non_empty_datasets > 10 or len(tmpO) == 1:
+                        # skip metadata check as only one or enough datasets are available
+                        n_files = 0
+                    else:
+                        # get number of files
+                        tmp_status, tmp_output = self.getDatasetMetaData(dataset_name)
+                        if tmp_status != self.SC_SUCCEEDED:
+                            raise RuntimeError(f"failed to get metadata with {tmp_output}")
+                        n_files = tmp_output["length"] if tmp_output["length"] else 0
+                        if n_files > 0:
+                            non_empty_datasets += 1
+                    ds_size_map[dataset_name] = n_files
+            # sort by name
+            ds_size_map = dict(sorted(ds_size_map.items()))
+            # reverse sort by size to have larger datasets first
+            ds_list = [k for k in sorted(ds_size_map, key=ds_size_map.get, reverse=True)]
             # return
-            tmpLog.debug(f"got {str(dsList)}")
-            return self.SC_SUCCEEDED, dsList
+            tmpLog.debug(f"got {str(ds_list)}")
+            return self.SC_SUCCEEDED, ds_list
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
