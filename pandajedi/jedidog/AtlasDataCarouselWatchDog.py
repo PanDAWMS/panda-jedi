@@ -157,10 +157,10 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
             self.doCleanDCRequests()
             # keep staging rules alive
             self.doKeepRulesAlive()
-            # stage queued requests
-            self.doStageDCRequests()
             # check staging requests
             self.doCheckDCRequests()
+            # stage queued requests
+            self.doStageDCRequests()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             origTmpLog.error(f"failed with {errtype} {errvalue}")
