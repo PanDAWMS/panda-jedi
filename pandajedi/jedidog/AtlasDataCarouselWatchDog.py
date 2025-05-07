@@ -54,10 +54,10 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                     tmpLog.warning("timed out without getting DC lock. Skipped")
                     return
                 # get DC requests to stage
-                dc_req_specs = self.data_carousel_interface.get_requests_to_stage()
+                to_stage_list = self.data_carousel_interface.get_requests_to_stage()
                 # stage the requests
-                for dc_req_spec in dc_req_specs:
-                    self.data_carousel_interface.stage_request(dc_req_spec)
+                for dc_req_spec, extra_params in to_stage_list:
+                    self.data_carousel_interface.stage_request(dc_req_spec, extra_params=extra_params)
                     tmpLog.debug(f"stage request_id={dc_req_spec.request_id} dataset={dc_req_spec.dataset}")
             # done
             tmpLog.debug("done")
