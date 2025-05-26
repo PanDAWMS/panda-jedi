@@ -31,6 +31,7 @@ from rucio.common.exception import (
 )
 
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedicore.Interaction import StatusCode
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from .DDMClientBase import DDMClientBase
@@ -1431,33 +1432,85 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug(f"got ruleID={ruleID}")
         return self.SC_SUCCEEDED, ruleID
 
-    # check quota
-    def check_quota(self, userName):
-        methodName = "check_quota"
-        methodName += f" pid={self.pid}"
-        methodName = f"{methodName} userName={userName}"
-        tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug("start")
-        retVal = True, None
+    # check global quota
+    def check_global_quota(self, user_name: str) -> tuple[StatusCode, tuple[bool, bool | None, str | None]]:
+        """
+        Check if the user has exceeded the global quota or is close to the limit.
+
+        :param user_name: Username to check the quota for.
+        :return: A tuple of (StatusCode, (is_quota_ok, is_near_limit, error_message))
+        """
+        method_name = "check_global_quota"
+        method_name += f" pid={self.pid}"
+        method_name = f"{method_name} userName={user_name}"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        is_quota_ok = True
+        is_near_limit = False
+        err_msg = None
         try:
             # get rucio API
             client = RucioClient()
-            tmpStat, user_info = self.finger(userName)
-            if tmpStat != self.SC_SUCCEEDED:
-                retVal = False, "failed to get nickname"
+            tmp_stat, user_info = self.finger(user_name)
+            if tmp_stat != self.SC_SUCCEEDED:
+                is_quota_ok = False
+                err_msg = "failed to get nickname"
             else:
                 owner = user_info["nickname"]
                 quota_info = client.get_global_account_usage(owner)
                 for info in quota_info:
-                    if info["bytes"] >= info["bytes_limit"]:
-                        retVal = False, f"exceeded quota on {info['rse_expression']}"
+                    if info["bytes"] >= info["bytes_limit"] > 0:
+                        is_quota_ok = False
+                        rse_expression = info["rse_expression"]
+                        err_msg = f"exceeded global quota on {rse_expression}"
+                        break
+                    limit_value = 0.9
+                    if info["bytes"] >= info["bytes_limit"] * limit_value > 0:
+                        is_near_limit = True
+                        rse_expression = info["rse_expression"]
+                        err_msg = f"close to global quota limit ({limit_value*100}%) on {rse_expression}"
                         break
         except Exception as e:
-            errMsg = f"failed to get quota info with {str(e)}"
-            tmpLog.error(errMsg)
-            retVal = False, errMsg
-        tmpLog.debug("done {} {}".format(*retVal))
-        return self.SC_SUCCEEDED, retVal
+            err_msg = f"failed to get global quota info with {str(e)}"
+            tmp_log.error(err_msg)
+            is_quota_ok = False
+        tmp_log.debug(f"done: is_quota_ok={is_quota_ok} is_near_limit={is_near_limit} err_msg={err_msg}")
+        return self.SC_SUCCEEDED, (is_quota_ok, is_near_limit, err_msg)
+
+    # get endpoints over local quota for a user
+    def get_endpoints_over_local_quota(self, user_name: str) -> tuple[StatusCode, tuple[bool, set]]:
+        """
+        Get a list of endpoints where the user exceeds local quota.
+
+        :param user_name: Username to check the quota for.
+        :return: A tuple of (StatusCode, (is_ok, endpoints))
+        """
+        method_name = "get_endpoints_over_local_quota"
+        method_name += f" pid={self.pid}"
+        method_name = f"{method_name} userName={user_name}"
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug("start")
+        is_ok = True
+        full_endpoints = set()
+        try:
+            # get rucio API
+            client = RucioClient()
+            tmp_stat, user_info = self.finger(user_name)
+            if tmp_stat != self.SC_SUCCEEDED:
+                is_ok = False
+                err_msg = "failed to get nickname"
+            else:
+                owner = user_info["nickname"]
+                quota_info = client.get_local_account_usage(owner)
+                for info in quota_info:
+                    if info["bytes"] >= info["bytes_limit"] > 0:
+                        full_endpoints.add(info["rse"])
+        except Exception as e:
+            err_msg = f"failed to get local quota info with {str(e)}"
+            tmp_log.error(err_msg)
+            is_ok = False
+        tmp_log.debug(f"done: is_ok={is_ok} endpoints={','.join(full_endpoints)}")
+        return self.SC_SUCCEEDED, (is_ok, full_endpoints)
 
     # make staging rule
     def make_staging_rule(self, dataset_name, expression, activity, lifetime=None, weight=None, notify="N", source_replica_expression=None):
