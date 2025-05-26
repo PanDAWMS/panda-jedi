@@ -786,6 +786,9 @@ class JobGeneratorThread(WorkerThread):
                                     bulk_job_insert=True,
                                     trust_user=True,
                                 )
+                                if isinstance(tmpResSubmit, str):
+                                    tmpLog.error(f"failed to store jobs with {tmpResSubmit}")
+                                    break
                                 resSubmit += tmpResSubmit
                                 self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID, self.pid)
                                 iJobs += nJobsInBunch
