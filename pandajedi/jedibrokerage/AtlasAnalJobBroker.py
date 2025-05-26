@@ -298,11 +298,27 @@ class AtlasAnalJobBroker(JobBrokerBase):
 
         # check global disk quota
         if taskSpec.workingGroup:
-            quota_ok, quota_msg = self.ddmIF.check_quota(taskSpec.workingGroup)
+            global_quota_ok, near_global_limit, quota_msg = self.ddmIF.check_global_quota(taskSpec.workingGroup)
+            local_quota_ok, endpoints_over_local_quota = self.ddmIF.get_endpoints_over_local_quota(taskSpec.workingGroup)
         else:
-            quota_ok, quota_msg = self.ddmIF.check_quota(taskSpec.userName)
-        if not quota_ok:
+            global_quota_ok, near_global_limit, quota_msg = self.ddmIF.check_global_quota(taskSpec.userName)
+            local_quota_ok, endpoints_over_local_quota = self.ddmIF.get_endpoints_over_local_quota(taskSpec.userName)
+
+        # over global quota
+        if not global_quota_ok:
             tmpLog.error(f"throttle to generate jobs due to {quota_msg}")
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+
+        # close to global quota
+        if near_global_limit and not inputChunk.isMerging:
+            tmpLog.error(f"throttle to generate only merge jobs due to {quota_msg}")
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+
+        # cannot get local quota
+        if not local_quota_ok:
+            tmpLog.error(f"failed to check local quota")
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
 
@@ -1027,6 +1043,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if tmpEndPoint["blacklisted"] == "Y":
                         tmpLog.info(f"  skip site={tmpSiteName} since {tmpSiteSpec.ddm_output[scope_output]} is blacklisted in DDM criteria=-blacklist")
                         continue
+                # local quota
+                if tmpSiteSpec.ddm_output[scope_output] in endpoints_over_local_quota:
+                    tmpLog.info(f"  skip site={tmpSiteName} since {tmpSiteSpec.ddm_output[scope_output]} is over local quota criteria=-local_quota")
+                    continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info(f"{len(scanSiteList)} candidates passed SE space check")
