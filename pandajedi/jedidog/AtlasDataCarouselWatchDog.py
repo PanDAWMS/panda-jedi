@@ -86,7 +86,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                     return
                 # check for staging
                 self.data_carousel_interface.check_staging_requests()
-                self.data_carousel_interface.resume_tasks_from_staging()
+            # resume tasks with requests in staging
+            self.data_carousel_interface.resume_tasks_from_staging()
             # done
             tmpLog.debug(f"done")
         except Exception:
