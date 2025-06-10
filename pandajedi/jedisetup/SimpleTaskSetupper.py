@@ -58,6 +58,12 @@ class SimpleTaskSetupper(TaskSetupperBase):
                         tmpLog.info("skip pseudo dataset")
                         continue
 
+                    # set lifetime
+                    key_name = f"DATASET_LIFETIME_{datasetSpec.type}"
+                    lifetime = self.taskBufferIF.getConfigValue("task_setup", key_name, "jedi", taskSpec.cloud)
+                    if not lifetime:
+                        lifetime = self.taskBufferIF.getConfigValue("task_setup", key_name, "jedi", taskSpec.vo)
+
                     tmpLog.info(f"checking {datasetSpec.datasetName}")
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName, datasetSpec.containerName]:
@@ -66,8 +72,6 @@ class SimpleTaskSetupper(TaskSetupperBase):
                         if targetName in avDatasetList:
                             tmpLog.info(f"{targetName} already registered")
                             continue
-                        # set lifetime
-                        lifetime = None
                         # check dataset/container in DDM
                         tmpList = ddmIF.listDatasets(targetName)
                         if not tmpList:
