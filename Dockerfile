@@ -6,7 +6,7 @@ ARG PYTHON_VERSION
 
 RUN yum update -y
 RUN yum install -y epel-release
-RUN yum install -y gcc make httpd-devel less git wget logrotate procps which psmisc \
+RUN yum install -y gcc make httpd-devel gridsite less git wget logrotate procps which psmisc \
     bzip2-devel libffi-devel zlib-devel openssl-devel readline-devel voms-clients
 
 # install python
