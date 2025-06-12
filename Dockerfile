@@ -48,6 +48,7 @@ RUN mkdir /tmp/src
 WORKDIR /tmp/src
 COPY . .
 RUN /opt/panda/bin/pip install --no-cache-dir .[postgres]
+RUN /opt/panda/bin/pip install --no-cache-dir rucio
 RUN /opt/panda/bin/pip install --no-cache-dir rucio-clients
 
 RUN mkdir -p /etc/panda
