@@ -8,12 +8,6 @@ import traceback
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
-from pandaserver.dataservice.DataServiceUtils import select_scope
-from pandaserver.taskbuffer import JobUtils
-from pandaserver.userinterface import Client as PandaClient
-
-# cannot use pandaserver.taskbuffer while Client is used
-from taskbuffer.JobSpec import JobSpec
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -156,6 +150,10 @@ class AtlasProdTaskBrokerThread(WorkerThread):
             if diskThreshold is None:
                 diskThreshold = 100
         diskThreshold *= 1024
+        # cutoff for free disk in TB
+        free_disk_cutoff = self.taskBufferIF.getConfigValue(self.msgType, f"FREE_DISK_CUTOFF", "jedi", "atlas")
+        if free_disk_cutoff is None:
+            free_disk_cutoff = 1000
         # dataset type to ignore file availability check
         datasetTypeToSkipCheck = ["log"]
         # thresholds for data availability check
@@ -316,8 +314,8 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                     tmpSpaceToUse = int(self.fullRW[tmpNucleus] / 10 / 24 / 3600 * 0.25)
                                 if tmpSpaceSize - tmpSpaceToUse < diskThreshold:
                                     tmpLog.info(
-                                        "  skip nucleus={0} since disk shortage (free {1} GB - reserved {2} GB < thr {3} GB) at endpoint {4} criteria=-space".format(
-                                            tmpNucleus, tmpSpaceSize, tmpSpaceToUse, diskThreshold, tmpEP["ddm_endpoint_name"]
+                                        "  skip nucleus={0} since disk shortage (free {1} TB - reserved {2} TB < thr {3} TB) at endpoint {4} criteria=-space".format(
+                                            tmpNucleus, tmpSpaceSize // 1024, tmpSpaceToUse // 1024, diskThreshold // 1024, tmpEP["ddm_endpoint_name"]
                                         )
                                     )
                                     toSkip = True
@@ -338,7 +336,7 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                             if not toSkip:
                                 newNucleusList[tmpNucleus] = origNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.info(f"{len(nucleusList)} candidates passed endpoint check {diskThreshold / 1024} TB")
+                        tmpLog.info(f"{len(nucleusList)} candidates passed endpoint check with DISK_THRESHOLD={diskThreshold // 1024} TB")
                         self.add_summary_message(oldNucleusList, nucleusList, "storage endpoint check")
                         if not nucleusList:
                             self.post_process_for_error(taskSpec, tmpLog, "no candidates")
@@ -549,7 +547,11 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                 try:
                                     tmpFrac = float(fractionFreeSpace[tmpNucleus]["free"]) / float(fractionFreeSpace[tmpNucleus]["total"])
                                     weight *= tmpFrac
-                                    wStr += f"*( free_space={fractionFreeSpace[tmpNucleus]['free']} )/( total_space={fractionFreeSpace[tmpNucleus]['total']} )"
+                                    wStr += f"*( free_space={fractionFreeSpace[tmpNucleus]['free'] // 1024} TB )/( total_space={fractionFreeSpace[tmpNucleus]['total'] // 1024} TB )"
+                                    free_disk_in_TB = math.ceil(float(fractionFreeSpace[tmpNucleus]["free"] / 1024))
+                                    free_disk_term = min(free_disk_cutoff, free_disk_in_TB)
+                                    weight *= free_disk_term
+                                    wStr += f"*min( free_space={free_disk_in_TB} TB, FREE_DISK_CUTOFF={free_disk_cutoff} TB )"
                                 except Exception:
                                     pass
                             tmpLog.info(f"  use nucleus={tmpNucleus} weight={weight} {wStr} criteria=+use")
