@@ -548,10 +548,10 @@ class AtlasProdTaskBrokerThread(WorkerThread):
                                     tmpFrac = float(fractionFreeSpace[tmpNucleus]["free"]) / float(fractionFreeSpace[tmpNucleus]["total"])
                                     weight *= tmpFrac
                                     wStr += f"*( free_space={fractionFreeSpace[tmpNucleus]['free'] // 1024} TB )/( total_space={fractionFreeSpace[tmpNucleus]['total'] // 1024} TB )"
-                                    free_disk_in_TB = math.ceil(float(fractionFreeSpace[tmpNucleus]["free"] / 1024))
-                                    free_disk_term = min(free_disk_cutoff, free_disk_in_TB)
+                                    free_disk_in_tb = fractionFreeSpace[tmpNucleus]["free"] // 1024
+                                    free_disk_term = min(free_disk_cutoff, free_disk_in_tb)
                                     weight *= free_disk_term
-                                    wStr += f"*min( free_space={free_disk_in_TB} TB, FREE_DISK_CUTOFF={free_disk_cutoff} TB )"
+                                    wStr += f"*min( free_space={free_disk_in_tb} TB, FREE_DISK_CUTOFF={free_disk_cutoff} TB )"
                                 except Exception:
                                     pass
                             tmpLog.info(f"  use nucleus={tmpNucleus} weight={weight} {wStr} criteria=+use")
