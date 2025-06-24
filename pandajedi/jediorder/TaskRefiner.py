@@ -335,6 +335,7 @@ class TaskRefinerThread(WorkerThread):
                         # set of datasets requiring and not requiring staging
                         to_staging_datasets = set()
                         no_staging_datasets = set()
+                        disk_datasets = set()
                         # check datasets to pre-stage
                         if taskParamMap.get("inputPreStaging") and (
                             (taskParamMap.get("taskType") == "anal" and taskParamMap.get("prodSourceLabel") == "user")
@@ -385,13 +386,14 @@ class TaskRefinerThread(WorkerThread):
                                     # update no_staging_datasets for all collections without constituent datasets on tape source
                                     no_staging_datasets.update(set(no_tape_coll_did_list))
                                 if to_skip_ds_list := ds_list_dict["to_skip_ds_list"]:
-                                    # update no_staging_datasets with datasets already on datadisks
+                                    # update no_staging_datasets with secondary datasets
                                     tmpLog.debug(f"datasets not required to check about data carousel (non-master input): {to_skip_ds_list}")
                                     no_staging_datasets.update(set(to_skip_ds_list))
                                 if datadisk_ds_list := ds_list_dict["datadisk_ds_list"]:
                                     # update no_staging_datasets with datasets already on datadisks
                                     tmpLog.debug(f"datasets already on datadisks: {datadisk_ds_list}")
                                     no_staging_datasets.update(set(datadisk_ds_list))
+                                    disk_datasets.update(set(datadisk_ds_list))
                                 if unfound_ds_list := ds_list_dict["unfound_ds_list"]:
                                     # some datasets unfound
                                     if taskParamMap.get("waitInput"):
@@ -430,6 +432,8 @@ class TaskRefinerThread(WorkerThread):
                                         tmpLog.info("submitted data carousel requests")
                                         if to_staging_datasets <= no_staging_datasets:
                                             tmpLog.info("all datasets are to pin; skip staging")
+                                        elif disk_datasets:
+                                            tmpLog.info("some datasets are on datadisks; skip staging")
                                         else:
                                             taskParamMap["toStaging"] = True
                                             tmpLog.info("set toStaging")
