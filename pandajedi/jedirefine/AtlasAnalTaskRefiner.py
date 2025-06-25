@@ -31,17 +31,21 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                         tmpItem["value"] = re.sub("\$\{SURL\}", taskParamMap["sourceURL"], tmpItem["value"])
         except Exception:
             pass
+        if hasattr(panda_config, "wn_script_base_url"):
+            base_url = panda_config.wn_script_base_url
+        else:
+            base_url = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}"
         # set transPath
         if "transPath" not in taskParamMap:
             if "athena" in processingTypes:
                 # athena
-                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runAthena-00-00-12"
+                taskParamMap["transPath"] = f"{base_url}/trf/user/runAthena-00-00-12"
             elif "cont" in processingTypes:
                 # container
-                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runcontainer"
+                taskParamMap["transPath"] = f"{base_url}/trf/user/runcontainer"
             else:
                 # general executable
-                taskParamMap["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runGen-00-00-02"
+                taskParamMap["transPath"] = f"{base_url}/trf/user/runGen-00-00-02"
                 # shorter base walltime
                 if "baseWalltime" not in taskParamMap:
                     taskParamMap["baseWalltime"] = 60
@@ -49,21 +53,21 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
         if "buildSpec" in taskParamMap and "transPath" not in taskParamMap["buildSpec"]:
             if "athena" in processingTypes:
                 # athena
-                taskParamMap["buildSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/buildJob-00-00-03"
+                taskParamMap["buildSpec"]["transPath"] = f"{base_url}/trf/user/buildJob-00-00-03"
             else:
                 # general executable
-                taskParamMap["buildSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/buildGen-00-00-01"
+                taskParamMap["buildSpec"]["transPath"] = f"{base_url}/trf/user/buildGen-00-00-01"
         # set transPath for preprocessing
         if "preproSpec" in taskParamMap and "transPath" not in taskParamMap["preproSpec"]:
             if "evp" in processingTypes:
                 # event picking
-                taskParamMap["preproSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/preEvtPick-00-00-01"
+                taskParamMap["preproSpec"]["transPath"] = f"{base_url}/trf/user/preEvtPick-00-00-01"
             elif "grl" in processingTypes:
                 # good run list
-                taskParamMap["preproSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/preGoodRunList-00-00-01"
+                taskParamMap["preproSpec"]["transPath"] = f"{base_url}/trf/user/preGoodRunList-00-00-01"
         # set transPath for merge
         if "mergeSpec" in taskParamMap and "transPath" not in taskParamMap["mergeSpec"]:
-            taskParamMap["mergeSpec"]["transPath"] = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}/trf/user/runMerge-00-00-02"
+            taskParamMap["mergeSpec"]["transPath"] = f"{base_url}/trf/user/runMerge-00-00-02"
         # min ram count
         if "ramCount" not in taskParamMap:
             taskParamMap["ramCount"] = 2000
