@@ -62,11 +62,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
         scanSiteList = []
         # problematic sites
         problematic_sites_dict = {}
-        # disable VP for merging, scouts, and forceStaged
+        # not to use VP replicas for merging, scouts, and forceStaged
         if inputChunk.isMerging or taskSpec.avoid_vp() or taskSpec.useScout() or taskSpec.useLocalIO():
             useVP = False
         else:
             useVP = True
+        # avoid VP queues for merging
+        avoidVP = False
+        if inputChunk.isMerging:
+            avoidVP = True
         # get workQueue
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
 
@@ -372,7 +376,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         retVal = None
         checkDataLocality = False
         scanSiteWoVP = []
-        avoidVP = False
         summaryList = []
         site_list_with_data = None
         overall_site_list = set()
@@ -662,7 +665,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpLog.info(f"  skip site={tmpSiteName} to avoid VP")
                 scanSiteList = newScanSiteList
                 tmpLog.info(f"{len(scanSiteList)} candidates passed for avoidVP")
-                self.add_summary_message(oldScanSiteList, scanSiteList, "avoid VP check")
+                self.add_summary_message(oldScanSiteList, scanSiteList, "avoid VP queue check")
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
                     tmpLog.error("no candidates")
