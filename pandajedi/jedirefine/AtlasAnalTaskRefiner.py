@@ -34,7 +34,8 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
         if hasattr(panda_config, "wn_script_base_url"):
             base_url = panda_config.wn_script_base_url
         else:
-            base_url = f"http://{panda_config.pserveralias}:{panda_config.pserverportcache}"
+            protocol = "https" if panda_config.pserverportcache == 443 else "http"
+            base_url = f"{protocol}://{panda_config.pserveralias}:{panda_config.pserverportcache}"
         # set transPath
         if "transPath" not in taskParamMap:
             if "athena" in processingTypes:
