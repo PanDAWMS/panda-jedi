@@ -47,18 +47,12 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another watchdog process. Skipped")
                 return
             tmpLog.debug("got watchdog lock")
-            # get DC lock
-            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
-                if full_pid is None:
-                    # timeout
-                    tmpLog.warning("timed out without getting DC lock. Skipped")
-                    return
-                # get DC requests to stage
-                to_stage_list = self.data_carousel_interface.get_requests_to_stage()
-                # stage the requests
-                for dc_req_spec, extra_params in to_stage_list:
-                    self.data_carousel_interface.stage_request(dc_req_spec, extra_params=extra_params)
-                    tmpLog.debug(f"stage request_id={dc_req_spec.request_id} dataset={dc_req_spec.dataset}")
+            # get DC requests to stage
+            to_stage_list = self.data_carousel_interface.get_requests_to_stage()
+            # stage the requests
+            for dc_req_spec, extra_params in to_stage_list:
+                self.data_carousel_interface.stage_request(dc_req_spec, extra_params=extra_params)
+                tmpLog.debug(f"stage request_id={dc_req_spec.request_id} dataset={dc_req_spec.dataset}")
             # done
             tmpLog.debug("done")
         except Exception:
@@ -78,14 +72,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another watchdog process. Skipped")
                 return
             tmpLog.debug("got watchdog lock")
-            # get DC lock
-            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
-                if full_pid is None:
-                    # timeout
-                    tmpLog.warning("timed out without getting DC lock. Skipped")
-                    return
-                # check for staging
-                self.data_carousel_interface.check_staging_requests()
+            # check for staging
+            self.data_carousel_interface.check_staging_requests()
             # resume tasks with requests in staging
             self.data_carousel_interface.resume_tasks_from_staging()
             # done
@@ -107,14 +95,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another watchdog process. Skipped")
                 return
             tmpLog.debug("got watchdog lock")
-            # get DC lock
-            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
-                if full_pid is None:
-                    # timeout
-                    tmpLog.warning("timed out without getting DC lock. Skipped")
-                    return
-                # get requests of active tasks
-                self.data_carousel_interface.keep_alive_ddm_rules()
+            # get requests of active tasks
+            self.data_carousel_interface.keep_alive_ddm_rules()
             # done
             tmpLog.debug(f"done")
         except Exception:
@@ -134,14 +116,8 @@ class AtlasDataCarouselWatchDog(WatchDogBase):
                 tmpLog.debug("locked by another watchdog process. Skipped")
                 return
             tmpLog.debug("got watchdog lock")
-            # get DC lock
-            with self.data_carousel_interface.global_dc_lock(lock_expiration_sec=8) as full_pid:
-                if full_pid is None:
-                    # timeout
-                    tmpLog.warning("timed out without getting DC lock. Skipped")
-                    return
-                # clean up
-                self.data_carousel_interface.clean_up_requests()
+            # clean up
+            self.data_carousel_interface.clean_up_requests()
             # done
             tmpLog.debug("done")
         except Exception:
