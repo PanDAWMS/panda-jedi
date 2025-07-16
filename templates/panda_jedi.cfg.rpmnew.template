@@ -74,7 +74,8 @@ modConfig = wlcg:1:pandajedi.jediddm.GenDDMClient:GenDDMClient
 # list of VOs which use scope
 voWithScope = atlas
 
-
+# use lowercase letters for group and user dataset scope
+user_scope_in_lowercase = True
 
 
 ##########################
