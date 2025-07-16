@@ -1849,8 +1849,8 @@ class JobGeneratorThread(WorkerThread):
             jobSpec = JobSpec()
             jobSpec.jobDefinitionID = 0
             jobSpec.jobExecutionID = 0
-            jobSpec.attemptNr = 0
-            jobSpec.maxAttempt = 0
+            jobSpec.attemptNr = 1
+            jobSpec.maxAttempt = jobSpec.attemptNr
             jobSpec.jobName = taskSpec.taskName
             jobSpec.transformation = taskParamMap["buildSpec"]["transPath"]
             platforms = siteCandidate.get_overridden_attribute("platforms")
@@ -2021,8 +2021,8 @@ class JobGeneratorThread(WorkerThread):
             jobSpec = JobSpec()
             jobSpec.jobDefinitionID = 0
             jobSpec.jobExecutionID = 0
-            jobSpec.attemptNr = 0
-            jobSpec.maxAttempt = 0
+            jobSpec.attemptNr = 1
+            jobSpec.maxAttempt = jobSpec.attemptNr
             jobSpec.jobName = taskSpec.taskName
             jobSpec.transformation = taskParamMap["preproSpec"]["transPath"]
             jobSpec.prodSourceLabel = taskParamMap["preproSpec"]["prodSourceLabel"]
