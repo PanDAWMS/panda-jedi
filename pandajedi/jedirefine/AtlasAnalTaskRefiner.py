@@ -1,6 +1,6 @@
+import json
 import random
 import re
-import sys
 import traceback
 
 from pandaserver.config import panda_config
@@ -137,6 +137,24 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                             break
             except Exception:
                 pass
+        # extract container name from architecture
+        if "container_name" not in taskParamMap and "architecture" in taskParamMap and isinstance(taskParamMap["architecture"], str):
+            # only when architecture is not a json string
+            try:
+                json.loads(taskParamMap["architecture"])
+            except Exception:
+                m = re.search(r"\+([^\s+@#&]+)", taskParamMap["architecture"])
+                if m:
+                    # use the architecture as container name
+                    tmp_container_name = m.group(1)
+                    taskParamMap["container_name"] = tmp_container_name
+                    # remove the container name from architecture
+                    tmp_architecture = re.sub(rf"\+{tmp_container_name}", "", taskParamMap["architecture"])
+                    taskParamMap["architecture"] = tmp_architecture
+                    self.tmpLog.debug(
+                        f"tweaked architecture {taskParamMap['architecture']} -> container_name={tmp_container_name} new_architecture={tmp_architecture}"
+                    )
+
         # message driven, choose N % of tasks to enable
         if "messageDriven" not in taskParamMap:
             analy_md_percent = self.taskBufferIF.getConfigValue("taskrefiner", "USER_TASKS_MESSAGE_DRIVEN_PERCENT", "jedi", "atlas")
