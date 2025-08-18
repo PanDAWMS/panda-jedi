@@ -8,6 +8,7 @@ import time
 import traceback
 
 from dataservice.DataServiceUtils import select_scope
+from packaging import version
 from pandacommon.pandautils.PandaUtils import naive_utcnow
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import JobUtils, ProcessGroups
@@ -853,6 +854,47 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
     return ret_val, ret_map
 
 
+def compare_version_string(version_string, comparison_string):
+    """
+    Compares a version string with another string composed of a comparison operator and a version string.
+
+    Args:
+        version_string (str): The version string to compare.
+        comparison_string (str): The string containing the comparison operator and version string (e.g., ">=2.0").
+
+    Returns:
+        bool or None: True if the version string satisfies the comparison, False if it doesn't,
+                       or None if the comparison string is invalid.
+    """
+    match = re.match(r"([=><]+)(.+)", comparison_string)
+    if not match:
+        return None
+
+    operator = match.group(1)
+    version_to_compare = match.group(2).strip()
+
+    try:
+        version1 = version.parse(version_string)
+        version2 = version.parse(version_to_compare)
+    except version.InvalidVersion:
+        return None
+
+    if operator == "==":
+        return version1 == version2
+    elif operator == "!=":
+        return version1 != version2
+    elif operator == ">=":
+        return version1 >= version2
+    elif operator == "<=":
+        return version1 <= version2
+    elif operator == ">":
+        return version1 > version2
+    elif operator == "<":
+        return version1 < version2
+    else:
+        return None
+
+
 # check SW with json
 class JsonSoftwareCheck:
     # constructor
@@ -882,8 +924,8 @@ class JsonSoftwareCheck:
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             if tmpSiteSpec.releases == ["AUTO"] and tmpSiteName in self.sw_map:
+                go_ahead = False
                 try:
-                    go_ahead = False
                     # convert to a dict
                     architecture_map = {}
                     if "architectures" in self.sw_map[tmpSiteName]:
@@ -982,6 +1024,23 @@ class JsonSoftwareCheck:
                                     "any" not in architecture_map["gpu"]["model"] and host_gpu_spec["model"] not in architecture_map["gpu"]["model"]
                                 ):
                                     continue
+                            # check version
+                            if "version" in host_gpu_spec:
+                                if "version" not in architecture_map["gpu"]:
+                                    # PQ doesn't specify version
+                                    continue
+                                elif "any" in architecture_map["gpu"]["version"]:
+                                    # PQ accepts any version
+                                    pass
+                                else:
+                                    # check all versions at PQ
+                                    ok_version = False
+                                    for a_version in architecture_map["gpu"]["version"]:
+                                        if compare_version_string(a_version, host_gpu_spec["version"]):
+                                            ok_version = True
+                                            break
+                                    if not ok_version:
+                                        continue
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
