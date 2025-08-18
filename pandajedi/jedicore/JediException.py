@@ -6,3 +6,8 @@ class UnknownDatasetError(Exception):
 # temporary error in external system
 class ExternalTempError(Exception):
     pass
+
+
+# temporarily unavailable storage
+class TempBadStorageError(Exception):
+    pass

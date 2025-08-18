@@ -274,8 +274,7 @@ class TaskRefinerThread(WorkerThread):
                             if (
                                 ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) and errtype == JediException.UnknownDatasetError)
                                 or parentState == "running"
-                                or errtype == Interaction.JEDITemporaryError
-                                or errtype == JediException.ExternalTempError
+                                or errtype in [Interaction.JEDITemporaryError, JediException.ExternalTempError, JediException.TempBadStorageError]
                             ):
                                 if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError and parentState != "running":
                                     if impl.taskSpec.allowEmptyInput():
@@ -290,6 +289,9 @@ class TaskRefinerThread(WorkerThread):
                                     setFrozenTime = False
                                 elif errtype == Interaction.JEDITemporaryError or errtype == JediException.ExternalTempError:
                                     tmpErrStr = f"pending due to external temporary problem. {errvalue}"
+                                    setFrozenTime = True
+                                elif errtype == JediException.TempBadStorageError:
+                                    tmpErrStr = f"pending due to temporary storage issue. {errvalue}"
                                     setFrozenTime = True
                                 else:
                                     tmpErrStr = "pending until input is staged"

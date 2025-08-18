@@ -690,7 +690,7 @@ class TaskRefinerBase(object):
                                 raise JediException.ExternalTempError(tmp_output)
                             elif tmp_status is False:
                                 # bad endpoint
-                                raise RuntimeError(tmp_output)
+                                raise JediException.TempBadStorageError(tmp_output)
                     # collect output types
                     if datasetSpec.type not in nOutMap:
                         nOutMap[datasetSpec.type] = 0
