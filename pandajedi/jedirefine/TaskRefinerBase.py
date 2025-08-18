@@ -103,6 +103,7 @@ class TaskRefinerBase(object):
         else:
             taskSpec.currentPriority = taskSpec.taskPriority
         taskSpec.architecture = taskParamMap["architecture"]
+        taskSpec.reformat_architecture()
         taskSpec.transUses = taskParamMap["transUses"]
         taskSpec.transHome = taskParamMap["transHome"]
         if "transPath" in taskParamMap:
