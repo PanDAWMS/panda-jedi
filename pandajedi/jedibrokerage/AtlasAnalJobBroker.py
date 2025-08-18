@@ -889,7 +889,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     else:
                         # release is unavailable
                         tmpLog.info(
-                            f"  skip site={tmpSiteName} due to missing SW cache={taskSpec.transHome}:{taskSpec.get_sw_platform()} sw_platform='{taskSpec.container_name}' "
+                            f"  skip site={tmpSiteName} due to missing SW cache={taskSpec.transHome}:{taskSpec.get_sw_platform()} container_name='{taskSpec.container_name}' "
                             f"or irrelevant HW cpu={str(host_cpu_spec)} gpu={str(host_gpu_spec)} criteria=-cache"
                         )
                 sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
