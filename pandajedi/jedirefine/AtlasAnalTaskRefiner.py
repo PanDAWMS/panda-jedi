@@ -139,19 +139,21 @@ class AtlasAnalTaskRefiner(TaskRefinerBase):
                 pass
         # extract container name from architecture
         if "container_name" not in taskParamMap and "architecture" in taskParamMap and isinstance(taskParamMap["architecture"], str):
-            # only when architecture is not a json string
             try:
-                json.loads(taskParamMap["architecture"])
+                # json-serialized architecture
+                check_str = json.loads(taskParamMap["architecture"]).get("encoded_platform", "")
             except Exception:
-                m = re.search(r"\+([^\s+@#&]+)", taskParamMap["architecture"])
-                if m:
-                    # use the architecture as container name
-                    tmp_container_name = m.group(1)
-                    taskParamMap["container_name"] = tmp_container_name
-                    # remove the container name from architecture
-                    tmp_architecture = re.sub(rf"\+{tmp_container_name}", "", taskParamMap["architecture"])
-                    taskParamMap["architecture"] = tmp_architecture
-                    self.tmpLog.debug(f"tweaked architecture: container_name={tmp_container_name} new_architecture={tmp_architecture}")
+                # encoded architecture
+                check_str = taskParamMap["architecture"]
+            m = re.search(r"\+([^\s+@#&]+)", check_str)
+            if m:
+                # use the architecture as container name
+                tmp_container_name = m.group(1)
+                taskParamMap["container_name"] = tmp_container_name
+                # remove the container name from architecture
+                tmp_architecture = re.sub(rf"\+{tmp_container_name}", "", taskParamMap["architecture"])
+                taskParamMap["architecture"] = tmp_architecture
+                self.tmpLog.debug(f"tweaked architecture: container_name={tmp_container_name} new_architecture={tmp_architecture}")
 
         # message driven, choose N % of tasks to enable
         if "messageDriven" not in taskParamMap:
