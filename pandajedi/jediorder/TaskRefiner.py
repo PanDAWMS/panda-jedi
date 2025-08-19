@@ -120,6 +120,7 @@ class TaskRefinerThread(WorkerThread):
                     tmpLog.debug("start")
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ""
+                    prodSourceLabel = None
                     # read task parameters
                     try:
                         taskParam = None
@@ -551,9 +552,9 @@ class TaskRefinerThread(WorkerThread):
                                     tmpTaskSpec.errorDialog = impl.taskSpec.errorDialog
                                     tmpTaskSpec.setErrDiag(tmpErrStr, True)
                                     self.taskBufferIF.updateTask_JEDI(tmpTaskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus])
-                                tmpMsg = f"set task_status={newTaskStatus}"
-                                tmpLog.info(tmpMsg)
-                                tmpLog.sendMsg(tmpMsg, self.msgType)
+                                tmp_msg = f"set task_status={newTaskStatus} sourceLabel={prodSourceLabel}"
+                                tmpLog.info(tmp_msg)
+                                tmpLog.sendMsg(tmp_msg, self.msgType)
                                 # send message to contents feeder if the task is registered
                                 if tmpStat and impl.taskSpec.is_msg_driven():
                                     push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID, task_spec=impl.taskSpec)
