@@ -1,7 +1,7 @@
 import datetime
+import json
 import random
 import re
-import shlex
 import traceback
 
 from pandacommon.pandautils.PandaUtils import naive_utcnow
@@ -83,6 +83,10 @@ class AtlasProdTaskRefiner(TaskRefinerBase):
             prod_pc_percent = self.taskBufferIF.getConfigValue("taskrefiner", "PROD_TASKS_PUSH_STATUS_CHANGES_PERCENT", "jedi", "atlas")
             if prod_pc_percent and random.uniform(0, 100) <= prod_pc_percent:
                 taskParamMap["pushStatusChanges"] = True
+        # serialize architecture
+        if "architecture" in taskParamMap and isinstance(taskParamMap["architecture"], dict):
+            # convert to string
+            taskParamMap["architecture"] = json.dumps(taskParamMap["architecture"])
         # call base method
         TaskRefinerBase.extractCommon(self, jediTaskID, taskParamMap, workQueueMapper, splitRule)
 

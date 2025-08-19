@@ -120,6 +120,7 @@ class TaskRefinerThread(WorkerThread):
                     tmpLog.debug("start")
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ""
+                    prodSourceLabel = None
                     # read task parameters
                     try:
                         taskParam = None
@@ -578,7 +579,7 @@ class TaskRefinerThread(WorkerThread):
                             tmpErrStr = f"failed to register the task to JEDI with {errtype.__name__}:{errvalue}"
                             tmpLog.error(tmpErrStr)
                         else:
-                            tmpLog.info("done")
+                            tmpLog.info(f"done sourceLabel={prodSourceLabel}")
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
                 logger.error(f"{self.__class__.__name__} failed in runImpl() with {errtype.__name__}:{errvalue}")
