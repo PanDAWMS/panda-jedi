@@ -552,9 +552,9 @@ class TaskRefinerThread(WorkerThread):
                                     tmpTaskSpec.errorDialog = impl.taskSpec.errorDialog
                                     tmpTaskSpec.setErrDiag(tmpErrStr, True)
                                     self.taskBufferIF.updateTask_JEDI(tmpTaskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus])
-                                tmpMsg = f"set task_status={newTaskStatus}"
-                                tmpLog.info(tmpMsg)
-                                tmpLog.sendMsg(tmpMsg, self.msgType)
+                                tmp_msg = f"set task_status={newTaskStatus} sourceLabel={prodSourceLabel}"
+                                tmpLog.info(tmp_msg)
+                                tmpLog.sendMsg(tmp_msg, self.msgType)
                                 # send message to contents feeder if the task is registered
                                 if tmpStat and impl.taskSpec.is_msg_driven():
                                     push_ret = self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID, task_spec=impl.taskSpec)
@@ -579,7 +579,7 @@ class TaskRefinerThread(WorkerThread):
                             tmpErrStr = f"failed to register the task to JEDI with {errtype.__name__}:{errvalue}"
                             tmpLog.error(tmpErrStr)
                         else:
-                            tmpLog.info(f"done sourceLabel={prodSourceLabel}")
+                            tmpLog.info("done")
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
                 logger.error(f"{self.__class__.__name__} failed in runImpl() with {errtype.__name__}:{errvalue}")
