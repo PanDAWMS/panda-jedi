@@ -434,7 +434,7 @@ def getDictToSetNucleus(nucleusSpec, tmpDatasetSpecs):
 
 
 # remove problematic sites
-def skipProblematicSites(candidateSpecList, ngSites, sitesUsedByTask, preSetSiteSpec, maxNumSites, timeWindow, tmpLog):
+def skipProblematicSites(candidateSpecList, ngSites, sitesUsedByTask, preSetSiteSpec, maxNumSites, tmpLog):
     skippedSites = set()
     usedSitesGood = []
     newSitesGood = []
