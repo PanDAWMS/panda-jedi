@@ -140,6 +140,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if timeWindowForFC is None:
             timeWindowForFC = 6
 
+        # get minimum bad jobs to skip PQ
+        minBadJobsToSkipPQ = self.taskBufferIF.getConfigValue("anal_jobbroker", "MIN_BAD_JOBS_TO_SKIP_PQ", "jedi", taskSpec.vo)
+        if minBadJobsToSkipPQ is None:
+            minBadJobsToSkipPQ = 5
+
         # get total job stat
         totalJobStat = self.get_task_common("totalJobStat")
         if totalJobStat is None:
@@ -340,15 +345,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
         loc_check_timeout_key = "DATA_CHECK_TIMEOUT_USER"
         loc_check_timeout_val = self.taskBufferIF.getConfigValue("anal_jobbroker", loc_check_timeout_key, "jedi", taskSpec.vo)
         # two loops with/without data locality check
-        scanSiteLists = [(copy.copy(scanSiteList), True)]
+        scan_site_list_loops = [(copy.copy(scanSiteList), True)]
         element_map = dict()
+        to_ignore_data_loc = False
         if len(inputChunk.getDatasets()) > 0:
             nRealDS = 0
             for datasetSpec in inputChunk.getDatasets():
                 if not datasetSpec.isPseudo():
                     nRealDS += 1
             task_prio_cutoff_for_input_data_motion = 2000
-            to_ignore_data_loc = False
             tmp_msg = "ignoring input data locality in the second loop due to "
             if taskSpec.taskPriority >= task_prio_cutoff_for_input_data_motion:
                 to_ignore_data_loc = True
@@ -363,10 +368,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 )
             if to_ignore_data_loc:
                 tmpLog.info(tmp_msg)
-                scanSiteLists.append((copy.copy(scanSiteList), False))
+                scan_site_list_loops.append((copy.copy(scanSiteList), False))
             elif taskSpec.taskPriority > 1000 or nRealDS > 1 or taskSpec.getNumSitesPerJob() > 0:
                 # add a loop without data locality check for high priority tasks, tasks with multiple input datasets, or tasks with job cloning
-                scanSiteLists.append((copy.copy(scanSiteList), False))
+                scan_site_list_loops.append((copy.copy(scanSiteList), False))
             # element map
             for datasetSpec in inputChunk.getDatasets():
                 if datasetSpec.datasetName.endswith("/"):
@@ -379,7 +384,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         summaryList = []
         site_list_with_data = None
         overall_site_list = set()
-        for scanSiteList, checkDataLocality in scanSiteLists:
+        for i_loop, (scanSiteList, checkDataLocality) in enumerate(scan_site_list_loops):
             useUnionLocality = False
             self.init_summary_list("Job brokerage summary", f"data locality check: {checkDataLocality}", scanSiteList)
             if checkDataLocality:
@@ -1486,6 +1491,34 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         # view as problematic site in order to throttle
                         problematic_sites_dict.setdefault(tmpSiteName, set())
                         problematic_sites_dict[tmpSiteName].add(tmpMsg)
+                    # problematic sites with too many failed and closed jobs
+                    if tmpSiteName in failureCounts:
+                        nFailed = failureCounts[tmpSiteName].get("failed", 0)
+                        nClosed = failureCounts[tmpSiteName].get("closed", 0)
+                        nFinished = failureCounts[tmpSiteName].get("finished", 0)
+                        if not inputChunk.isMerging and (nFailed + nClosed) > max(2 * nFinished, minBadJobsToSkipPQ):
+                            problematic_sites_dict.setdefault(tmpSiteName, set())
+                            problematic_sites_dict[tmpSiteName].add("too many failed or closed jobs for last 6h")
+            # check if good sites are still available after removing problematic sites when
+            # * the brokerage has two loops
+            # * it is doing the first loop with data locality check
+            # * data locality check is disabled in the second loop due to low IO, special task priority, or timeout
+            if len(scan_site_list_loops) > 1 and i_loop == 0 and to_ignore_data_loc:
+                candidates_with_problems = []
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    if tmpSiteName in problematic_sites_dict:
+                        candidates_with_problems.append([tmpPseudoSiteName, list(problematic_sites_dict[tmpSiteName])[0]])
+                if len(scanSiteList) == len(candidates_with_problems):
+                    for tmpPseudoSiteName, error_diag in candidates_with_problems:
+                        tmpLog.info(f"  skip site={tmpPseudoSiteName} due to a temporary user-specific problem: {error_diag} criteria=-tmp_user_problem")
+                    tmpLog.info("0 candidates passed temporally user-specific problem check")
+                    self.add_summary_message(scanSiteList, [], "temp user problem check")
+                    self.dump_summary(tmpLog)
+                    tmpLog.error("no candidates")
+                    retVal = retTmpError
+                    continue
 
             ############
             # loop end
@@ -1580,9 +1613,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         preSiteCandidateSpec = None
         basic_weight_compar_map = {}
         workerStat = self.taskBufferIF.ups_load_worker_stats()
-        minBadJobsToSkipPQ = self.taskBufferIF.getConfigValue("anal_jobbroker", "MIN_BAD_JOBS_TO_SKIP_PQ", "jedi", taskSpec.vo)
-        if minBadJobsToSkipPQ is None:
-            minBadJobsToSkipPQ = 5
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -1629,10 +1659,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     nClosed = failureCounts[tmpSiteName]["closed"]
                 if "finished" in failureCounts[tmpSiteName]:
                     nFinished = failureCounts[tmpSiteName]["finished"]
-            # problematic sites with too many failed and closed jobs
-            if not inputChunk.isMerging and (nFailed + nClosed) > max(2 * nFinished, minBadJobsToSkipPQ):
-                problematic_sites_dict.setdefault(tmpSiteName, set())
-                problematic_sites_dict[tmpSiteName].add("too many failed or closed jobs for last 6h")
             # to-running rate
             try:
                 site_to_running_rate = siteToRunRateMap[tmpSiteName]
@@ -2011,7 +2037,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # remove problematic sites
         oldScanSiteList = copy.copy(scanSiteList)
         candidateSpecList = AtlasBrokerUtils.skipProblematicSites(
-            candidateSpecList, set(problematic_sites_dict), sitesUsedByTask, preSiteCandidateSpec, maxNumSites, timeWindowForFC, tmpLog
+            candidateSpecList, set(problematic_sites_dict), sitesUsedByTask, preSiteCandidateSpec, maxNumSites, tmpLog
         )
         # append preassigned
         if sitePreAssigned and preSiteCandidateSpec is not None and preSiteCandidateSpec not in candidateSpecList:
