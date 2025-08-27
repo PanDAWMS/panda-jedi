@@ -428,6 +428,8 @@ class TaskRefinerThread(WorkerThread):
                                     if taskParamMap.get("remove_rule_when_done"):
                                         # remove rule when done
                                         dc_submit_options["remove_when_done"] = True
+                                    if task_type := taskParamMap.get("taskType"):
+                                        dc_submit_options["task_type"] = task_type
                                     # submit data carousel requests for dataset to pre-stage
                                     tmpLog.info("to prestage, submitting data carousel requests")
                                     tmp_ret = self.data_carousel_interface.submit_data_carousel_requests(jediTaskID, prestaging_list, options=dc_submit_options)
