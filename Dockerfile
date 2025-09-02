@@ -55,7 +55,7 @@ RUN mkdir -p /etc/idds
 RUN mv /opt/panda/etc/panda/panda_common.cfg.rpmnew /etc/panda/panda_common.cfg
 RUN mv /opt/panda/etc/panda/panda_server.cfg.rpmnew /etc/panda/panda_server.cfg
 RUN mv /opt/panda/etc/panda/panda_jedi.cfg.rpmnew /etc/panda/panda_jedi.cfg
-RUN mv /opt/panda/etc/panda/panda_server.sysconfig.rpmnew /etc/sysconfig/panda_server
+RUN mv /opt/panda/etc/panda/sysconfig/panda_server.sysconfig.rpmnew /etc/sysconfig/panda_server
 RUN mv /opt/panda/etc/sysconfig/panda_jedi /etc/sysconfig/panda_jedi
 
 RUN mkdir -p /etc/rc.d/init.d
